@@ -191,8 +191,8 @@ export function formatPlayerSlashLine(player: Player): string {
 
 export function formatPlayerTotals(player: Player): string {
   if (player.role === 'pitcher') {
-    const stats = player.stats as PitcherStats
-    return `${formatCount(stats.so)} K · ${formatCount(stats.wins)} W`
+    const counts = seasonPitcherCounts(player.stats as PitcherStats)
+    return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
   const stats = player.stats as HitterStats

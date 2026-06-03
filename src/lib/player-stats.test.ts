@@ -139,6 +139,20 @@ describe('seasonPitcherCounts', () => {
   })
 })
 
+describe('pitcher totals formatting', () => {
+  it('displays raw pitcher totals prorated to 30 starts', () => {
+    const player = pitcherPlayer({
+      era: '3.50',
+      whip: '1.20',
+      so: 164,
+      wins: 41,
+      gs: 82,
+    })
+
+    expect(formatPlayerTotals(player)).toBe('60 K · 15 W')
+  })
+})
+
 describe('simulatedSeasonRates', () => {
   it('is deterministic for the same seed and position', () => {
     const player = hitterPlayer({
