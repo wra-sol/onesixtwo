@@ -1,5 +1,6 @@
 import type { Era, TeamId } from '../lib/types'
 
+/** Full decade list (types / Lahman import). */
 export const ERAS: Era[] = [
   '1910s',
   '1920s',
@@ -14,6 +15,18 @@ export const ERAS: Era[] = [
   '2010s',
   '2020s',
 ]
+
+/** First playable decade in 162-0 (1960s expansion / modern alignment era). */
+export const FIRST_PLAYABLE_ERA: Era = '1960s'
+
+/**
+ * Playable decades — 1960s onward (spins and bucket generation).
+ */
+export const MODERN_ERAS: Era[] = ERAS.slice(ERAS.indexOf(FIRST_PLAYABLE_ERA))
+
+export function isModernEra(era: Era): boolean {
+  return MODERN_ERAS.includes(era)
+}
 
 export type FranchiseConfig = {
   id: TeamId

@@ -10,7 +10,14 @@ export default function HowToPlay({ onStart }: HowToPlayProps) {
         Build the ultimate MLB all-time lineup and see if you can go 162-0!
       </p>
       <ol className="rules-list">
-        <li>Each round, spin to get a random MLB team and decade.</li>
+        <li>
+          Each round, spin to get a random MLB team and decade (1960s–2020s).
+        </li>
+        <li>
+          Once per game you can <strong>respin the team</strong> (new franchise,
+          same decade) and once you can <strong>respin the year</strong> (new
+          decade, same franchise) before you lock in your pick.
+        </li>
         <li>Pick one player from that era and assign them to one open lineup spot.</li>
         <li>
           Fill all 9 positions: <strong>C</strong>, <strong>1B</strong>,{' '}

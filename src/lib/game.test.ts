@@ -5,18 +5,26 @@ import {
   buildBenchmarkLineup,
 } from './benchmarks'
 import {
+  applyRespinTeam,
+  applyRespinYear,
   applySpin,
   assignPlayer,
   calculateSeasonResult,
   calculateTeamScore,
   canAssignPlayer,
+  canRespinTeam,
+  canRespinYear,
   createEmptyLineup,
   createInitialGameState,
   getEligiblePositionsForPlayer,
   getPlayerDisabledReason,
   getSpinEligibleBuckets,
+  getTeamRespinCandidates,
+  getYearRespinCandidates,
   isLineupComplete,
   pickRandomBucket,
+  requestTeamRespin,
+  requestYearRespin,
   restartGame,
   selectPlayer,
   startGame,
@@ -41,10 +49,18 @@ describe('dataset', () => {
     expect(sample?.playerIds.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('only includes 1960s onward in playable buckets', () => {
+    const eras = new Set(DRAFT_BUCKETS.map((b) => b.era))
+    expect(eras.has('1910s')).toBe(false)
+    expect(eras.has('1950s')).toBe(false)
+    expect(eras.has('1960s')).toBe(true)
+    expect(eras.has('2020s')).toBe(true)
+  })
+
   it('uses real player names from Lahman (no filler contributors)', () => {
     const names = [...PLAYER_BY_ID.values()].map((p) => p.name)
     expect(names.some((n) => n.includes('Contributor'))).toBe(false)
-    expect(names).toContain('Babe Ruth')
+    expect(names).toContain('Derek Jeter')
     expect(names.length).toBeGreaterThan(1000)
   })
 })
@@ -127,6 +143,58 @@ describe('draft flow', () => {
     expect(restarted.status).toBe('intro')
     expect(restarted.draftedPersonIds).toHaveLength(0)
     expect(restarted.history).toHaveLength(0)
+    expect(restarted.teamRespinUsed).toBe(false)
+    expect(restarted.yearRespinUsed).toBe(false)
+  })
+})
+
+describe('respins', () => {
+  it('allows one team respin per game keeping the same decade', () => {
+    let state = createInitialGameState()
+    state = startGame(state)
+    state = applySpin(state, alwaysFirst)
+    const originalEra = state.currentBucket!.era
+    const originalTeam = state.currentBucket!.teamId
+
+    expect(canRespinTeam(state)).toBe(
+      getTeamRespinCandidates(state).length > 0,
+    )
+    state = requestTeamRespin(state)
+    expect(state.status).toBe('spinning')
+    expect(state.spinIntent).toBe('team')
+
+    state = applyRespinTeam(state, alwaysFirst)
+    expect(state.teamRespinUsed).toBe(true)
+    expect(state.currentBucket!.era).toBe(originalEra)
+    expect(state.currentBucket!.teamId).not.toBe(originalTeam)
+    expect(canRespinTeam(state)).toBe(false)
+  })
+
+  it('allows one year respin per game keeping the same franchise', () => {
+    let state = createInitialGameState()
+    state = startGame(state)
+    state = applySpin(state, alwaysFirst)
+    const originalTeam = state.currentBucket!.teamId
+    const originalEra = state.currentBucket!.era
+
+    state = requestYearRespin(state)
+    state = applyRespinYear(state, alwaysFirst)
+    expect(state.yearRespinUsed).toBe(true)
+    expect(state.currentBucket!.teamId).toBe(originalTeam)
+    expect(state.currentBucket!.era).not.toBe(originalEra)
+    expect(canRespinYear(state)).toBe(false)
+  })
+
+  it('still allows year respin after team respin is consumed', () => {
+    let state = createInitialGameState()
+    state = startGame(state)
+    state = applySpin(state, alwaysFirst)
+    state = applyRespinTeam(state, alwaysFirst)
+    expect(canRespinTeam(state)).toBe(false)
+    expect(state.yearRespinUsed).toBe(false)
+    if (getYearRespinCandidates(state).length > 0) {
+      expect(canRespinYear(state)).toBe(true)
+    }
   })
 })
 

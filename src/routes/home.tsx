@@ -8,10 +8,14 @@ import ResultScreen from '../components/ResultScreen'
 import StuckDraft from '../components/StuckDraft'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
 import {
-  applySpin,
   assignPlayer,
   calculateSeasonResult,
+  canRespinTeam,
+  canRespinYear,
   createInitialGameState,
+  requestTeamRespin,
+  requestYearRespin,
+  resolveSpin,
   restartGame,
   selectPlayer,
   startGame,
@@ -60,13 +64,18 @@ export default function HomeRoute() {
       setSpinTick((t) => t + 1)
     }, SPIN_TICK_MS)
     const finish = window.setTimeout(() => {
-      setGameState((current) => applySpin(current))
+      setGameState((current) => resolveSpin(current))
     }, SPIN_DURATION_MS)
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(finish)
     }
-  }, [gameState.status, gameState.round, gameState.draftedPersonIds.length])
+  }, [
+    gameState.status,
+    gameState.round,
+    gameState.draftedPersonIds.length,
+    gameState.spinIntent,
+  ])
 
   const selectedPlayer = useMemo(() => {
     if (!gameState.selectedPlayerId) {
@@ -98,6 +107,14 @@ export default function HomeRoute() {
     setGameState(restartGame())
   }, [])
 
+  const handleRespinTeam = useCallback(() => {
+    setGameState((s) => requestTeamRespin(s))
+  }, [])
+
+  const handleRespinYear = useCallback(() => {
+    setGameState((s) => requestYearRespin(s))
+  }, [])
+
   if (gameState.status === 'intro') {
     return <HowToPlay onStart={handleStart} />
   }
@@ -125,6 +142,16 @@ export default function HomeRoute() {
           statusLabel={statusLabel(gameState)}
           isSpinning={gameState.status === 'spinning'}
           spinPreview={spinPreview}
+          canRespinTeam={canRespinTeam(gameState)}
+          canRespinYear={canRespinYear(gameState)}
+          teamRespinUsed={gameState.teamRespinUsed}
+          yearRespinUsed={gameState.yearRespinUsed}
+          onRespinTeam={
+            gameState.status === 'picking' ? handleRespinTeam : undefined
+          }
+          onRespinYear={
+            gameState.status === 'picking' ? handleRespinYear : undefined
+          }
         />
         {(gameState.status === 'picking' || gameState.status === 'assigning') && (
           <PlayerChoices
