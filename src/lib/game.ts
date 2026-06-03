@@ -14,6 +14,7 @@ import {
   LINEUP_POSITIONS,
   type CategoryScore,
   type DraftBucket,
+  type Era,
   type DraftHistoryEntry,
   type GameState,
   type Lineup,
@@ -23,6 +24,7 @@ import {
   type SeasonResult,
   type SeasonResultOptions,
   type SpinIntent,
+  type TeamId,
 } from './types'
 import { buildRosterScorecard } from './scorecard'
 import {
@@ -35,6 +37,7 @@ import { simulateSeason } from './simulation'
 import { calculateRunPrevention } from './run-prevention'
 
 export const defaultRandom: RandomSource = () => Math.random()
+export const MAX_PLAYERS_PER_ERA = 2
 
 export function createEmptyLineup(): Lineup {
   return LINEUP_POSITIONS.reduce(
@@ -55,6 +58,8 @@ export function createInitialGameState(): GameState {
     lineup: createEmptyLineup(),
     draftedPlayerIds: [],
     draftedPersonIds: [],
+    draftedTeamIds: [],
+    draftedEras: [],
     history: [],
     status: 'intro',
     teamRespinUsed: false,
@@ -69,6 +74,12 @@ export function getPlayerDisabledReason(
 ): string | null {
   if (state.draftedPersonIds.includes(player.personId)) {
     return 'Already drafted'
+  }
+  if (state.draftedTeamIds.includes(player.teamId)) {
+    return `${player.teamName} used`
+  }
+  if (getDraftedEraCount(state, player.era) >= MAX_PLAYERS_PER_ERA) {
+    return `${player.era} maxed`
   }
   const open = getOpenPositions(state.lineup)
   if (!playerCanFillOpenPosition(player, open)) {
@@ -89,6 +100,18 @@ export function playerIsPickable(player: Player, state: GameState): boolean {
 
 export function getOpenPositions(lineup: Lineup): LineupPosition[] {
   return LINEUP_POSITIONS.filter((position) => lineup[position] === null)
+}
+
+export function getDraftedEraCount(state: GameState, era: Era): number {
+  return state.draftedEras.filter((draftedEra) => draftedEra === era).length
+}
+
+export function teamIsDraftable(state: GameState, teamId: TeamId): boolean {
+  return !state.draftedTeamIds.includes(teamId)
+}
+
+export function eraIsDraftable(state: GameState, era: Era): boolean {
+  return getDraftedEraCount(state, era) < MAX_PLAYERS_PER_ERA
 }
 
 export function playerCanFillOpenPosition(
@@ -131,6 +154,9 @@ export function filterAvailablePlayers(
   bucket: DraftBucket,
   state: GameState,
 ): Player[] {
+  if (!teamIsDraftable(state, bucket.teamId) || !eraIsDraftable(state, bucket.era)) {
+    return []
+  }
   return getPlayersForBucket(bucket).filter(
     (player) => !state.draftedPersonIds.includes(player.personId),
   )
@@ -153,6 +179,12 @@ export function getSpinEligibleBuckets(
       return false
     }
     if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) {
+      return false
+    }
+    if (!teamIsDraftable(state, bucket.teamId)) {
+      return false
+    }
+    if (!eraIsDraftable(state, bucket.era)) {
       return false
     }
     return bucketHasPickablePlayer(bucket, state)
@@ -391,6 +423,8 @@ export function assignPlayer(
   }
   const draftedPlayerIds = [...state.draftedPlayerIds, player.id]
   const draftedPersonIds = [...state.draftedPersonIds, player.personId]
+  const draftedTeamIds = [...state.draftedTeamIds, player.teamId]
+  const draftedEras = [...state.draftedEras, player.era]
   const historyEntry: DraftHistoryEntry = {
     round: state.round,
     teamName: state.currentBucket?.teamName ?? player.teamName,
@@ -406,6 +440,8 @@ export function assignPlayer(
       lineup,
       draftedPlayerIds,
       draftedPersonIds,
+      draftedTeamIds,
+      draftedEras,
       history,
       selectedPlayerId: null,
       currentBucket: null,
@@ -421,6 +457,8 @@ export function assignPlayer(
     lineup,
     draftedPlayerIds,
     draftedPersonIds,
+    draftedTeamIds,
+    draftedEras,
     history,
     selectedPlayerId: null,
     currentBucket: null,

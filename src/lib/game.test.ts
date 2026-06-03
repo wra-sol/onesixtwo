@@ -18,6 +18,7 @@ import {
   createEmptyLineup,
   createInitialGameState,
   getEligiblePositionsForPlayer,
+  getDraftedEraCount,
   filterAvailablePlayers,
   getPlayerDisabledReason,
   playerIsPickable,
@@ -33,6 +34,7 @@ import {
   startGame,
 } from './game'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
+import type { GameState } from './types'
 
 const alwaysFirst: () => number = () => 0
 
@@ -94,6 +96,69 @@ describe('personId duplicate prevention', () => {
 
     const reason = getPlayerDisabledReason(player, state)
     expect(reason).toBe('Already drafted')
+  })
+})
+
+describe('team and era draft limits', () => {
+  it('blocks drafting more than one player from the same team', () => {
+    const player = [...PLAYER_BY_ID.values()][0]
+    const state = {
+      ...createInitialGameState(),
+      draftedTeamIds: [player.teamId],
+    }
+
+    expect(getPlayerDisabledReason(player, state)).toBe(`${player.teamName} used`)
+    expect(playerIsPickable(player, state)).toBe(false)
+  })
+
+  it('blocks drafting more than two players from the same era', () => {
+    const player = [...PLAYER_BY_ID.values()][0]
+    const state = {
+      ...createInitialGameState(),
+      draftedEras: [player.era, player.era],
+    }
+
+    expect(getDraftedEraCount(state, player.era)).toBe(2)
+    expect(getPlayerDisabledReason(player, state)).toBe(`${player.era} maxed`)
+    expect(playerIsPickable(player, state)).toBe(false)
+  })
+
+  it('removes used-team and maxed-era buckets from future spins', () => {
+    const bucket = DRAFT_BUCKETS.find((b) => b.era === '2000s')
+    expect(bucket).toBeDefined()
+
+    const usedTeamState = {
+      ...createInitialGameState(),
+      draftedTeamIds: [bucket!.teamId],
+    }
+    expect(getSpinEligibleBuckets(usedTeamState).map((b) => b.teamId)).not.toContain(
+      bucket!.teamId,
+    )
+
+    const maxedEraState = {
+      ...createInitialGameState(),
+      draftedEras: [bucket!.era, bucket!.era],
+    }
+    expect(getSpinEligibleBuckets(maxedEraState).map((b) => b.era)).not.toContain(
+      bucket!.era,
+    )
+  })
+
+  it('records drafted team and era when assigning a player', () => {
+    const player = [...PLAYER_BY_ID.values()].find((p) => p.role === 'hitter')
+    expect(player).toBeDefined()
+
+    let state: GameState = {
+      ...createInitialGameState(),
+      status: 'assigning' as const,
+      selectedPlayerId: player!.id,
+      currentBucket:
+        DRAFT_BUCKETS.find((b) => b.playerIds.includes(player!.id)) ?? null,
+    }
+
+    state = assignPlayer(state, player!.positions[0])
+    expect(state.draftedTeamIds).toContain(player!.teamId)
+    expect(state.draftedEras).toContain(player!.era)
   })
 })
 

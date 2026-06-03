@@ -135,6 +135,8 @@ export default function HomeRoute() {
     gameState.status,
     gameState.round,
     gameState.draftedPersonIds.length,
+    gameState.draftedTeamIds.length,
+    gameState.draftedEras.length,
     gameState.spinIntent,
   ])
 

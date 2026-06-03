@@ -151,6 +151,8 @@ export type GameState = {
   lineup: Lineup
   draftedPlayerIds: string[]
   draftedPersonIds: string[]
+  draftedTeamIds: TeamId[]
+  draftedEras: Era[]
   history: DraftHistoryEntry[]
   status: GameStatus
   /** Once per game: reroll franchise, keep the same decade. */
