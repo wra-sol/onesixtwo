@@ -213,10 +213,10 @@ export default function HomeRoute() {
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:grid md:grid-cols-2 md:items-start md:gap-6 md:overflow-visible">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-visible md:grid md:grid-cols-2 md:items-start md:gap-6">
       <div
         ref={draftScrollRef}
-        className="draft-scroll min-h-0 flex-1 space-y-4 overflow-y-auto md:pb-0"
+        className="draft-scroll min-h-0 flex-1 space-y-4 overflow-y-auto md:overflow-visible md:pb-0"
       >
         <DraftPanel
           round={gameState.round}

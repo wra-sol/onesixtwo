@@ -309,7 +309,7 @@
   }
 
   .draft-scroll {
-    padding-bottom: var(--lineup-dock-h, 7rem);
+    padding-bottom: calc(var(--lineup-dock-h, 7rem) + 4rem);
   }
 
   @media (max-width: 767px) {
