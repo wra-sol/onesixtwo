@@ -101,33 +101,6 @@
     @apply font-sans;
   }
 
-  * {
-    scrollbar-color: var(--primary) var(--background);
-  }
-
-  html,
-  body {
-    scrollbar-gutter: stable;
-  }
-
-  *::-webkit-scrollbar {
-    width: 0.75rem;
-    height: 0.75rem;
-  }
-
-  *::-webkit-scrollbar-track {
-    background: var(--background);
-  }
-
-  *::-webkit-scrollbar-thumb {
-    border: 0.1875rem solid var(--background);
-    border-radius: 999px;
-    background: var(--primary);
-  }
-
-  *::-webkit-scrollbar-thumb:hover {
-    background: var(--ring);
-  }
 }
 
 @layer utilities {
