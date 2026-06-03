@@ -5,6 +5,7 @@ import {
   PLAYER_BY_ID,
   PLAYERS,
 } from '../data'
+import { isModernEra } from '../data/franchises'
 import {
   LINEUP_POSITIONS,
   type CategoryScore,
@@ -16,6 +17,7 @@ import {
   type Player,
   type RandomSource,
   type SeasonResult,
+  type SpinIntent,
 } from './types'
 
 export const defaultRandom: RandomSource = () => Math.random()
@@ -41,6 +43,9 @@ export function createInitialGameState(): GameState {
     draftedPersonIds: [],
     history: [],
     status: 'intro',
+    teamRespinUsed: false,
+    yearRespinUsed: false,
+    spinIntent: 'round',
   }
 }
 
@@ -98,12 +103,13 @@ export function getSpinEligibleBuckets(
   state: GameState,
 ): DraftBucket[] {
   return DRAFT_BUCKETS.filter((bucket) => {
+    if (!isModernEra(bucket.era)) {
+      return false
+    }
     if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) {
       return false
     }
-    return (
-      filterAvailablePlayers(bucket, state).length > 0
-    )
+    return filterAvailablePlayers(bucket, state).length > 0
   })
 }
 
@@ -112,17 +118,150 @@ export function pickRandomBucket(
   random: RandomSource = defaultRandom,
 ): DraftBucket | null {
   const eligible = getSpinEligibleBuckets(state)
-  if (eligible.length === 0) {
+  return pickRandomFromList(eligible, random)
+}
+
+function pickRandomFromList<T>(
+  items: T[],
+  random: RandomSource,
+): T | null {
+  if (items.length === 0) {
     return null
   }
-  const index = Math.floor(random() * eligible.length)
-  return eligible[index] ?? null
+  const index = Math.floor(random() * items.length)
+  return items[index] ?? null
+}
+
+export function getTeamRespinCandidates(state: GameState): DraftBucket[] {
+  const bucket = state.currentBucket
+  if (!bucket) {
+    return []
+  }
+  const active =
+    state.status === 'picking' ||
+    (state.status === 'spinning' && state.spinIntent === 'team')
+  if (!active) {
+    return []
+  }
+  return getSpinEligibleBuckets(state).filter(
+    (b) => b.era === bucket.era && b.teamId !== bucket.teamId,
+  )
+}
+
+export function getYearRespinCandidates(state: GameState): DraftBucket[] {
+  const bucket = state.currentBucket
+  if (!bucket) {
+    return []
+  }
+  const active =
+    state.status === 'picking' ||
+    (state.status === 'spinning' && state.spinIntent === 'year')
+  if (!active) {
+    return []
+  }
+  return getSpinEligibleBuckets(state).filter(
+    (b) => b.teamId === bucket.teamId && b.era !== bucket.era,
+  )
+}
+
+export function canRespinTeam(state: GameState): boolean {
+  return (
+    !state.teamRespinUsed &&
+    state.status === 'picking' &&
+    getTeamRespinCandidates(state).length > 0
+  )
+}
+
+export function canRespinYear(state: GameState): boolean {
+  return (
+    !state.yearRespinUsed &&
+    state.status === 'picking' &&
+    getYearRespinCandidates(state).length > 0
+  )
+}
+
+function applyBucketToPicking(
+  state: GameState,
+  bucket: DraftBucket,
+  flags: { teamRespinUsed?: boolean; yearRespinUsed?: boolean },
+): GameState {
+  return {
+    ...state,
+    status: 'picking',
+    spinIntent: 'round',
+    currentBucket: bucket,
+    availablePlayers: filterAvailablePlayers(bucket, state),
+    selectedPlayerId: null,
+    teamRespinUsed: flags.teamRespinUsed ?? state.teamRespinUsed,
+    yearRespinUsed: flags.yearRespinUsed ?? state.yearRespinUsed,
+  }
+}
+
+export function requestTeamRespin(state: GameState): GameState {
+  if (!canRespinTeam(state)) {
+    return state
+  }
+  return {
+    ...state,
+    status: 'spinning',
+    spinIntent: 'team',
+    selectedPlayerId: null,
+  }
+}
+
+export function requestYearRespin(state: GameState): GameState {
+  if (!canRespinYear(state)) {
+    return state
+  }
+  return {
+    ...state,
+    status: 'spinning',
+    spinIntent: 'year',
+    selectedPlayerId: null,
+  }
+}
+
+export function applyRespinTeam(
+  state: GameState,
+  random: RandomSource = defaultRandom,
+): GameState {
+  const bucket = pickRandomFromList(getTeamRespinCandidates(state), random)
+  if (!bucket) {
+    return { ...state, status: 'picking', spinIntent: 'round' }
+  }
+  return applyBucketToPicking(state, bucket, { teamRespinUsed: true })
+}
+
+export function applyRespinYear(
+  state: GameState,
+  random: RandomSource = defaultRandom,
+): GameState {
+  const bucket = pickRandomFromList(getYearRespinCandidates(state), random)
+  if (!bucket) {
+    return { ...state, status: 'picking', spinIntent: 'round' }
+  }
+  return applyBucketToPicking(state, bucket, { yearRespinUsed: true })
+}
+
+export function resolveSpin(
+  state: GameState,
+  random: RandomSource = defaultRandom,
+): GameState {
+  const intent: SpinIntent = state.spinIntent
+  if (intent === 'team') {
+    return applyRespinTeam(state, random)
+  }
+  if (intent === 'year') {
+    return applyRespinYear(state, random)
+  }
+  return applySpin(state, random)
 }
 
 export function startGame(state: GameState): GameState {
   return {
     ...state,
     status: 'spinning',
+    spinIntent: 'round',
   }
 }
 
@@ -144,6 +283,7 @@ export function applySpin(
   return {
     ...state,
     status: 'picking',
+    spinIntent: 'round',
     currentBucket: bucket,
     availablePlayers,
     selectedPlayerId: null,
@@ -230,6 +370,7 @@ export function assignPlayer(
     availablePlayers: [],
     round: nextRound,
     status: 'spinning',
+    spinIntent: 'round',
   }
 }
 

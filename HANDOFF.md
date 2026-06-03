@@ -28,12 +28,12 @@ npm run deploy        # build + wrangler pages deploy
 
 | Metric | Value |
 |--------|-------|
-| Franchise-era buckets | 269 |
+| Franchise-era buckets | 194 |
 | Players per bucket | 20 (min enforced by build script) |
-| Total player cards | ~5380 |
+| Total player cards | ~3880 |
 | Name source | Lahman DB (`bbrefID` = Baseball Reference) + seed stars |
 | Franchises | 30 (`src/data/franchises.ts`) |
-| Eras | 11 decades per franchise |
+| Eras | 1960s–2020s per franchise |
 
 Pipeline:
 

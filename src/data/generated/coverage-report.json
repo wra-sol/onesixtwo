@@ -1,30 +1,5 @@
 [
   {
-    "id": "yankees-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "yankees-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "yankees-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "yankees-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "yankees-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "yankees-1960s",
     "count": 20,
     "exception": false
@@ -56,31 +31,6 @@
   },
   {
     "id": "yankees-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "red-sox-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "red-sox-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "red-sox-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "red-sox-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "red-sox-1950s",
     "count": 20,
     "exception": false
   },
@@ -170,31 +120,6 @@
     "exception": false
   },
   {
-    "id": "orioles-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "orioles-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "orioles-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "orioles-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "orioles-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "orioles-1960s",
     "count": 20,
     "exception": false
@@ -226,31 +151,6 @@
   },
   {
     "id": "orioles-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "white-sox-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "white-sox-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "white-sox-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "white-sox-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "white-sox-1950s",
     "count": 20,
     "exception": false
   },
@@ -290,31 +190,6 @@
     "exception": false
   },
   {
-    "id": "guardians-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "guardians-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "guardians-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "guardians-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "guardians-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "guardians-1960s",
     "count": 20,
     "exception": false
@@ -346,31 +221,6 @@
   },
   {
     "id": "guardians-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "tigers-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "tigers-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "tigers-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "tigers-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "tigers-1950s",
     "count": 20,
     "exception": false
   },
@@ -550,31 +400,6 @@
     "exception": false
   },
   {
-    "id": "athletics-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "athletics-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "athletics-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "athletics-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "athletics-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "athletics-1960s",
     "count": 20,
     "exception": false
@@ -675,31 +500,6 @@
     "exception": false
   },
   {
-    "id": "braves-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "braves-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "braves-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "braves-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "braves-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "braves-1960s",
     "count": 20,
     "exception": false
@@ -790,31 +590,6 @@
     "exception": false
   },
   {
-    "id": "phillies-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "phillies-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "phillies-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "phillies-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "phillies-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "phillies-1960s",
     "count": 20,
     "exception": false
@@ -885,31 +660,6 @@
     "exception": false
   },
   {
-    "id": "cubs-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cubs-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cubs-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cubs-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cubs-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "cubs-1960s",
     "count": 20,
     "exception": false
@@ -941,31 +691,6 @@
   },
   {
     "id": "cubs-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "reds-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "reds-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "reds-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "reds-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "reds-1950s",
     "count": 20,
     "exception": false
   },
@@ -1035,31 +760,6 @@
     "exception": false
   },
   {
-    "id": "pirates-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "pirates-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "pirates-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "pirates-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "pirates-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "pirates-1960s",
     "count": 20,
     "exception": false
@@ -1091,31 +791,6 @@
   },
   {
     "id": "pirates-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cardinals-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cardinals-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cardinals-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cardinals-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "cardinals-1950s",
     "count": 20,
     "exception": false
   },
@@ -1155,31 +830,6 @@
     "exception": false
   },
   {
-    "id": "dodgers-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "dodgers-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "dodgers-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "dodgers-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "dodgers-1950s",
-    "count": 20,
-    "exception": false
-  },
-  {
     "id": "dodgers-1960s",
     "count": 20,
     "exception": false
@@ -1211,31 +861,6 @@
   },
   {
     "id": "dodgers-2020s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "giants-1910s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "giants-1920s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "giants-1930s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "giants-1940s",
-    "count": 20,
-    "exception": false
-  },
-  {
-    "id": "giants-1950s",
     "count": 20,
     "exception": false
   },

@@ -5,7 +5,13 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ERAS, FRANCHISES, eraIndex, franchiseDisplayName } from '../src/data/franchises.ts'
+import {
+  FRANCHISES,
+  MODERN_ERAS,
+  eraIndex,
+  franchiseDisplayName,
+  isModernEra,
+} from '../src/data/franchises.ts'
 import { SEED_PLAYERS } from '../src/data/seed-players.ts'
 import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
 import {
@@ -33,11 +39,12 @@ const FRANCHISE_FIRST_ERA: Partial<Record<TeamId, Era>> = {
   mets: '1960s',
   royals: '1960s',
   twins: '1960s',
-  guardians: '1910s',
+  guardians: '1960s',
 }
 
 function bucketScore(player: Player, franchiseId: TeamId, bucketEra: Era): number {
   if (player.teamId !== franchiseId) return -1
+  if (!isModernEra(player.era)) return -1
   const dist = Math.abs(eraIndex(player.era) - eraIndex(bucketEra))
   if (dist > 1) return -1
   const eraBonus = dist === 0 ? 25 : 0
@@ -135,7 +142,7 @@ function main() {
   const buckets: DraftBucket[] = []
 
   for (const franchise of FRANCHISES) {
-    for (const era of ERAS) {
+    for (const era of MODERN_ERAS) {
       const { bucket, players } = buildBucket(franchise.id, era)
       if (players.length === 0) continue
       buckets.push(bucket)

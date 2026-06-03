@@ -122,6 +122,9 @@ export type GameStatus =
   | 'complete'
   | 'stuck'
 
+/** What the spin animation should resolve to when it finishes. */
+export type SpinIntent = 'round' | 'team' | 'year'
+
 export type DraftHistoryEntry = {
   round: number
   teamName: string
@@ -140,6 +143,11 @@ export type GameState = {
   draftedPersonIds: string[]
   history: DraftHistoryEntry[]
   status: GameStatus
+  /** Once per game: reroll franchise, keep the same decade. */
+  teamRespinUsed: boolean
+  /** Once per game: reroll decade, keep the same franchise. */
+  yearRespinUsed: boolean
+  spinIntent: SpinIntent
 }
 
 export type CategoryScore = {

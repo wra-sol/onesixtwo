@@ -26,21 +26,42 @@ export default function PlayerCard({
   compact = false,
   onSelect,
 }: PlayerCardProps) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        className={`player-card player-card--compact ${selected ? 'player-card--selected' : ''}`}
+        disabled={disabled}
+        aria-pressed={selected}
+        title={disabledReason ?? undefined}
+        onClick={onSelect}
+      >
+        <span className="player-card-name">{player.name}</span>
+        <span className="player-card-positions">
+          {player.positions.join(' · ')}
+        </span>
+        <span className="player-card-stats">{formatStats(player)}</span>
+        <span className="player-card-rating">OVR {player.ratings.overall}</span>
+        {disabled && disabledReason && (
+          <span className="player-card-disabled-reason">{disabledReason}</span>
+        )}
+      </button>
+    )
+  }
+
   return (
     <button
       type="button"
-      className={`player-card ${selected ? 'player-card--selected' : ''} ${compact ? 'player-card--compact' : ''}`}
+      className={`player-card ${selected ? 'player-card--selected' : ''}`}
       disabled={disabled}
       aria-pressed={selected}
       title={disabledReason ?? undefined}
       onClick={onSelect}
     >
       <span className="player-card-name">{player.name}</span>
-      {!compact && (
-        <span className="player-card-meta">
-          {player.teamName} · {player.era}
-        </span>
-      )}
+      <span className="player-card-meta">
+        {player.teamName} · {player.era}
+      </span>
       <span className="player-card-stats">{formatStats(player)}</span>
       <span className="player-card-positions">
         {player.positions.join(' · ')}

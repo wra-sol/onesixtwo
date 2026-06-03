@@ -25,7 +25,7 @@ export default function PlayerChoices({
     'all',
   )
   const [sort, setSort] = useState<SortKey>('overall')
-  const [compact, setCompact] = useState(false)
+  const [compact, setCompact] = useState(true)
 
   const filtered = useMemo(() => {
     let list = [...players]

@@ -17,7 +17,8 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Lahman `franchID` mapping: [`scripts/lib/lahman-franchises.ts`](../scripts/lib/lahman-franchises.ts).
 
 ## Decade policy
-- Decades: `1910s` … `2020s` (season years mapped by `floor(year/10)*10`).
+- **Playable** decades: `1960s`–`2020s` (`MODERN_ERAS` in `franchises.ts`).
+- Lahman import still maps all years; the build script only emits modern franchise-decade buckets.
 - Stats aggregate all MLB (AL/NL) seasons in that decade for the franchise.
 
 ## Position eligibility
