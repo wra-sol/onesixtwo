@@ -38,9 +38,10 @@ const FRANCHISE_FIRST_ERA: Partial<Record<TeamId, Era>> = {
 
 function bucketScore(player: Player, franchiseId: TeamId, bucketEra: Era): number {
   if (player.teamId !== franchiseId) return -1
-  const eraBonus = player.era === bucketEra ? 25 : 0
   const dist = Math.abs(eraIndex(player.era) - eraIndex(bucketEra))
-  return player.ratings.overall + eraBonus - dist * 4
+  if (dist > 1) return -1
+  const eraBonus = dist === 0 ? 25 : 0
+  return player.ratings.overall + eraBonus - dist * 6
 }
 
 function cardForBucket(

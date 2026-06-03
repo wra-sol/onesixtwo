@@ -169,6 +169,23 @@ body {
   padding: 1rem;
   margin-top: 0.75rem;
   text-align: center;
+  transition: transform 0.08s ease-out, border-color 0.15s;
+}
+
+.spin-card--active {
+  animation: spin-pulse 0.35s ease-in-out infinite alternate;
+  border-color: #e0b82e;
+}
+
+@keyframes spin-pulse {
+  from {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(201, 162, 39, 0);
+  }
+  to {
+    transform: scale(1.02);
+    box-shadow: 0 0 18px rgba(201, 162, 39, 0.35);
+  }
 }
 
 .spin-label {
@@ -263,6 +280,49 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .lineup-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-areas:
+      '. cf cf cf .'
+      'lf . rf . .'
+      '. ss . . .'
+      '2b . 3b . .'
+      '1b p c . .';
+    gap: 0.45rem;
+    max-width: 28rem;
+    margin: 0 auto;
+  }
+
+  .lineup-slot[data-pos='CF'] {
+    grid-area: cf;
+  }
+  .lineup-slot[data-pos='LF'] {
+    grid-area: lf;
+  }
+  .lineup-slot[data-pos='RF'] {
+    grid-area: rf;
+  }
+  .lineup-slot[data-pos='SS'] {
+    grid-area: ss;
+  }
+  .lineup-slot[data-pos='2B'] {
+    grid-area: 2b;
+  }
+  .lineup-slot[data-pos='3B'] {
+    grid-area: 3b;
+  }
+  .lineup-slot[data-pos='1B'] {
+    grid-area: 1b;
+  }
+  .lineup-slot[data-pos='P'] {
+    grid-area: p;
+  }
+  .lineup-slot[data-pos='C'] {
+    grid-area: c;
+  }
 }
 
 .lineup-slot {

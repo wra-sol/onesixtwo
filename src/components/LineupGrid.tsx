@@ -31,6 +31,7 @@ export default function LineupGrid({
             <div
               key={position}
               className={`lineup-slot ${filled ? 'lineup-slot--filled' : ''}`}
+              data-pos={position}
             >
               <span className="lineup-slot-pos">{position}</span>
               {filled ? (

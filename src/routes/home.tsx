@@ -6,7 +6,7 @@ import LineupGrid from '../components/LineupGrid'
 import PlayerChoices from '../components/PlayerChoices'
 import ResultScreen from '../components/ResultScreen'
 import StuckDraft from '../components/StuckDraft'
-import { PLAYER_BY_ID } from '../data'
+import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
 import {
   applySpin,
   assignPlayer,
@@ -37,17 +37,35 @@ function statusLabel(state: GameState): string {
   }
 }
 
+const SPIN_DURATION_MS = 900
+const SPIN_TICK_MS = 70
+
 export default function HomeRoute() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState)
+  const [spinTick, setSpinTick] = useState(0)
+
+  const spinPreview = useMemo(() => {
+    if (DRAFT_BUCKETS.length === 0) return null
+    return DRAFT_BUCKETS[spinTick % DRAFT_BUCKETS.length] ?? null
+  }, [spinTick])
 
   useEffect(() => {
     if (gameState.status !== 'spinning') {
       return
     }
-    const timer = window.setTimeout(() => {
+    // Reset reel when a new spin starts (round / draft state changed).
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional spin reel reset
+    setSpinTick(0)
+    const tick = window.setInterval(() => {
+      setSpinTick((t) => t + 1)
+    }, SPIN_TICK_MS)
+    const finish = window.setTimeout(() => {
       setGameState((current) => applySpin(current))
-    }, 500)
-    return () => window.clearTimeout(timer)
+    }, SPIN_DURATION_MS)
+    return () => {
+      window.clearInterval(tick)
+      window.clearTimeout(finish)
+    }
   }, [gameState.status, gameState.round, gameState.draftedPersonIds.length])
 
   const selectedPlayer = useMemo(() => {
@@ -105,6 +123,8 @@ export default function HomeRoute() {
           round={gameState.round}
           bucket={gameState.currentBucket}
           statusLabel={statusLabel(gameState)}
+          isSpinning={gameState.status === 'spinning'}
+          spinPreview={spinPreview}
         />
         {(gameState.status === 'picking' || gameState.status === 'assigning') && (
           <PlayerChoices
@@ -113,11 +133,6 @@ export default function HomeRoute() {
             selectedPlayerId={gameState.selectedPlayerId}
             onSelect={handleSelect}
           />
-        )}
-        {gameState.status === 'spinning' && (
-          <p className="spinning-message" aria-live="polite">
-            Spinning…
-          </p>
         )}
         <DraftHistory history={gameState.history} />
       </div>

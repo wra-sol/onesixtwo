@@ -24,7 +24,22 @@ Alternatively set `CLOUDFLARE_ACCOUNT_ID` in `wrangler.toml` or the environment.
 
 ## Deploy
 
+### Option A — GitHub Actions (recommended)
+
+Add repository secrets:
+
+| Secret | Where to find it |
+|--------|------------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token with **Cloudflare Pages — Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → any zone → Overview → Account ID (right column) |
+
+Push to `main`; workflow `.github/workflows/deploy.yml` builds and deploys automatically.
+
+### Option B — Local Wrangler
+
 ```bash
+npx wrangler login          # re-auth if whoami fails
+# Add to wrangler.toml: account_id = "your-account-id"
 npm run deploy
 ```
 
