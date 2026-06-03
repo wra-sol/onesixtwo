@@ -1,3 +1,4 @@
+import { respondWithEdgeCache } from './_lib/cache'
 import { isShareBot } from './_lib/html'
 import { resolveShareFromUrl } from './_lib/resolve-share'
 import { shareErrorResponse } from './_lib/share-errors'
@@ -28,12 +29,12 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   const userAgent = context.request.headers.get('user-agent') ?? ''
 
   if (isShareBot(userAgent)) {
-    return new Response(buildBotShareHtml(share), {
+    return respondWithEdgeCache(url, () => new Response(buildBotShareHtml(share), {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'public, max-age=300',
+        'Cache-Control': 'public, max-age=86400',
       },
-    })
+    }))
   }
 
   const indexRequest = new Request(
