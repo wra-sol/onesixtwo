@@ -157,6 +157,110 @@ export type CategoryScore = {
   value: number
 }
 
+export type SimulationSeed = string
+
+export type SeasonSegment = 'early' | 'middle' | 'late'
+
+export type SeasonNoteType =
+  | 'streak'
+  | 'slump'
+  | 'closeGames'
+  | 'blowouts'
+  | 'offense'
+  | 'pitching'
+  | 'starPlayer'
+  | 'weakness'
+  | 'expectation'
+
+export type SeasonNoteSource = {
+  segment: SeasonSegment
+  type: SeasonNoteType
+  importance: number
+  playerId?: string
+  position?: LineupPosition
+  gradeLabel?: string
+}
+
+export type SimulatedGame = {
+  won: boolean
+  close: boolean
+  blowout: boolean
+  offenseDriven: boolean
+  pitchingDriven: boolean
+  segment: SeasonSegment
+}
+
+export type SeasonSimulation = {
+  wins: number
+  losses: number
+  record: string
+  expectedWins: number
+  luckDelta: number
+  expectationResult: 'exceeded' | 'met' | 'fell_short'
+  longestWinStreak: number
+  longestLosingStreak: number
+  closeGameRecord: string
+  blowoutRecord: string
+  offenseDrivenWins: number
+  pitchingDrivenWins: number
+  closeWins: number
+  closeLosses: number
+  blowoutWins: number
+  blowoutLosses: number
+  noteSources: SeasonNoteSource[]
+  seed: SimulationSeed
+}
+
+export type SeasonTier = {
+  label: string
+  description: string
+  tone: 'perfect' | 'dynasty' | 'contender' | 'playoff' | 'rebuild'
+}
+
+export type SeasonMoment = {
+  text: string
+  importance: number
+}
+
+export type TeamGrade = {
+  label: string
+  value: number
+  displayGrade: string
+}
+
+export type LineupIdentity = {
+  id: string
+  label: string
+  description: string
+}
+
+export type RosterScorecardRow = {
+  position: LineupPosition
+  playerId: string
+  playerName: string
+  role: PlayerRole
+  teamName: string
+  era: Era
+  displayStats: string
+  overallRating: number
+  topTrait: CategoryScore
+  weakestTrait: CategoryScore
+  contributionLabel: string
+  contributionSummary: string
+}
+
+export type RosterScorecard = {
+  rows: RosterScorecardRow[]
+  teamGrades: TeamGrade[]
+  identity: LineupIdentity
+  strengths: CategoryScore[]
+  weaknesses: CategoryScore[]
+}
+
+export type SeasonResultOptions = {
+  rerollSeed?: SimulationSeed
+}
+
 export type SeasonResult = {
   wins: number
   losses: number
@@ -178,6 +282,16 @@ export type SeasonResult = {
   } | null
   gamesFromPerfect: number
   shareText: string
+  tier: SeasonTier
+  identity: LineupIdentity
+  strengths: CategoryScore[]
+  weaknesses: CategoryScore[]
+  seasonMoments: SeasonMoment[]
+  simulation: SeasonSimulation
+  scorecard: RosterScorecard
+  expectedWins: number
+  luckDelta: number
+  signatureMoment: string | null
 }
 
 export type RandomSource = () => number

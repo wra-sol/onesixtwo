@@ -4,6 +4,7 @@ import {
   BENCHMARK_WIN_RANGES,
   buildBenchmarkLineup,
 } from './benchmarks'
+import { BENCHMARK_EXPECTATIONS, MAX_REROLL_SWING } from './calibration'
 import {
   applyRespinTeam,
   applyRespinYear,
@@ -68,9 +69,11 @@ describe('dataset', () => {
 
   it('lists each person at most once per franchise-decade bucket', () => {
     for (const bucket of DRAFT_BUCKETS) {
-      const personIds = bucket.playerIds.map((id) => PLAYER_BY_ID.get(id)?.personId)
-      const unique = new Set(personIds)
-      expect(unique.size).toBe(personIds.length)
+      const players = bucket.playerIds.map((id) => PLAYER_BY_ID.get(id))
+      const personIds = players.map((p) => p?.personId)
+      expect(new Set(personIds).size).toBe(personIds.length)
+      const names = players.map((p) => p?.name)
+      expect(new Set(names).size).toBe(names.length)
     }
   })
 })
@@ -268,6 +271,69 @@ describe('scoring benchmarks', () => {
     expect(result?.shareText).toContain('onesixtytwo.win')
     expect(result?.shareText).toContain('Perfect Season')
     expect(result?.shareText).toContain('162-0')
+    expect(result?.simulation).toBeDefined()
+    expect(result?.scorecard.rows).toHaveLength(9)
+    expect(result?.seasonMoments.length).toBeGreaterThan(0)
+    expect(result?.identity.label).toBeTruthy()
+    expect(result?.strengths.length).toBeGreaterThan(0)
+    expect(result?.weaknesses.length).toBeGreaterThan(0)
+    expect(result?.tier.label).toBeTruthy()
+  })
+
+  it('produces deterministic initial simulation for same lineup', () => {
+    const lineup = buildBenchmarkLineup('great')
+    const first = calculateSeasonResult(lineup)
+    const second = calculateSeasonResult(lineup)
+    expect(first!.wins).toBe(second!.wins)
+    expect(first!.simulation.seed).toBe(second!.simulation.seed)
+  })
+
+  it('changes simulated record on reroll', () => {
+    const lineup = buildBenchmarkLineup('elite')
+    const initial = calculateSeasonResult(lineup)
+    const rerolled = calculateSeasonResult(lineup, { rerollSeed: '1' })
+    expect(rerolled!.simulation.seed).not.toBe(initial!.simulation.seed)
+  })
+
+  it('keeps reroll variance within configured bounds', () => {
+    const lineup = buildBenchmarkLineup('elite')
+    const initial = calculateSeasonResult(lineup)
+    for (let i = 1; i <= 5; i++) {
+      const rerolled = calculateSeasonResult(lineup, {
+        rerollSeed: String(i),
+      })
+      expect(
+        Math.abs(rerolled!.wins - initial!.expectedWins),
+      ).toBeLessThanOrEqual(MAX_REROLL_SWING + 2)
+    }
+  })
+
+  it('does not allow ordinary lineups to reach perfect season', () => {
+    for (const tier of ['mediocre', 'great', 'elite'] as const) {
+      const lineup = buildBenchmarkLineup(tier)
+      const result = calculateSeasonResult(lineup)
+      expect(result!.wins).toBeLessThan(162)
+    }
+  })
+
+  it('aligns simulated wins with calibration expectations', () => {
+    for (const tier of ['mediocre', 'great', 'elite', 'nearPerfect'] as const) {
+      const lineup = buildBenchmarkLineup(tier)
+      const result = calculateSeasonResult(lineup)
+      const expected = BENCHMARK_EXPECTATIONS[tier]
+      expect(result!.wins).toBeGreaterThanOrEqual(expected.winBand.min - 5)
+      expect(result!.wins).toBeLessThanOrEqual(expected.winBand.max + 5)
+    }
+  })
+
+  it('scorecard has nine rows with contribution labels', () => {
+    const result = calculateSeasonResult(buildBenchmarkLineup('great'))
+    expect(result!.scorecard.rows).toHaveLength(9)
+    for (const row of result!.scorecard.rows) {
+      expect(row.contributionLabel).toBeTruthy()
+      expect(row.contributionSummary).toBeTruthy()
+      expect(row.displayStats).toBeTruthy()
+    }
   })
 })
 

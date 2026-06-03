@@ -1,4 +1,7 @@
-import { BRAND, formatShareText } from './brand'
+import {
+  formatLineupShareSummary,
+  formatShareText,
+} from './brand'
 import {
   DRAFT_BUCKETS,
   getPlayersForBucket,
@@ -18,8 +21,17 @@ import {
   type Player,
   type RandomSource,
   type SeasonResult,
+  type SeasonResultOptions,
   type SpinIntent,
 } from './types'
+import { buildRosterScorecard } from './scorecard'
+import {
+  buildSeasonMoments,
+  getHeadline,
+  getSeasonTier,
+  getSignatureMoment,
+} from './recap'
+import { simulateSeason } from './simulation'
 
 export const defaultRandom: RandomSource = () => Math.random()
 
@@ -517,28 +529,29 @@ export function projectWins(teamScore: number): { wins: number; losses: number }
   return { wins, losses: 162 - wins }
 }
 
-export function getHeadline(wins: number, losses: number): string {
-  if (wins === 162 && losses === 0) {
-    return `PERFECT SEASON! You went ${BRAND.perfectRecord}!`
-  }
-  if (wins >= 120) {
-    return 'Dynasty! Your lineup dominated the league.'
-  }
-  if (wins >= 100) {
-    return 'Contender! A strong season, but not perfect.'
-  }
-  if (wins >= 85) {
-    return `Playoff push — close, but ${BRAND.perfectRecord} slipped away.`
-  }
-  return 'Rebuild season. Try another draft!'
-}
-
-export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
+export function calculateSeasonResult(
+  lineup: Lineup,
+  options?: SeasonResultOptions,
+): SeasonResult | null {
   const teamScore = calculateTeamScore(lineup)
   if (teamScore === null) {
     return null
   }
-  const { wins, losses } = projectWins(teamScore)
+
+  const simulation = simulateSeason(lineup, teamScore, {
+    rerollSeed: options?.rerollSeed,
+  })
+  const { wins, losses } = simulation
+
+  const scorecard = buildRosterScorecard(lineup, simulation)
+  const tier = getSeasonTier(wins, losses)
+  const seasonMoments = buildSeasonMoments(
+    simulation,
+    scorecard.identity,
+    scorecard.strengths,
+  )
+  const signatureMoment = getSignatureMoment(seasonMoments)
+
   const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
 
   const contact =
@@ -582,7 +595,18 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
   const weakest = sorted[sorted.length - 1]
   const gamesFromPerfect = 162 - wins
 
-  const shareText = formatShareText(wins, losses)
+  const shareText = formatShareText({
+    wins,
+    losses,
+    lineupSummary: formatLineupShareSummary(LINEUP_POSITIONS, lineup),
+    mvpLine: best
+      ? `MVP: ${best.player.name} (${best.position})`
+      : null,
+    tierLabel: tier.label,
+    identityLabel: scorecard.identity.label,
+    luckDelta: simulation.luckDelta,
+    signatureMoment,
+  })
 
   return {
     wins,
@@ -609,6 +633,16 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
       : null,
     gamesFromPerfect,
     shareText,
+    tier,
+    identity: scorecard.identity,
+    strengths: scorecard.strengths,
+    weaknesses: scorecard.weaknesses,
+    seasonMoments,
+    simulation,
+    scorecard,
+    expectedWins: simulation.expectedWins,
+    luckDelta: simulation.luckDelta,
+    signatureMoment,
   }
 }
 

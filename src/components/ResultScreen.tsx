@@ -9,49 +9,67 @@ import {
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { trackEvent } from '../lib/analytics'
 import { BRAND } from '../lib/brand'
+import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
+import RosterScorecard from './RosterScorecard'
+import SeasonRecap from './SeasonRecap'
 
 type ResultScreenProps = {
   result: SeasonResult
   lineup: Lineup
   onRestart: () => void
+  onSimulateAgain?: () => void
+  isSimulating?: boolean
 }
+
+const canNativeShare =
+  typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
 export default function ResultScreen({
   result,
   lineup,
   onRestart,
+  onSimulateAgain,
+  isSimulating = false,
 }: ResultScreenProps) {
   const [copied, setCopied] = useState(false)
   const [showShareText, setShowShareText] = useState(false)
+
+  const shareTitle = `${BRAND.name}: ${result.record}`
 
   const handleCopy = async () => {
     setShowShareText(false)
     try {
       await navigator.clipboard.writeText(result.shareText)
       setCopied(true)
+      trackEvent('share_copied', { record: result.record })
       window.setTimeout(() => setCopied(false), 2000)
       return
     } catch {
       setCopied(false)
     }
-
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({
-          title: BRAND.name,
-          text: result.shareText,
-          url: BRAND.url,
-        })
-        return
-      } catch (err) {
-        if (err instanceof Error && err.name === 'AbortError') return
-      }
-    }
-
     setShowShareText(true)
+  }
+
+  const handleShare = async () => {
+    if (!canNativeShare) {
+      await handleCopy()
+      return
+    }
+    try {
+      await navigator.share({
+        title: shareTitle,
+        text: result.shareText,
+        url: BRAND.url,
+      })
+      trackEvent('native_share_opened', { record: result.record })
+    } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return
+      await handleCopy()
+    }
   }
 
   return (
@@ -68,10 +86,15 @@ export default function ResultScreen({
             'font-display text-5xl font-bold',
             result.isPerfectSeason && 'result-record--perfect',
           )}
+          aria-live="polite"
         >
           {result.record}
         </p>
         <p className="text-base">{result.headline}</p>
+        <p className="text-sm font-medium text-primary">{result.tier.label}</p>
+        <p className="text-xs text-muted-foreground">
+          {result.identity.label}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4 text-left">
         {result.gamesFromPerfect > 0 && (
@@ -79,41 +102,49 @@ export default function ResultScreen({
             {result.gamesFromPerfect} wins short of {BRAND.perfectRecord}
           </p>
         )}
-        {result.bestPlayer && (
-          <p className="text-center text-sm">
-            MVP: {result.bestPlayer.name} ({result.bestPlayer.position}) —{' '}
-            {result.bestPlayer.highlightCategory.label}{' '}
-            {result.bestPlayer.highlightCategory.value}
-          </p>
-        )}
-        {result.weakestPlayer && (
-          <p className="text-center text-sm text-muted-foreground">
-            Weakest link: {result.weakestPlayer.name} (
-            {result.weakestPlayer.position}) —{' '}
-            {result.weakestPlayer.highlightCategory.label}{' '}
-            {result.weakestPlayer.highlightCategory.value}
-          </p>
-        )}
+        <div aria-live="polite">
+          <SeasonRecap result={result} />
+        </div>
         <RatingBreakdown result={result} />
         <Separator />
-        <div>
-          <h3 className="font-display mb-2 text-base text-primary">
-            Your lineup
-          </h3>
-          <ul className="grid grid-cols-3 gap-1.5 text-xs">
-            {LINEUP_POSITIONS.map((pos) => {
-              const player = lineup[pos]
-              return (
-                <li key={pos} className="rounded-md bg-muted/50 px-2 py-1.5">
-                  <span className="block text-[0.7rem] font-extrabold text-primary">
-                    {pos}
-                  </span>
-                  <span className="block truncate">{player?.name ?? '—'}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
+        {result.scorecard ? (
+          <RosterScorecard scorecard={result.scorecard} />
+        ) : (
+          <div>
+            <h3 className="font-display mb-2 text-base text-primary">
+              Your lineup
+            </h3>
+            <ul className="grid grid-cols-3 gap-1.5 text-xs">
+              {LINEUP_POSITIONS.map((pos) => {
+                const player = lineup[pos]
+                return (
+                  <li key={pos} className="rounded-md bg-muted/50 px-2 py-1.5">
+                    <span className="block text-[0.7rem] font-extrabold text-primary">
+                      {pos}
+                    </span>
+                    <span className="block truncate">{player?.name ?? '—'}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+        <details className="group rounded-lg border border-border bg-muted/30 text-left">
+          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-primary marker:content-none [&::-webkit-details-marker]:hidden">
+            <span className="inline-flex items-center gap-2">
+              <span
+                className="text-muted-foreground transition group-open:rotate-90"
+                aria-hidden
+              >
+                ▸
+              </span>
+              Preview share text
+            </span>
+          </summary>
+          <pre className="max-h-40 overflow-y-auto border-t border-border/60 px-3 py-2 font-mono text-[0.7rem] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            {result.shareText}
+          </pre>
+        </details>
         {showShareText && (
           <div className="space-y-2 text-left">
             <p className="text-xs text-muted-foreground">
@@ -121,20 +152,43 @@ export default function ResultScreen({
             </p>
             <textarea
               readOnly
-              className="h-20 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 text-xs"
+              className="h-28 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-xs leading-relaxed"
               value={result.shareText}
               onFocus={(e) => e.target.select()}
             />
           </div>
         )}
       </CardContent>
-      <CardFooter className="justify-center gap-3 border-t-0 bg-transparent">
-        <Button type="button" variant="outline" onClick={handleCopy}>
-          {copied ? 'Copied!' : 'Copy result'}
-        </Button>
-        <Button type="button" onClick={onRestart}>
-          Draft again
-        </Button>
+      <CardFooter className="flex-col gap-3 border-t-0 bg-transparent">
+        {onSimulateAgain && (
+          <div className="w-full space-y-1.5 text-center">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              disabled={isSimulating}
+              onClick={onSimulateAgain}
+            >
+              {isSimulating ? 'Simulating season…' : 'Simulate again'}
+            </Button>
+            <p className="text-[0.65rem] text-muted-foreground">
+              {SIMULATION_EXPLANATION}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-wrap justify-center gap-3">
+          {canNativeShare && (
+            <Button type="button" variant="outline" onClick={handleShare}>
+              Share
+            </Button>
+          )}
+          <Button type="button" variant="outline" onClick={handleCopy}>
+            {copied ? 'Copied!' : 'Copy'}
+          </Button>
+          <Button type="button" onClick={onRestart}>
+            Draft again
+          </Button>
+        </div>
       </CardFooter>
     </Card>
   )
