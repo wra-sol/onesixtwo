@@ -1,6 +1,7 @@
 import { BRAND } from '../../src/lib/brand'
 import { escapeHtml } from './html'
 import type { SeasonResult } from '../../src/lib/types'
+import primaryOgImage from '../../public/og-perfect-season-20260603.png'
 
 export const OG_WIDTH = 1200
 export const OG_HEIGHT = 630
@@ -25,7 +26,8 @@ export function buildOgSvg(result: SeasonResult): string {
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${OG_WIDTH}" height="${OG_HEIGHT}" viewBox="0 0 ${OG_WIDTH} ${OG_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="${COLORS.background}" />
+  <image href="${primaryOgImage}" width="${OG_WIDTH}" height="${OG_HEIGHT}" preserveAspectRatio="xMidYMid slice" />
+  <rect width="${OG_WIDTH}" height="${OG_HEIGHT}" fill="${COLORS.background}" opacity="0.28" />
   <text x="56" y="88" fill="${COLORS.primary}" font-family="Geist, sans-serif" font-size="34" font-weight="700">${escapeHtml(BRAND.name)}</text>
   <text x="${RIGHT_X}" y="280" fill="${recordColor}" font-family="Geist, sans-serif" font-size="112" font-weight="800" text-anchor="end">${escapeHtml(result.record)}</text>
   <text x="${RIGHT_X}" y="340" fill="${COLORS.primary}" font-family="Geist, sans-serif" font-size="32" font-weight="600" text-anchor="end">${escapeHtml(tagline)}</text>
