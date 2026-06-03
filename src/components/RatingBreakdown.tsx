@@ -4,34 +4,66 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { SeasonResult } from '../lib/types'
+import { calculateRunPrevention } from '../lib/run-prevention'
+import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 
 type RatingBreakdownProps = {
   result: SeasonResult
+  lineup?: Lineup
 }
 
-export default function RatingBreakdown({ result }: RatingBreakdownProps) {
+function runPreventionDefenseNote(lineup: Lineup): string | null {
+  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
+  const breakdown = calculateRunPrevention(players)
+  if (breakdown.errorPenalty <= 0) {
+    return null
+  }
+  return `Run prevention: ${breakdown.pitcherValue} pitching − ${breakdown.errorPenalty} defense (${breakdown.lineupErrorsPer162} errors per 162).`
+}
+
+export default function RatingBreakdown({ result, lineup }: RatingBreakdownProps) {
+  const grades = result.scorecard?.teamGrades ?? []
+  const defenseNote = lineup ? runPreventionDefenseNote(lineup) : null
+
   return (
     <Card size="sm" aria-labelledby="rating-heading">
       <CardHeader className="pb-2">
         <CardTitle id="rating-heading" className="font-display text-primary">
-          Team rating
+          Team grades
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <ul className="divide-y divide-border">
-          {result.categories.map((cat) => (
+          {grades.map((grade) => (
             <li
-              key={cat.label}
+              key={grade.label}
               className="flex justify-between py-2 text-sm first:pt-0 last:pb-0"
             >
-              <span>{cat.label}</span>
-              <span className="font-bold">{cat.value}</span>
+              <span>{grade.label}</span>
+              <span className="font-bold tabular-nums">
+                {grade.displayGrade}{' '}
+                <span className="text-muted-foreground">({grade.value})</span>
+              </span>
             </li>
           ))}
         </ul>
+        {result.strengths.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Strengths:{' '}
+            {result.strengths.map((s) => `${s.label} ${s.value}`).join(' · ')}
+          </p>
+        )}
+        {result.weaknesses.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Vulnerabilities:{' '}
+            {result.weaknesses.map((w) => `${w.label} ${w.value}`).join(' · ')}
+          </p>
+        )}
+        {defenseNote && (
+          <p className="text-xs text-muted-foreground">{defenseNote}</p>
+        )}
         <p className="text-sm">
-          Projected record: <strong>{result.record}</strong>
+          Simulated record: <strong>{result.record}</strong>
         </p>
       </CardContent>
     </Card>

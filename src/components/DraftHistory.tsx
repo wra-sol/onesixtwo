@@ -1,4 +1,3 @@
-import { Separator } from '@/components/ui/separator'
 import type { DraftHistoryEntry } from '../lib/types'
 
 type DraftHistoryProps = {
@@ -11,15 +10,19 @@ export default function DraftHistory({ history }: DraftHistoryProps) {
   }
 
   return (
-    <section className="pt-2" aria-labelledby="history-heading">
-      <Separator className="mb-4" />
-      <h3
-        id="history-heading"
-        className="font-display mb-2 text-base text-primary"
-      >
-        Draft log
-      </h3>
-      <ol className="max-h-[200px] space-y-0 overflow-y-auto text-sm">
+    <details className="group border-t border-border pt-3 text-sm">
+      <summary className="cursor-pointer font-display text-primary marker:content-none [&::-webkit-details-marker]:hidden">
+        <span className="inline-flex items-center gap-2">
+          <span
+            className="text-muted-foreground transition group-open:rotate-90"
+            aria-hidden
+          >
+            ▸
+          </span>
+          Draft log ({history.length})
+        </span>
+      </summary>
+      <ol className="mt-2 space-y-0 border-t border-border/60 pt-2">
         {history.map((entry, i) => (
           <li
             key={`${entry.round}-${entry.playerName}-${i}`}
@@ -37,6 +40,6 @@ export default function DraftHistory({ history }: DraftHistoryProps) {
           </li>
         ))}
       </ol>
-    </section>
+    </details>
   )
 }

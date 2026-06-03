@@ -34,6 +34,7 @@ function main() {
 
   const extractDir = join(lahmanDir, '.rdata-extract')
   rmSync(extractDir, { recursive: true, force: true })
+  mkdirSync(extractDir, { recursive: true })
   mkdirSync(sourceDir, { recursive: true })
 
   console.log('Extracting RData tables…')

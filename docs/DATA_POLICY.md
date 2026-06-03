@@ -25,6 +25,12 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Exact positions only: `C`, `1B`, `2B`, `3B`, `SS`, `LF`, `CF`, `RF`, `P`.
 - Derived from Lahman `Appearances` game counts (≥10 games at position).
 
+## Rating calibration
+- Category ratings use percentile anchors from Lahman eligible cards (`1960s`–`2020s`).
+- Tier meaning: `50` playable floor, `70` average starter, `80` good, `90` elite, `100` historically exceptional.
+- Pitcher run prevention uses calibrated ERA; team run prevention subtracts a lineup fielding-error penalty from `Fielding.csv`.
+- Analyze distributions: `npm run analyze:ratings` (requires Lahman CSV).
+
 ## Duplicate policy
 - Each franchise-decade bucket lists at most one card per `personId` (BBRef id).
 - The same `personId` may still appear on cards in different franchise-decade buckets.

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import DraftHistory from '../components/DraftHistory'
 import DraftPanel from '../components/DraftPanel'
 import HowToPlay from '../components/HowToPlay'
@@ -8,6 +9,7 @@ import ResultScreen from '../components/ResultScreen'
 import StuckDraft from '../components/StuckDraft'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
 import { MODERN_ERAS } from '../data/franchises'
+import { trackEvent } from '../lib/analytics'
 import {
   assignPlayer,
   calculateSeasonResult,
@@ -21,7 +23,6 @@ import {
   selectPlayer,
   startGame,
 } from '../lib/game'
-import { useReducedMotion } from '../lib/use-reduced-motion'
 import type { Era, GameState } from '../lib/types'
 
 function statusLabel(state: GameState): string {
@@ -56,12 +57,10 @@ export default function HomeRoute() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState)
   const [teamSpinTick, setTeamSpinTick] = useState(0)
   const [eraSpinTick, setEraSpinTick] = useState(0)
-  const prefersReducedMotion = useReducedMotion()
+  const [simulationReroll, setSimulationReroll] = useState(0)
+  const [isSimulating, setIsSimulating] = useState(false)
   const draftScrollRef = useRef<HTMLDivElement>(null)
   const dockRef = useRef<HTMLElement>(null)
-
-  const spinDurationMs = prefersReducedMotion ? 0 : SPIN_DURATION_MS
-  const spinTickMs = prefersReducedMotion ? 0 : SPIN_TICK_MS
 
   const teamPreview = useMemo(() => {
     if (TEAM_REEL.length === 0) return ''
@@ -115,11 +114,6 @@ export default function HomeRoute() {
     setTeamSpinTick(0)
     setEraSpinTick(0)
 
-    if (spinDurationMs === 0) {
-      setGameState((current) => resolveSpin(current))
-      return
-    }
-
     const tick = window.setInterval(() => {
       if (spinTeam) {
         setTeamSpinTick((t) => t + 1)
@@ -127,11 +121,11 @@ export default function HomeRoute() {
       if (spinEra) {
         setEraSpinTick((t) => t + 1)
       }
-    }, spinTickMs)
+    }, SPIN_TICK_MS)
 
     const finish = window.setTimeout(() => {
       setGameState((current) => resolveSpin(current))
-    }, spinDurationMs)
+    }, SPIN_DURATION_MS)
 
     return () => {
       window.clearInterval(tick)
@@ -142,8 +136,6 @@ export default function HomeRoute() {
     gameState.round,
     gameState.draftedPersonIds.length,
     gameState.spinIntent,
-    spinDurationMs,
-    spinTickMs,
   ])
 
   const selectedPlayer = useMemo(() => {
@@ -157,8 +149,25 @@ export default function HomeRoute() {
     if (gameState.status !== 'complete') {
       return null
     }
-    return calculateSeasonResult(gameState.lineup)
-  }, [gameState.status, gameState.lineup])
+    const rerollSeed =
+      simulationReroll > 0 ? String(simulationReroll) : undefined
+    return calculateSeasonResult(gameState.lineup, { rerollSeed })
+  }, [gameState.status, gameState.lineup, simulationReroll])
+
+  useEffect(() => {
+    if (gameState.status === 'complete' && seasonResult) {
+      trackEvent(
+        simulationReroll > 0 ? 'season_resimulated' : 'season_simulated',
+        {
+          record: seasonResult.record,
+          reroll: simulationReroll,
+        },
+      )
+      if (seasonResult.isPerfectSeason) {
+        trackEvent('perfect_season_achieved')
+      }
+    }
+  }, [gameState.status, seasonResult, simulationReroll])
 
   const handleStart = useCallback(() => {
     setGameState((s) => startGame(s))
@@ -173,7 +182,16 @@ export default function HomeRoute() {
   }, [])
 
   const handleRestart = useCallback(() => {
+    setSimulationReroll(0)
     setGameState(restartGame())
+  }, [])
+
+  const handleSimulateAgain = useCallback(() => {
+    setIsSimulating(true)
+    window.setTimeout(() => {
+      setSimulationReroll((count) => count + 1)
+      setIsSimulating(false)
+    }, 300)
   }, [])
 
   const handleRespinTeam = useCallback(() => {
@@ -207,46 +225,57 @@ export default function HomeRoute() {
           result={seasonResult}
           lineup={gameState.lineup}
           onRestart={handleRestart}
+          onSimulateAgain={handleSimulateAgain}
+          isSimulating={isSimulating}
+          rerollIndex={simulationReroll}
         />
       </div>
     )
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-visible md:grid md:grid-cols-2 md:items-start md:gap-6">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:grid md:h-full md:min-h-0 md:grid-cols-2 md:gap-6">
       <div
         ref={draftScrollRef}
-        className="draft-scroll min-h-0 flex-1 space-y-4 overflow-y-auto md:overflow-visible md:pb-0"
+        className="draft-scroll min-h-0 flex-1 overflow-y-auto md:pb-0"
       >
-        <DraftPanel
-          round={gameState.round}
-          bucket={gameState.currentBucket}
-          statusLabel={statusLabel(gameState)}
-          isSpinning={gameState.status === 'spinning'}
-          spinIntent={gameState.spinIntent}
-          teamPreview={teamPreview}
-          eraPreview={eraPreview}
-          spinResultAnnouncement={spinResultAnnouncement}
-          canRespinTeam={canRespinTeam(gameState)}
-          canRespinYear={canRespinYear(gameState)}
-          teamRespinUsed={gameState.teamRespinUsed}
-          yearRespinUsed={gameState.yearRespinUsed}
-          onRespinTeam={
-            gameState.status === 'picking' ? handleRespinTeam : undefined
-          }
-          onRespinYear={
-            gameState.status === 'picking' ? handleRespinYear : undefined
-          }
-        />
-        {(gameState.status === 'picking' || gameState.status === 'assigning') && (
-          <PlayerChoices
-            players={gameState.availablePlayers}
-            gameState={gameState}
-            selectedPlayerId={gameState.selectedPlayerId}
-            onSelect={handleSelect}
-          />
-        )}
-        <DraftHistory history={gameState.history} />
+        <Card>
+          <CardContent className="space-y-4 pt-4">
+            <DraftPanel
+              round={gameState.round}
+              bucket={gameState.currentBucket}
+              statusLabel={statusLabel(gameState)}
+              isSpinning={gameState.status === 'spinning'}
+              spinIntent={gameState.spinIntent}
+              teamPreview={teamPreview}
+              eraPreview={eraPreview}
+              spinResultAnnouncement={spinResultAnnouncement}
+              canRespinTeam={canRespinTeam(gameState)}
+              canRespinYear={canRespinYear(gameState)}
+              teamRespinUsed={gameState.teamRespinUsed}
+              yearRespinUsed={gameState.yearRespinUsed}
+              onRespinTeam={
+                gameState.status === 'picking' ? handleRespinTeam : undefined
+              }
+              onRespinYear={
+                gameState.status === 'picking' ? handleRespinYear : undefined
+              }
+            />
+            {(gameState.status === 'picking' ||
+              gameState.status === 'assigning') && (
+              <>
+                <hr className="border-border" />
+                <PlayerChoices
+                  players={gameState.availablePlayers}
+                  gameState={gameState}
+                  selectedPlayerId={gameState.selectedPlayerId}
+                  onSelect={handleSelect}
+                />
+              </>
+            )}
+            <DraftHistory history={gameState.history} />
+          </CardContent>
+        </Card>
       </div>
       <aside
         ref={dockRef}
@@ -258,11 +287,6 @@ export default function HomeRoute() {
           isAssigning={gameState.status === 'assigning'}
           onAssign={handleAssign}
         />
-        {gameState.status === 'assigning' && selectedPlayer && (
-          <p className="hidden px-4 pb-2 text-sm text-muted-foreground md:block">
-            Tap a position to assign {selectedPlayer.name}.
-          </p>
-        )}
       </aside>
     </div>
   )

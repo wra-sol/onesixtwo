@@ -111,23 +111,12 @@
 
 @layer components {
   .spin-card {
-    @apply mt-3 rounded-lg border-2 border-primary bg-card p-4 text-center transition-[transform,border-color];
+    @apply mt-3 rounded-lg border-2 border-primary bg-card p-4 text-center transition-[border-color,box-shadow];
   }
 
   .spin-card--active {
-    animation: spin-pulse 0.35s ease-in-out infinite alternate;
     border-color: #f2d28a;
-  }
-
-  @keyframes spin-pulse {
-    from {
-      transform: scale(1);
-      box-shadow: 0 0 0 rgba(216, 181, 109, 0);
-    }
-    to {
-      transform: scale(1.02);
-      box-shadow: 0 0 18px rgba(216, 181, 109, 0.35);
-    }
+    box-shadow: 0 0 18px rgba(216, 181, 109, 0.35);
   }
 
   .spin-reels {
@@ -309,7 +298,13 @@
   }
 
   .draft-scroll {
-    padding-bottom: calc(var(--lineup-dock-h, 7rem) + 4rem);
+    padding-bottom: var(--lineup-dock-h, 7rem);
+  }
+
+  @media (min-width: 768px) {
+    .draft-scroll {
+      padding-bottom: 0;
+    }
   }
 
   @media (max-width: 767px) {
@@ -382,14 +377,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spin-card--active {
-    animation: none;
-  }
-
-  .spin-reel-track--spinning {
-    animation: none;
-  }
-
   .result-record--perfect {
     animation: none;
   }

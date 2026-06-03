@@ -110,6 +110,6 @@ export const BENCHMARK_WIN_RANGES: Record<
 > = {
   mediocre: { min: 65, max: 100 },
   great: { min: 95, max: 125 },
-  elite: { min: 110, max: 150 },
-  nearPerfect: { min: 125, max: 162 },
+  elite: { min: 110, max: 162 },
+  nearPerfect: { min: 130, max: 162 },
 }

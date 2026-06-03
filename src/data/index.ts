@@ -35,6 +35,11 @@ export function validateDataset(): string[] {
     if (personIds.length !== uniquePersonIds.size) {
       errors.push(`Bucket ${bucket.id} has duplicate personId entries`)
     }
+    const names = players.map((p) => p.name)
+    const uniqueNames = new Set(names)
+    if (names.length !== uniqueNames.size) {
+      errors.push(`Bucket ${bucket.id} has duplicate player names`)
+    }
   }
   const allPositions = new Set(PLAYERS.flatMap((p) => p.positions))
   for (const pos of ['C', 'SS', 'CF', 'P'] as const) {

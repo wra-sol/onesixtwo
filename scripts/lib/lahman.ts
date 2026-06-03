@@ -12,6 +12,20 @@ import { ERAS } from '../../src/data/franchises.ts'
 import { decodeUnicodeEscapes } from '../../src/lib/text.ts'
 import { parseCsv } from './parse-csv.ts'
 import { lahmanFranchToTeam } from './lahman-franchises.ts'
+import { normalizePlayerName } from './person-id.ts'
+import {
+  HITTER_AVG_ANCHORS,
+  HITTER_HR_PER_162_ANCHORS,
+  HITTER_OPS_ANCHORS,
+  HITTER_RBI_PER_162_ANCHORS,
+  HITTER_SB_PER_162_ANCHORS,
+  PITCHER_ERA_ANCHORS,
+  PITCHER_IP_PER_30GS_ANCHORS,
+  PITCHER_K9_ANCHORS,
+  PITCHER_WHIP_ANCHORS,
+  per162,
+  scoreFromAnchors,
+} from '../../src/lib/rating-anchors.ts'
 
 function lahmanName(first: string, last: string): string {
   return decodeUnicodeEscapes(`${first} ${last}`.trim())
@@ -27,7 +41,7 @@ type PersonRow = {
   bbrefID: string
 }
 
-type Aggregated = {
+export type Aggregated = {
   playerID: string
   personId: string
   name: string
@@ -43,11 +57,16 @@ type Aggregated = {
   rbi: number
   sb: number
   bb: number
+  hAllowed: number
+  bbAllowed: number
   ipOuts: number
   er: number
   so: number
   w: number
   g: number
+  gs: number
+  fieldingErrors: number
+  fieldingGames: number
   valueScore: number
 }
 
@@ -65,6 +84,12 @@ function loadCsv(name: string): Record<string, string>[] {
       `Missing ${path}. Run: npm run fetch:lahman`,
     )
   }
+  return parseCsv(readFileSync(path, 'utf8'))
+}
+
+function loadCsvOptional(name: string): Record<string, string>[] {
+  const path = join(LAHMAN_DIR, name)
+  if (!existsSync(path)) return []
   return parseCsv(readFileSync(path, 'utf8'))
 }
 
@@ -162,11 +187,7 @@ function pitcherRatings(
   workload: number,
 ): PlayerRatings {
   const overall = Math.round(
-    era * 0.35 +
-      whip * 0.25 +
-      strikeouts * 0.2 +
-      wins * 0.1 +
-      workload * 0.1,
+    era * 0.35 + whip * 0.25 + strikeouts * 0.25 + workload * 0.15,
   )
   return {
     contact: 0,
@@ -183,31 +204,51 @@ function pitcherRatings(
   }
 }
 
-function clamp(n: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, n))
+function computeOps(agg: Aggregated): number {
+  const ab = agg.ab || 1
+  const pa = ab + agg.bb
+  const obp = pa > 0 ? (agg.h + agg.bb) / pa : 0
+  const slg =
+    (agg.h + agg.doubles + 2 * agg.triples + 3 * agg.hr) / ab
+  return obp + slg
 }
 
 function ratingsFromAgg(agg: Aggregated): PlayerRatings {
   if (agg.role === 'pitcher') {
     const ip = agg.ipOuts / 3
     const eraVal = ip > 0 ? (agg.er * 9) / ip : 4.5
-    const eraScore = clamp(Math.round(100 - eraVal * 12), 55, 95)
-    const whipVal = ip > 0 ? (agg.h + agg.bb) / ip : 1.35
-    const whipScore = clamp(Math.round(100 - whipVal * 28), 55, 95)
-    const kScore = clamp(Math.round(agg.so / 40), 55, 98)
-    const wScore = clamp(Math.round(agg.w * 2.2), 55, 92)
-    const workload = clamp(Math.round(ip / 15), 55, 92)
+    const whipVal = ip > 0 ? (agg.hAllowed + agg.bbAllowed) / ip : 1.35
+    const k9 = ip > 0 ? (agg.so * 9) / ip : 0
+    const gs = Math.max(agg.gs, 1)
+    const ipPer30Gs = (ip / gs) * 30
+
+    const eraScore = scoreFromAnchors(eraVal, PITCHER_ERA_ANCHORS, {
+      lowerIsBetter: true,
+    })
+    const whipScore = scoreFromAnchors(whipVal, PITCHER_WHIP_ANCHORS, {
+      lowerIsBetter: true,
+    })
+    const kScore = scoreFromAnchors(k9, PITCHER_K9_ANCHORS)
+    const workload = scoreFromAnchors(ipPer30Gs, PITCHER_IP_PER_30GS_ANCHORS)
+    const wScore = scoreFromAnchors(agg.w, [{ value: 0, score: 50 }, { value: 200, score: 92 }])
+
     return pitcherRatings(eraScore, whipScore, kScore, wScore, workload)
   }
 
   const ab = agg.ab || 1
+  const g = Math.max(agg.g, 1)
   const avg = agg.h / ab
-  const contact = clamp(Math.round(avg * 280), 55, 98)
-  const power = clamp(Math.round((agg.hr / ab) * 1200 + 50), 55, 98)
-  const speed = clamp(Math.round((agg.sb / ab) * 800 + 55), 55, 95)
-  const runProduction = clamp(Math.round((agg.rbi / ab) * 900 + 50), 55, 98)
-  const opsEst = clamp(Math.round((agg.h + agg.bb) / (ab + agg.bb) * 200 + power * 0.3), 55, 98)
-  return hitterRatings(contact, power, speed, runProduction, opsEst)
+  const ops = computeOps(agg)
+
+  const contact = scoreFromAnchors(avg, HITTER_AVG_ANCHORS)
+  const power = scoreFromAnchors(per162(agg.hr, g), HITTER_HR_PER_162_ANCHORS)
+  const speed = scoreFromAnchors(per162(agg.sb, g), HITTER_SB_PER_162_ANCHORS)
+  const runProduction = scoreFromAnchors(
+    per162(agg.rbi, g),
+    HITTER_RBI_PER_162_ANCHORS,
+  )
+  const opsScore = scoreFromAnchors(ops, HITTER_OPS_ANCHORS)
+  return hitterRatings(contact, power, speed, runProduction, opsScore)
 }
 
 function positionsFromAppearance(row: Record<string, string>): LineupPosition[] {
@@ -261,9 +302,10 @@ function aggToPlayer(agg: Aggregated, teamName: string, rank: number): Player {
       role: 'pitcher',
       stats: {
         era: formatEra(agg.er, agg.ipOuts),
-        whip: formatWhip(agg.h, agg.bb, agg.ipOuts),
+        whip: formatWhip(agg.hAllowed, agg.bbAllowed, agg.ipOuts),
         so: agg.so,
         wins: agg.w,
+        gs: agg.gs > 0 ? agg.gs : Math.max(agg.g, 1),
       },
     }
   }
@@ -279,6 +321,9 @@ function aggToPlayer(agg: Aggregated, teamName: string, rank: number): Player {
       rbi: agg.rbi,
       sb: agg.sb,
       ops: formatOps(agg.h, agg.ab, agg.bb, agg.doubles, agg.triples, agg.hr),
+      g: agg.g > 0 ? agg.g : 162,
+      errors: agg.fieldingErrors,
+      fieldingGames: agg.fieldingGames > 0 ? agg.fieldingGames : undefined,
     },
   }
 }
@@ -348,11 +393,16 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
         rbi: 0,
         sb: 0,
         bb: 0,
+        hAllowed: 0,
+        bbAllowed: 0,
         ipOuts: 0,
         er: 0,
         so: 0,
         w: 0,
         g: 0,
+        gs: 0,
+        fieldingErrors: 0,
+        fieldingGames: 0,
         valueScore: 0,
       }
       index.set(key, agg)
@@ -385,10 +435,13 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     if (lg !== 'AL' && lg !== 'NL') continue
     touch(row.playerID ?? '', year, row.teamID ?? '', (agg) => {
       agg.ipOuts += num(row.IPouts ?? '0')
+      agg.hAllowed += num(row.H ?? '0')
+      agg.bbAllowed += num(row.BB ?? '0')
       agg.er += num(row.ER ?? '0')
       agg.so += num(row.SO ?? '0')
       agg.w += num(row.W ?? '0')
       agg.g += num(row.G ?? '0')
+      agg.gs += num(row.GS ?? '0')
     })
   }
 
@@ -400,6 +453,17 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     touch(row.playerID ?? '', year, row.teamID ?? '', (agg) => {
       const pos = positionsFromAppearance(row)
       agg.positions = mergePositions(agg.positions, pos)
+    })
+  }
+
+  for (const row of loadCsvOptional('Fielding.csv')) {
+    const year = num(row.yearID ?? '0')
+    if (year < 1910) continue
+    const lg = row.lgID ?? ''
+    if (lg !== 'AL' && lg !== 'NL') continue
+    touch(row.playerID ?? '', year, row.teamID ?? '', (agg) => {
+      agg.fieldingErrors += num(row.E ?? '0')
+      agg.fieldingGames += num(row.G ?? '0')
     })
   }
 
@@ -446,6 +510,26 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
 
   bucketIndex = buckets
   return buckets
+}
+
+export function getLahmanPlayerForBucket(
+  franchiseId: TeamId,
+  era: Era,
+  teamDisplayName: string,
+  personId: string,
+  nameFallback?: string,
+): Player | null {
+  const buckets = buildLahmanBucketIndex()
+  const list = buckets.get(`${franchiseId}-${era}`) ?? []
+
+  let agg = list.find((entry) => entry.personId === personId)
+  if (!agg && nameFallback) {
+    const normalized = normalizePlayerName(nameFallback)
+    agg = list.find((entry) => normalizePlayerName(entry.name) === normalized)
+  }
+  if (!agg) return null
+
+  return aggToPlayer(agg, teamDisplayName, 0)
 }
 
 export function getLahmanPlayersForBucket(

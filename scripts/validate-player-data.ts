@@ -40,11 +40,28 @@ function main() {
     if (personIds.length !== uniquePersonIds.size) {
       errors.push(`Bucket ${bucket.id} has duplicate personId entries`)
     }
+    const names = resolved.map((p) => p?.name).filter(Boolean)
+    const uniqueNames = new Set(names)
+    if (names.length !== uniqueNames.size) {
+      errors.push(`Bucket ${bucket.id} has duplicate player names`)
+    }
   }
 
   for (const p of players) {
     if (!p.personId) errors.push(`Player ${p.id} missing personId`)
     if (!p.positions?.length) errors.push(`Player ${p.id} missing positions`)
+    for (const [key, value] of Object.entries(p.ratings)) {
+      if (key === 'war') continue
+      if (typeof value === 'number' && (value < 0 || value > 100)) {
+        errors.push(`Player ${p.id} rating ${key} out of range: ${value}`)
+      }
+    }
+    if (p.role === 'hitter') {
+      const stats = p.stats as import('../src/lib/types.ts').HitterStats
+      if (stats.errors != null && stats.errors < 0) {
+        errors.push(`Player ${p.id} has negative errors`)
+      }
+    }
   }
 
   const globalPositions = new Set(players.flatMap((p) => p.positions))

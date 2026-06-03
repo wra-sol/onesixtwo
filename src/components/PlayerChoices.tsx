@@ -1,13 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Checkbox } from '@/components/ui/checkbox'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -18,6 +10,7 @@ import {
 import { getPlayerDisabledReason } from '../lib/game'
 import {
   comparePlayersByStat,
+  comparePlayersRandom,
   PLAYER_STAT_SORT_LABELS,
 } from '../lib/player-stats'
 import type { PlayerStatSortLabel } from '../lib/player-stats'
@@ -43,8 +36,7 @@ export default function PlayerChoices({
   const [positionFilter, setPositionFilter] = useState<LineupPosition | 'all'>(
     'all',
   )
-  const [sort, setSort] = useState<PlayerStatSortLabel>('OPS')
-  const [compact, setCompact] = useState(true)
+  const [sort, setSort] = useState<PlayerStatSortLabel>('Random')
 
   const filtered = useMemo(() => {
     let list = [...players]
@@ -55,9 +47,14 @@ export default function PlayerChoices({
     if (positionFilter !== 'all') {
       list = list.filter((p) => p.positions.includes(positionFilter))
     }
-    list.sort((a, b) => comparePlayersByStat(a, b, sort))
+    if (sort === 'Random') {
+      const seed = `${gameState.round}|${gameState.currentBucket?.id ?? 'none'}`
+      list.sort((a, b) => comparePlayersRandom(a, b, seed))
+    } else {
+      list.sort((a, b) => comparePlayersByStat(a, b, sort))
+    }
     return list
-  }, [players, search, positionFilter, sort])
+  }, [players, search, positionFilter, sort, gameState.round, gameState.currentBucket?.id])
 
   const pickableCount = useMemo(
     () =>
@@ -76,120 +73,91 @@ export default function PlayerChoices({
 
   const playerList =
     filtered.length === 0 ? (
-      <p className="px-3 py-6 text-center text-sm text-muted-foreground" role="status">
+      <p className="py-6 text-center text-sm text-muted-foreground" role="status">
         No players match filters.
       </p>
     ) : (
-    <div
-      className={
-        compact
-          ? 'divide-y divide-border'
-          : 'grid gap-3 p-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]'
-      }
-      role="list"
-    >
-      {filtered.map((player) => {
-        const disabledReason = getPlayerDisabledReason(player, gameState)
-        const selectable = disabledReason === null
-        return (
-          <div key={player.id} role="listitem">
-            <PlayerCard
-              player={player}
-              selected={selectedPlayerId === player.id}
-              disabled={!selectable}
-              disabledReason={disabledReason}
-              compact={compact}
-              onSelect={() => onSelect(player.id)}
-            />
-          </div>
-        )
-      })}
-    </div>
-  )
+      <div className="divide-y divide-border" role="list">
+        {filtered.map((player) => {
+          const disabledReason = getPlayerDisabledReason(player, gameState)
+          const selectable = disabledReason === null
+          return (
+            <div key={player.id} role="listitem">
+              <PlayerCard
+                player={player}
+                selected={selectedPlayerId === player.id}
+                disabled={!selectable}
+                disabledReason={disabledReason}
+                compact
+                onSelect={() => onSelect(player.id)}
+              />
+            </div>
+          )
+        })}
+      </div>
+    )
 
   return (
-    <Card aria-labelledby="choices-heading">
-      <CardHeader className="pb-2">
-        <CardTitle
-          id="choices-heading"
-          className="font-display text-base text-primary"
-        >
-          Pick one player ({pickableCount} of {filtered.length})
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-col gap-2 sm:grid sm:grid-cols-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="player-search" className="text-xs">
-              Search
-            </Label>
-            <Input
-              id="player-search"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Player name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="position-filter" className="text-xs">
-              Position
-            </Label>
-            <Select
-              value={positionFilter}
-              onValueChange={(v) =>
-                setPositionFilter(v as LineupPosition | 'all')
-              }
-            >
-              <SelectTrigger id="position-filter" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {LINEUP_POSITIONS.map((pos) => (
-                  <SelectItem key={pos} value={pos}>
-                    {pos}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="sort-filter" className="text-xs">
-              Sort
-            </Label>
-            <Select
-              value={sort}
-              onValueChange={(v) => setSort(v as PlayerStatSortLabel)}
-            >
-              <SelectTrigger id="sort-filter" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PLAYER_STAT_SORT_LABELS.map((label) => (
-                  <SelectItem key={label} value={label}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-end gap-2 pb-0.5">
-            <Checkbox
-              id="compact-list"
-              checked={compact}
-              onCheckedChange={(checked) => setCompact(checked === true)}
-            />
-            <Label htmlFor="compact-list" className="text-xs font-normal">
-              Compact list
-            </Label>
-          </div>
-        </div>
+    <section className="space-y-3" aria-labelledby="choices-heading">
+      <h3
+        id="choices-heading"
+        className="font-display text-base text-primary"
+      >
+        Players · {pickableCount} pickable
+      </h3>
 
-        <div className="max-h-[min(42dvh,24rem)] overflow-y-auto rounded-lg border border-border bg-background/50 md:max-h-[min(50vh,480px)]">
-          {playerList}
-        </div>
-      </CardContent>
-    </Card>
+      <div className="flex flex-wrap gap-2">
+        <Input
+          id="player-search"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search"
+          className="min-w-[7rem] flex-1"
+          aria-label="Search players"
+        />
+        <Select
+          value={positionFilter}
+          onValueChange={(v) => setPositionFilter(v as LineupPosition | 'all')}
+        >
+          <SelectTrigger
+            id="position-filter"
+            className="w-[5.5rem]"
+            aria-label="Filter by position"
+          >
+            <SelectValue placeholder="Pos" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            {LINEUP_POSITIONS.map((pos) => (
+              <SelectItem key={pos} value={pos}>
+                {pos}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={sort}
+          onValueChange={(v) => setSort(v as PlayerStatSortLabel)}
+        >
+          <SelectTrigger
+            id="sort-filter"
+            className="w-[5.5rem]"
+            aria-label="Sort by stat"
+          >
+            <SelectValue placeholder="Sort" />
+          </SelectTrigger>
+          <SelectContent>
+            {PLAYER_STAT_SORT_LABELS.map((label) => (
+              <SelectItem key={label} value={label}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {playerList}
+    </section>
   )
 }
