@@ -173,7 +173,7 @@ export default function LineupGrid({
             id="lineup-heading"
             className="font-display text-base text-primary"
           >
-            Starting lineup
+            Lineup ({filledCount}/9)
           </CardTitle>
         </CardHeader>
         <CardContent>

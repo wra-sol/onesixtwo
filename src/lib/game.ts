@@ -32,6 +32,7 @@ import {
   getSignatureMoment,
 } from './recap'
 import { simulateSeason } from './simulation'
+import { calculateRunPrevention } from './run-prevention'
 
 export const defaultRandom: RandomSource = () => Math.random()
 
@@ -520,8 +521,9 @@ export function projectWins(teamScore: number): { wins: number; losses: number }
     wins = Math.round(81 + ((teamScore - 50) / 25) * 24)
   } else if (teamScore < 90) {
     wins = Math.round(105 + ((teamScore - 75) / 15) * 20)
-  } else if (teamScore < 98) {
-    wins = Math.round(125 + ((teamScore - 90) / 8) * 25)
+  } else if (teamScore < 100) {
+    // 90 → 128 wins, 95 → 150, 98 → 158, 99 → 161
+    wins = Math.round(128 + ((teamScore - 90) / 10) * 44)
   } else {
     wins = 162
   }
@@ -569,17 +571,13 @@ export function calculateSeasonResult(
       .filter((p) => p.role === 'hitter')
       .reduce((s, p) => s + p.ratings.speed, 0) /
     Math.max(1, players.filter((p) => p.role === 'hitter').length)
-  const runPrevention =
-    players
-      .filter((p) => p.role === 'pitcher')
-      .reduce((s, p) => s + p.ratings.era, 0) /
-    Math.max(1, players.filter((p) => p.role === 'pitcher').length)
+  const runPrevention = calculateRunPrevention(players).value
 
   const categories: CategoryScore[] = [
     { label: 'Contact', value: Math.round(contact) },
     { label: 'Power', value: Math.round(power) },
     { label: 'Speed', value: Math.round(speed) },
-    { label: 'Run Prevention', value: Math.round(runPrevention) },
+    { label: 'Run Prevention', value: runPrevention },
   ]
 
   const lineupPlayers = LINEUP_POSITIONS.map((pos) => ({

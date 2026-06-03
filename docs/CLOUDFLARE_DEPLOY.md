@@ -45,12 +45,23 @@ npm run deploy
 
 This runs `npm run build` then `wrangler pages deploy dist`.
 
+## Local Pages runtime
+
+Use the Vite dev server for fast UI work, but use Pages dev when you need the SPA and Pages Functions (`/share`, `/og`) in one local runtime:
+
+```bash
+npm run dev:pages
+```
+
 ## Post-deploy verification
 
 1. Open the production URL (record it in `HANDOFF.md` once known).
 2. Confirm client-side routes work (refresh on `/` and deep links if added later).
 3. Confirm `_headers` apply (check response headers in browser devtools).
 4. Smoke-test: start draft, spin, filter players, finish 9 rounds, view result recap and copy share text.
+5. Open a copied `/share?p=...` URL and confirm it renders a read-only result recap.
+6. Fetch `/share?p=...` with a crawler user agent and confirm dynamic `og:title` and `og:image` meta tags.
+7. Fetch `/og?p=...` and confirm it returns a 1200×630 SVG social card with the record and lineup.
 
 ## Custom domain
 
@@ -77,5 +88,6 @@ Production hostname: **onesixtytwo.win** (see [DOMAIN.md](./DOMAIN.md) for WHOIS
 ## Notes
 
 - Dataset JSON is bundled into the main JS chunk (~2.7 MB minified, ~199 KB gzip). Acceptable for static Pages; consider lazy-loading or splitting if bundle grows further.
-- No Workers/D1 required for v2; static hosting only.
+- Cloudflare Pages Functions power `/share` and `/og` for dynamic social cards. Vite dev does not run these functions; use `npm run build` followed by `npx wrangler pages dev dist --compatibility-date=2024-01-01` for local end-to-end testing.
+- No D1 required for v2; share links are encoded in query params.
 - Legal pages: `/privacy`, `/terms`, `/data` (SPA routes; refresh works via `_redirects`).

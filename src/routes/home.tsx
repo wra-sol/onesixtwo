@@ -227,6 +227,7 @@ export default function HomeRoute() {
           onRestart={handleRestart}
           onSimulateAgain={handleSimulateAgain}
           isSimulating={isSimulating}
+          rerollIndex={simulationReroll}
         />
       </div>
     )

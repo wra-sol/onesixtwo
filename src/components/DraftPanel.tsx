@@ -1,11 +1,5 @@
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
+import { Progress, ProgressValue } from '@/components/ui/progress'
 import type { DraftBucket, Era, SpinIntent } from '../lib/types'
 import SpinReels from './SpinReels'
 
@@ -24,18 +18,6 @@ type DraftPanelProps = {
   yearRespinUsed?: boolean
   onRespinTeam?: () => void
   onRespinYear?: () => void
-}
-
-function teamRespinLabel(used: boolean, canRespin: boolean): string {
-  if (used) return 'Respin team · Used'
-  if (canRespin) return 'Respin team · 1 left'
-  return 'Respin team'
-}
-
-function yearRespinLabel(used: boolean, canRespin: boolean): string {
-  if (used) return 'Respin year · Used'
-  if (canRespin) return 'Respin year · 1 left'
-  return 'Respin year'
 }
 
 export default function DraftPanel({
@@ -57,74 +39,93 @@ export default function DraftPanel({
   const showRespins =
     !isSpinning && bucket && (onRespinTeam || onRespinYear)
 
-  const showSpinCard = isSpinning || bucket !== null
+  const showSpin = isSpinning || bucket !== null
   const teamName = bucket?.teamName ?? teamPreview
   const era = bucket?.era ?? eraPreview
 
   return (
-    <Card aria-labelledby="draft-panel-heading">
-      <CardHeader className="pb-2">
-        <CardTitle
-          id="draft-panel-heading"
-          className="font-display text-primary"
-        >
-          The Draft
-        </CardTitle>
-        <Progress value={(round / 9) * 100} max={100} className="gap-1.5">
-          <ProgressLabel className="text-sm text-muted-foreground">
-            Round {round} of 9
-          </ProgressLabel>
-          <ProgressValue />
-        </Progress>
-        <p className="text-sm italic text-muted-foreground" aria-live="polite">
-          {statusLabel}
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {showSpinCard && (
-          <div
-            className={`spin-card ${isSpinning ? 'spin-card--active' : ''}`}
-            aria-live={spinResultAnnouncement ? 'polite' : undefined}
+    <header className="space-y-3" aria-labelledby="draft-panel-heading">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2
+            id="draft-panel-heading"
+            className="font-display text-lg leading-tight text-primary"
           >
-            <span className="mb-2 block text-xs tracking-widest text-muted-foreground uppercase">
-              {isSpinning ? 'Spinning…' : 'Spin result'}
-            </span>
-            <SpinReels
-              teamName={teamName}
-              era={era}
-              isSpinning={isSpinning}
-              spinIntent={spinIntent}
-              teamPreview={teamPreview || teamName}
-              eraPreview={eraPreview}
-            />
-            {spinResultAnnouncement && !isSpinning && (
-              <span className="sr-only">{spinResultAnnouncement}</span>
-            )}
-          </div>
-        )}
-        {showRespins && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="min-w-32 flex-1"
-              disabled={!canRespinTeam}
-              onClick={onRespinTeam}
-            >
-              {teamRespinLabel(teamRespinUsed, canRespinTeam)}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-w-32 flex-1"
-              disabled={!canRespinYear}
-              onClick={onRespinYear}
-            >
-              {yearRespinLabel(yearRespinUsed, canRespinYear)}
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            Round {round} of 9
+          </h2>
+          <p className="text-sm text-muted-foreground" aria-live="polite">
+            {statusLabel}
+          </p>
+        </div>
+        <Progress
+          value={(round / 9) * 100}
+          max={100}
+          className="w-20 shrink-0 gap-1"
+          aria-label={`Round ${round} of 9`}
+        >
+          <ProgressValue className="text-xs tabular-nums" />
+        </Progress>
+      </div>
+
+      {showSpin && (
+        <div
+          className={
+            isSpinning ? 'spin-card spin-card--active' : 'spin-card'
+          }
+          aria-live={spinResultAnnouncement ? 'polite' : undefined}
+        >
+          <SpinReels
+            teamName={teamName}
+            era={era}
+            isSpinning={isSpinning}
+            spinIntent={spinIntent}
+            teamPreview={teamPreview || teamName}
+            eraPreview={eraPreview}
+          />
+          {spinResultAnnouncement && !isSpinning && (
+            <span className="sr-only">{spinResultAnnouncement}</span>
+          )}
+        </div>
+      )}
+
+      {showRespins && (
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled={!canRespinTeam}
+            onClick={onRespinTeam}
+            title={
+              teamRespinUsed
+                ? 'Team respin used'
+                : canRespinTeam
+                  ? 'One team respin left'
+                  : undefined
+            }
+          >
+            {teamRespinUsed ? 'Team · used' : canRespinTeam ? 'Team · 1×' : 'Team'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="flex-1"
+            disabled={!canRespinYear}
+            onClick={onRespinYear}
+            title={
+              yearRespinUsed
+                ? 'Year respin used'
+                : canRespinYear
+                  ? 'One year respin left'
+                  : undefined
+            }
+          >
+            {yearRespinUsed ? 'Year · used' : canRespinYear ? 'Year · 1×' : 'Year'}
+          </Button>
+        </div>
+      )}
+    </header>
   )
 }

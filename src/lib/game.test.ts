@@ -326,14 +326,23 @@ describe('scoring benchmarks', () => {
     }
   })
 
-  it('scorecard has nine rows with contribution labels', () => {
+  it('scorecard has nine rows with simulated stat lines', () => {
     const result = calculateSeasonResult(buildBenchmarkLineup('great'))
     expect(result!.scorecard.rows).toHaveLength(9)
     for (const row of result!.scorecard.rows) {
-      expect(row.contributionLabel).toBeTruthy()
-      expect(row.contributionSummary).toBeTruthy()
-      expect(row.displayStats).toBeTruthy()
+      expect(row.slashLine).toBeTruthy()
+      expect(row.countingLine).toBeTruthy()
+      expect(row.statNote).toBe('Simulated season')
     }
+  })
+
+  it('scorecard slash lines change when simulation seed changes', () => {
+    const lineup = buildBenchmarkLineup('great')
+    const initial = calculateSeasonResult(lineup)!
+    const rerolled = calculateSeasonResult(lineup, { rerollSeed: '1' })!
+    const initialSlash = initial.scorecard.rows.map((r) => r.slashLine).join('|')
+    const rerolledSlash = rerolled.scorecard.rows.map((r) => r.slashLine).join('|')
+    expect(rerolledSlash).not.toBe(initialSlash)
   })
 })
 

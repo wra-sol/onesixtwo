@@ -1,4 +1,5 @@
 import {
+  ELITE_SEASON_VARIANCE,
   INITIAL_SEASON_VARIANCE,
   MAX_REROLL_SWING,
   PER_GAME_VARIANCE,
@@ -8,6 +9,7 @@ import {
   SEASON_SEGMENTS,
   VOLATILITY_MODIFIER,
 } from './calibration'
+import { calculateRunPrevention } from './run-prevention'
 import { projectWins } from './game'
 import {
   LINEUP_POSITIONS,
@@ -95,7 +97,7 @@ export function buildTeamProfile(lineup: Lineup, teamScore: number): TeamProfile
   const power = avg(hitters.map((p) => p.ratings.power))
   const speed = avg(hitters.map((p) => p.ratings.speed))
   const runProduction = avg(hitters.map((p) => p.ratings.runProduction))
-  const runPrevention = avg(pitchers.map((p) => p.ratings.era))
+  const runPrevention = calculateRunPrevention(players).value
   const control = avg(pitchers.map((p) => p.ratings.whip))
   const dominance = avg(pitchers.map((p) => p.ratings.strikeouts))
   const workload = avg(pitchers.map((p) => p.ratings.workload))
@@ -135,6 +137,19 @@ export function baselineWinProbability(teamScore: number): number {
   return wins / SEASON_LENGTH
 }
 
+function winProbabilityCeiling(teamScore: number): number {
+  if (teamScore >= 98) return 0.99
+  if (teamScore >= 95) return 0.98
+  if (teamScore >= 90) return 0.94
+  return 0.92
+}
+
+function initialSeasonVariance(teamScore: number): number {
+  if (teamScore >= 95) return ELITE_SEASON_VARIANCE
+  if (teamScore >= 90) return INITIAL_SEASON_VARIANCE + 2
+  return INITIAL_SEASON_VARIANCE
+}
+
 function gameWinProbability(profile: TeamProfile, random: () => number): number {
   const base = baselineWinProbability(profile.teamScore)
   const offenseMod = (profile.offenseStrength - 50) / 2000
@@ -143,9 +158,10 @@ function gameWinProbability(profile: TeamProfile, random: () => number): number 
   const volatilitySwing =
     (random() - 0.5) * PER_GAME_VARIANCE * (1 + profile.volatility * VOLATILITY_MODIFIER * 10)
   const starBoost = profile.starPower >= 92 ? 0.015 : profile.starPower >= 88 ? 0.008 : 0
+  const ceiling = winProbabilityCeiling(profile.teamScore)
 
   return Math.min(
-    0.92,
+    ceiling,
     Math.max(0.08, base + offenseMod + pitchingMod + balanceMod + starBoost + volatilitySwing),
   )
 }
@@ -158,7 +174,9 @@ function clampWins(
 ): number {
   let clamped = Math.min(SEASON_LENGTH, Math.max(0, wins))
 
-  const varianceCap = isReroll ? MAX_REROLL_SWING : INITIAL_SEASON_VARIANCE
+  const varianceCap = isReroll
+    ? MAX_REROLL_SWING
+    : initialSeasonVariance(profile.teamScore)
   const minWins = Math.max(0, expectedWins - varianceCap)
   const maxWins = Math.min(SEASON_LENGTH, expectedWins + varianceCap)
   clamped = Math.min(maxWins, Math.max(minWins, clamped))
@@ -171,7 +189,15 @@ function clampWins(
     profile.teamScore < PERFECT_SEASON_THRESHOLD &&
     clamped >= SEASON_LENGTH - 5
   ) {
-    clamped = Math.min(clamped, SEASON_LENGTH - 10)
+    clamped = Math.min(clamped, SEASON_LENGTH - 6)
+  }
+
+  if (
+    profile.teamScore >= PERFECT_SEASON_THRESHOLD &&
+    wins >= SEASON_LENGTH - 1 &&
+    expectedWins >= 152
+  ) {
+    clamped = SEASON_LENGTH
   }
 
   if (profile.teamScore < 75 && clamped >= 110) {

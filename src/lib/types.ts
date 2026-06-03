@@ -68,6 +68,12 @@ export type HitterStats = {
   rbi: number
   sb: number
   ops: string
+  /** Games played in source window (decade/career) for season proration. */
+  g?: number
+  /** Fielding errors in source window (team-era card). */
+  errors?: number
+  /** Fielding games in source window for error rate proration. */
+  fieldingGames?: number
 }
 
 export type PitcherStats = {
@@ -75,6 +81,8 @@ export type PitcherStats = {
   whip: string
   so: number
   wins: number
+  /** Games started in source window for 30-start proration. */
+  gs?: number
 }
 
 export type PlayerRatings = {
@@ -241,12 +249,9 @@ export type RosterScorecardRow = {
   role: PlayerRole
   teamName: string
   era: Era
-  displayStats: string
-  overallRating: number
-  topTrait: CategoryScore
-  weakestTrait: CategoryScore
-  contributionLabel: string
-  contributionSummary: string
+  slashLine: string
+  countingLine: string
+  statNote?: string
 }
 
 export type RosterScorecard = {

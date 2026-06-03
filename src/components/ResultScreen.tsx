@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { trackEvent } from '../lib/analytics'
 import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
+import { buildShareUrl } from '../lib/share-url'
 import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
 import RosterScorecard from './RosterScorecard'
@@ -23,6 +24,9 @@ type ResultScreenProps = {
   onRestart: () => void
   onSimulateAgain?: () => void
   isSimulating?: boolean
+  readOnly?: boolean
+  shareUrl?: string
+  rerollIndex?: number
 }
 
 const canNativeShare =
@@ -34,16 +38,22 @@ export default function ResultScreen({
   onRestart,
   onSimulateAgain,
   isSimulating = false,
+  readOnly = false,
+  shareUrl: shareUrlOverride,
+  rerollIndex = 0,
 }: ResultScreenProps) {
   const [copied, setCopied] = useState(false)
   const [showShareText, setShowShareText] = useState(false)
 
+  const shareUrl =
+    shareUrlOverride ?? buildShareUrl(lineup, rerollIndex)
   const shareTitle = `${BRAND.name}: ${result.record}`
+  const shareText = `${shareTitle}\n${result.tier.label}\n${shareUrl}`
 
   const handleCopy = async () => {
     setShowShareText(false)
     try {
-      await navigator.clipboard.writeText(result.shareText)
+      await navigator.clipboard.writeText(shareUrl)
       setCopied(true)
       trackEvent('share_copied', { record: result.record })
       window.setTimeout(() => setCopied(false), 2000)
@@ -62,8 +72,8 @@ export default function ResultScreen({
     try {
       await navigator.share({
         title: shareTitle,
-        text: result.shareText,
-        url: BRAND.url,
+        text: shareText,
+        url: shareUrl,
       })
       trackEvent('native_share_opened', { record: result.record })
     } catch (err) {
@@ -79,7 +89,7 @@ export default function ResultScreen({
           id="result-heading"
           className="font-display text-xl text-primary"
         >
-          Season result
+          {readOnly ? 'Shared season result' : 'Season result'}
         </CardTitle>
         <p
           className={cn(
@@ -142,7 +152,7 @@ export default function ResultScreen({
             </span>
           </summary>
           <pre className="max-h-40 overflow-y-auto border-t border-border/60 px-3 py-2 font-mono text-[0.7rem] leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {result.shareText}
+            {shareText}
           </pre>
         </details>
         {showShareText && (
@@ -153,14 +163,14 @@ export default function ResultScreen({
             <textarea
               readOnly
               className="h-28 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-xs leading-relaxed"
-              value={result.shareText}
+              value={shareText}
               onFocus={(e) => e.target.select()}
             />
           </div>
         )}
       </CardContent>
       <CardFooter className="flex-col gap-3 border-t-0 bg-transparent">
-        {onSimulateAgain && (
+        {!readOnly && onSimulateAgain && (
           <div className="w-full space-y-1.5 text-center">
             <Button
               type="button"
@@ -183,10 +193,10 @@ export default function ResultScreen({
             </Button>
           )}
           <Button type="button" variant="outline" onClick={handleCopy}>
-            {copied ? 'Copied!' : 'Copy'}
+            {copied ? 'Copied!' : 'Copy link'}
           </Button>
           <Button type="button" onClick={onRestart}>
-            Draft again
+            {readOnly ? 'Draft your own' : 'Draft again'}
           </Button>
         </div>
       </CardFooter>

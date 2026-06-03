@@ -12,14 +12,21 @@ import {
   franchiseDisplayName,
   isModernEra,
 } from '../src/data/franchises.ts'
-import { SEED_PLAYERS } from '../src/data/seed-players.ts'
+import { SEED_PLAYERS_BACKUP } from '../src/data/seed-players.backup.ts'
+import { SEED_HINTS, type SeedHint } from '../src/data/seed-players.ts'
 import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
 import {
+  getLahmanPlayerForBucket,
   getLahmanPlayersForBucket,
   lahmanDataAvailable,
 } from './lib/lahman.ts'
+import {
+  canonicalPersonId,
+  normalizePlayerName,
+} from './lib/person-id.ts'
 
 const TOP_N = 20
+const DEFAULT_HINT_PRIORITY = 88
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = join(__dirname, '../src/data/generated')
 
@@ -42,7 +49,27 @@ const FRANCHISE_FIRST_ERA: Partial<Record<TeamId, Era>> = {
   guardians: '1960s',
 }
 
-function bucketScore(player: Player, franchiseId: TeamId, bucketEra: Era): number {
+function personIdForHint(hint: SeedHint): string {
+  return canonicalPersonId({
+    personId: hint.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, ''),
+    name: hint.name,
+  })
+}
+
+function hintScore(hint: SeedHint, franchiseId: TeamId, bucketEra: Era): number {
+  if (hint.teamId !== franchiseId) return -1
+  if (!isModernEra(hint.era)) return -1
+  const dist = Math.abs(eraIndex(hint.era) - eraIndex(bucketEra))
+  if (dist > 1) return -1
+  const eraBonus = dist === 0 ? 25 : 0
+  const base = hint.priority ?? DEFAULT_HINT_PRIORITY
+  return base + eraBonus - dist * 6
+}
+
+function backupScore(player: Player, franchiseId: TeamId, bucketEra: Era): number {
   if (player.teamId !== franchiseId) return -1
   if (!isModernEra(player.era)) return -1
   const dist = Math.abs(eraIndex(player.era) - eraIndex(bucketEra))
@@ -51,30 +78,76 @@ function bucketScore(player: Player, franchiseId: TeamId, bucketEra: Era): numbe
   return player.ratings.overall + eraBonus - dist * 6
 }
 
-function dedupeRankedByPerson(
+function findBackupSeed(
+  hint: SeedHint,
+  franchiseId: TeamId,
+  bucketEra: Era,
+): Player | null {
+  const personId = personIdForHint(hint)
+  let best: { seed: Player; score: number } | null = null
+  for (const raw of SEED_PLAYERS_BACKUP) {
+    const seed: Player = { ...raw, personId: canonicalPersonId(raw) }
+    if (seed.personId !== personId) continue
+    const score = backupScore(seed, franchiseId, bucketEra)
+    if (score < 0) continue
+    if (!best || score > best.score) {
+      best = { seed, score }
+    }
+  }
+  return best?.seed ?? null
+}
+
+function resolveSeedPlayer(
+  hint: SeedHint,
+  franchiseId: TeamId,
+  era: Era,
+  teamName: string,
+): Player | null {
+  const personId = personIdForHint(hint)
+  if (lahmanDataAvailable()) {
+    return getLahmanPlayerForBucket(
+      franchiseId,
+      era,
+      teamName,
+      personId,
+      hint.name,
+    )
+  }
+  return findBackupSeed(hint, franchiseId, era)
+}
+
+function dedupeRanked(
   ranked: { seed: Player; score: number }[],
 ): { seed: Player; score: number }[] {
-  const seen = new Set<string>()
+  const seenPerson = new Set<string>()
+  const seenName = new Set<string>()
   const out: { seed: Player; score: number }[] = []
   for (const entry of ranked) {
-    if (seen.has(entry.seed.personId)) continue
-    seen.add(entry.seed.personId)
+    const personId = entry.seed.personId
+    const name = normalizePlayerName(entry.seed.name)
+    if (seenPerson.has(personId) || seenName.has(name)) {
+      continue
+    }
+    seenPerson.add(personId)
+    seenName.add(name)
     out.push(entry)
   }
   return out
 }
 
-function cardForBucket(
-  seed: Player,
+function finalizeBucketCard(
+  player: Player,
   franchiseId: TeamId,
   era: Era,
   rank: number,
 ): Player {
   const teamName = franchiseDisplayName(franchiseId, era)
-  const id = `${seed.personId}-${franchiseId}-${era}`
+  const personId = canonicalPersonId(player)
+  const cardId = `${personId}-${franchiseId}-${era}`
   return {
-    ...seed,
-    id,
+    ...player,
+    id: cardId,
+    personId,
     teamId: franchiseId,
     teamName,
     era,
@@ -82,7 +155,7 @@ function cardForBucket(
   }
 }
 
-function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucket; players: Player[] } {
+export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucket; players: Player[] } {
   const first = FRANCHISE_FIRST_ERA[franchiseId]
   if (first && eraIndex(era) < eraIndex(first)) {
     return {
@@ -98,18 +171,26 @@ function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucket; play
   }
 
   const byPerson = new Map<string, { seed: Player; score: number }>()
-  for (const seed of SEED_PLAYERS) {
-    const score = bucketScore(seed, franchiseId, era)
+  const teamName = franchiseDisplayName(franchiseId, era)
+
+  for (const hint of SEED_HINTS) {
+    const score = hintScore(hint, franchiseId, era)
     if (score < 0) continue
-    const prev = byPerson.get(seed.personId)
-    if (!prev || score > prev.score) {
-      byPerson.set(seed.personId, { seed, score })
+    const player = resolveSeedPlayer(hint, franchiseId, era, teamName)
+    if (!player) continue
+    const personId = canonicalPersonId(player)
+    const combinedScore = score + player.ratings.overall * 0.25
+    const prev = byPerson.get(personId)
+    if (!prev || combinedScore > prev.score) {
+      byPerson.set(personId, { seed: player, score: combinedScore })
     }
   }
 
   let ranked = [...byPerson.values()].sort((a, b) => b.score - a.score)
-  const teamName = franchiseDisplayName(franchiseId, era)
   const usedPerson = new Set(ranked.map((r) => r.seed.personId))
+  const usedName = new Set(
+    ranked.map((r) => normalizePlayerName(r.seed.name)),
+  )
 
   if (ranked.length < TOP_N && lahmanDataAvailable()) {
     const need = TOP_N - ranked.length
@@ -122,20 +203,18 @@ function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucket; play
     )
     for (const p of lahman) {
       if (ranked.length >= TOP_N) break
-      if (usedPerson.has(p.personId)) continue
+      const name = normalizePlayerName(p.name)
+      if (usedPerson.has(p.personId) || usedName.has(name)) continue
       usedPerson.add(p.personId)
+      usedName.add(name)
       ranked.push({ seed: p, score: p.ratings.overall })
     }
   }
 
-  ranked = dedupeRankedByPerson(ranked).slice(0, TOP_N)
-  const players = ranked.map(({ seed }, i) => {
-    const lahmanCardId = `${seed.personId}-${franchiseId}-${era}`
-    if (seed.id === lahmanCardId) {
-      return { ...seed, bucketRank: i + 1 }
-    }
-    return cardForBucket(seed, franchiseId, era, i + 1)
-  })
+  ranked = dedupeRanked(ranked).slice(0, TOP_N)
+  const players = ranked.map(({ seed }, i) =>
+    finalizeBucketCard(seed, franchiseId, era, i + 1),
+  )
   const playerIds = players.map((p) => p.id)
 
   return {

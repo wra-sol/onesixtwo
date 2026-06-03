@@ -29,8 +29,10 @@ export default function Root() {
           </div>
         </Link>
       </header>
-      <main className="relative mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col overflow-visible px-4 py-2 md:py-4">
-        <Outlet />
+      <main className="relative mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-2 md:py-4">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <Outlet />
+        </div>
       </main>
       <SiteFooter />
     </div>

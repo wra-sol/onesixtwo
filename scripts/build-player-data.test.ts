@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest'
+import { buildBucket } from './build-player-data.ts'
+import { lahmanDataAvailable } from './lib/lahman.ts'
+import { canonicalPersonId } from './lib/person-id.ts'
+import { SEED_PLAYERS_BACKUP } from '../src/data/seed-players.backup.ts'
+import type { HitterStats, PitcherStats } from '../src/lib/types.ts'
+
+const hasLahman = lahmanDataAvailable()
+
+describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
+  it('uses Pirates 1990s Lahman totals for Barry Bonds, not archived career stats', () => {
+    const archivedBonds = SEED_PLAYERS_BACKUP.find(
+      (player) => player.name === 'Barry Bonds' && player.teamId === 'pirates',
+    )
+    expect(archivedBonds).toBeDefined()
+    expect((archivedBonds!.stats as HitterStats).hr).toBe(762)
+
+    const { players } = buildBucket('pirates', '1990s')
+    const personId = canonicalPersonId(archivedBonds!)
+    const card = players.find((player) => player.personId === personId)
+
+    expect(card).toBeDefined()
+    expect(card!.teamId).toBe('pirates')
+    expect(card!.era).toBe('1990s')
+    expect((card!.stats as HitterStats).hr).toBeLessThan(200)
+    expect((card!.stats as HitterStats).hr).not.toBe(762)
+  })
+
+  it('uses Astros 1980s Lahman totals for Nolan Ryan, not archived career stats', () => {
+    const archivedRyan = SEED_PLAYERS_BACKUP.find(
+      (player) => player.name === 'Nolan Ryan' && player.teamId === 'astros',
+    )
+    expect(archivedRyan).toBeDefined()
+    expect((archivedRyan!.stats as PitcherStats).so).toBe(5714)
+
+    const { players } = buildBucket('astros', '1980s')
+    const personId = canonicalPersonId(archivedRyan!)
+    const card = players.find((player) => player.personId === personId)
+
+    expect(card).toBeDefined()
+    expect(card!.teamId).toBe('astros')
+    expect(card!.era).toBe('1980s')
+    expect((card!.stats as PitcherStats).so).toBeLessThan(2000)
+    expect((card!.stats as PitcherStats).so).not.toBe(5714)
+  })
+
+  it('keeps Giants 2000s Bonds distinct from Pirates 1990s Bonds', () => {
+    const pirates = buildBucket('pirates', '1990s').players.find(
+      (player) => player.name === 'Barry Bonds',
+    )
+    const giants = buildBucket('giants', '2000s').players.find(
+      (player) => player.name === 'Barry Bonds',
+    )
+
+    expect(pirates).toBeDefined()
+    expect(giants).toBeDefined()
+    expect((pirates!.stats as HitterStats).hr).not.toBe(
+      (giants!.stats as HitterStats).hr,
+    )
+  })
+
+  it('does not place Bonds in Pirates 2000s with archived career totals', () => {
+    const { players } = buildBucket('pirates', '2000s')
+    const bonds = players.find((player) => player.name === 'Barry Bonds')
+    if (bonds) {
+      expect((bonds.stats as HitterStats).hr).not.toBe(762)
+    }
+  })
+})

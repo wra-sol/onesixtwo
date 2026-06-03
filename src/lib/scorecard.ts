@@ -1,12 +1,10 @@
 import {
-  formatPlayerSlashLine,
-  formatPlayerTotals,
+  formatSimulatedSlashLine,
+  formatSimulatedTotals,
+  SIMULATED_SEASON_STAT_NOTE,
 } from './player-stats'
-import {
-  getPlayerCategories,
-  getPlayerTopCategory,
-  getPlayerWeakestCategory,
-} from './game'
+import { calculateRunPrevention } from './run-prevention'
+import { getPlayerCategories, getPlayerTopCategory } from './game'
 import {
   LINEUP_POSITIONS,
   type CategoryScore,
@@ -15,6 +13,7 @@ import {
   type Player,
   type RosterScorecard,
   type RosterScorecardRow,
+  type SeasonSimulation,
   type TeamGrade,
 } from './types'
 
@@ -60,7 +59,7 @@ export function buildTeamGrades(lineup: Lineup): TeamGrade[] {
     },
     {
       label: 'Run Prevention',
-      value: avg(pitchers.map((p) => p.ratings.era)),
+      value: calculateRunPrevention(players).value,
     },
     { label: 'Control', value: avg(pitchers.map((p) => p.ratings.whip)) },
     {
@@ -168,23 +167,6 @@ export function getPlayerContributionLabel(player: Player): string {
   return 'lineup piece'
 }
 
-function getContributionSummary(
-  player: Player,
-  offenseHeavy: boolean,
-  pitchingHeavy: boolean,
-): string {
-  if (player.role === 'pitcher') {
-    if (pitchingHeavy) return 'Stabilized close games from the mound'
-    return 'Held the rotation together'
-  }
-  const top = getPlayerTopCategory(player)
-  if (offenseHeavy && top.label === 'Power') return 'Powered the run environment'
-  if (top.label === 'Contact') return 'Set the table up top'
-  if (top.label === 'Speed') return 'Created pressure on the bases'
-  if (top.label === 'Power') return 'Drove extra-base damage'
-  return 'Contributed across the lineup'
-}
-
 export function getSignaturePlayer(
   lineup: Lineup,
 ): { name: string; position: import('./types').LineupPosition } | null {
@@ -216,15 +198,8 @@ function gradesToCategoryScores(grades: TeamGrade[]): CategoryScore[] {
 
 export function buildRosterScorecard(
   lineup: Lineup,
-  simulation?: { offenseDrivenWins: number; pitchingDrivenWins: number },
+  simulation: Pick<SeasonSimulation, 'seed'>,
 ): RosterScorecard {
-  const offenseHeavy =
-    (simulation?.offenseDrivenWins ?? 0) >
-    (simulation?.pitchingDrivenWins ?? 0) + 5
-  const pitchingHeavy =
-    (simulation?.pitchingDrivenWins ?? 0) >
-    (simulation?.offenseDrivenWins ?? 0) + 5
-
   const rows: RosterScorecardRow[] = LINEUP_POSITIONS.map((position) => {
     const player = lineup[position]!
     return {
@@ -234,16 +209,13 @@ export function buildRosterScorecard(
       role: player.role,
       teamName: player.teamName,
       era: player.era,
-      displayStats: `${formatPlayerSlashLine(player)} · ${formatPlayerTotals(player)}`,
-      overallRating: player.ratings.overall,
-      topTrait: getPlayerTopCategory(player),
-      weakestTrait: getPlayerWeakestCategory(player),
-      contributionLabel: getPlayerContributionLabel(player),
-      contributionSummary: getContributionSummary(
+      slashLine: formatSimulatedSlashLine(
         player,
-        offenseHeavy,
-        pitchingHeavy,
+        simulation.seed,
+        position,
       ),
+      countingLine: formatSimulatedTotals(player),
+      statNote: SIMULATED_SEASON_STAT_NOTE,
     }
   })
 

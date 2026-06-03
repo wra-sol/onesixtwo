@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.wrangler
 
 # Lahman source CSV (large; regenerate with npm run fetch:lahman)
 data/lahman/*.csv
