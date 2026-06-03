@@ -1,7 +1,7 @@
 import { BRAND } from '../../src/lib/brand'
 import { escapeHtml } from './html'
 import type { SeasonResult } from '../../src/lib/types'
-import primaryOgImage from '../../public/og-perfect-season-20260603.png'
+import primaryOgImageBin from './primary-og.bin'
 
 export const OG_WIDTH = 1200
 export const OG_HEIGHT = 630
@@ -15,6 +15,18 @@ const COLORS = {
 }
 
 const RIGHT_X = OG_WIDTH - 56
+
+function base64Encode(bytes: ArrayBuffer): string {
+  const chunkSize = 0x8000
+  const chunks: string[] = []
+  const data = new Uint8Array(bytes)
+  for (let i = 0; i < data.length; i += chunkSize) {
+    chunks.push(String.fromCharCode(...data.subarray(i, i + chunkSize)))
+  }
+  return btoa(chunks.join(''))
+}
+
+const primaryOgImage = `data:image/jpeg;base64,${base64Encode(primaryOgImageBin)}`
 
 function teamTagline(result: SeasonResult): string {
   return `${result.tier.label} — ${result.identity.label}`
