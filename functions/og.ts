@@ -1,5 +1,6 @@
 import { buildOgSvg } from './_lib/og-image'
 import { resolveShareFromUrl } from './_lib/resolve-share'
+import { shareErrorResponse } from './_lib/share-errors'
 
 type PagesContext = {
   request: Request
@@ -7,11 +8,16 @@ type PagesContext = {
 
 export async function onRequest(context: PagesContext): Promise<Response> {
   const url = new URL(context.request.url)
-  const share = resolveShareFromUrl(url)
+  const resolved = resolveShareFromUrl(url)
 
-  if (!share) {
-    return new Response('Invalid share parameters', { status: 400 })
+  if ('kind' in resolved) {
+    if (resolved.kind === 'validation') {
+      return shareErrorResponse(resolved.error)
+    }
+    return new Response('Share link not found', { status: 404 })
   }
+
+  const share = resolved
 
   const svg = buildOgSvg(share.result, share.lineup)
   return new Response(svg, {

@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { HitterStats, PitcherStats, Player } from './types'
 import {
   comparePlayersRandom,
+  formatPlayerTotals,
   formatSimulatedSlashLine,
+  formatSimulatedTotals,
   seasonHitterCounts,
+  seasonHitterErrors,
   seasonPitcherCounts,
   simulatedSeasonRates,
 } from './player-stats'
@@ -75,6 +78,50 @@ describe('seasonHitterCounts', () => {
     expect(counts.hr).toBe(Math.round(40 * (162 / 140)))
     expect(counts.rbi).toBe(Math.round(120 * (162 / 140)))
     expect(counts.sb).toBe(Math.round(20 * (162 / 140)))
+  })
+})
+
+describe('seasonHitterErrors', () => {
+  it('prorates errors to 162 fielding games', () => {
+    expect(
+      seasonHitterErrors({
+        avg: '.250',
+        hr: 10,
+        rbi: 40,
+        sb: 2,
+        ops: '.700',
+        errors: 24,
+        fieldingGames: 81,
+      }),
+    ).toBe(48)
+  })
+
+  it('returns null when errors are absent', () => {
+    expect(
+      seasonHitterErrors({
+        avg: '.250',
+        hr: 10,
+        rbi: 40,
+        sb: 2,
+        ops: '.700',
+      }),
+    ).toBeNull()
+  })
+})
+
+describe('hitter fielding totals formatting', () => {
+  it('appends prorated errors to card and simulated totals', () => {
+    const player = hitterPlayer({
+      avg: '.270',
+      hr: 20,
+      rbi: 70,
+      sb: 8,
+      ops: '.780',
+      errors: 18,
+      fieldingGames: 162,
+    })
+    expect(formatPlayerTotals(player)).toContain('18 E')
+    expect(formatSimulatedTotals(player)).toContain('18 E')
   })
 })
 

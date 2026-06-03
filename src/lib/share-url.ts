@@ -15,8 +15,22 @@ export type ParsedShare = {
 export type ShareValidationError =
   | 'missing_players'
   | 'wrong_count'
+  | 'invalid_reroll'
   | 'unknown_player'
   | 'duplicate_person'
+
+const SHARE_VALIDATION_MESSAGES: Record<ShareValidationError, string> = {
+  missing_players: 'This share link is missing a lineup.',
+  wrong_count: 'This share link has an invalid lineup format.',
+  invalid_reroll: 'This share link has an invalid reroll value.',
+  unknown_player: 'This share link includes unknown players.',
+  duplicate_person: 'This share link has duplicate players.',
+}
+
+/** User-facing copy for a failed share URL parse. */
+export function shareValidationMessage(error: ShareValidationError): string {
+  return SHARE_VALIDATION_MESSAGES[error]
+}
 
 const PLAYER_PARAM = 'p'
 const REROLL_PARAM = 'n'
@@ -105,7 +119,7 @@ export function parseShareParams(
 
   const reroll = parseReroll(searchParams.get(REROLL_PARAM))
   if (reroll === null) {
-    return 'wrong_count'
+    return 'invalid_reroll'
   }
 
   return {

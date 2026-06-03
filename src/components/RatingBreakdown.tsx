@@ -4,14 +4,26 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { SeasonResult } from '../lib/types'
+import { calculateRunPrevention } from '../lib/run-prevention'
+import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 
 type RatingBreakdownProps = {
   result: SeasonResult
+  lineup?: Lineup
 }
 
-export default function RatingBreakdown({ result }: RatingBreakdownProps) {
+function runPreventionDefenseNote(lineup: Lineup): string | null {
+  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
+  const breakdown = calculateRunPrevention(players)
+  if (breakdown.errorPenalty <= 0) {
+    return null
+  }
+  return `Run prevention: ${breakdown.pitcherValue} pitching − ${breakdown.errorPenalty} defense (${breakdown.lineupErrorsPer162} errors per 162).`
+}
+
+export default function RatingBreakdown({ result, lineup }: RatingBreakdownProps) {
   const grades = result.scorecard?.teamGrades ?? []
+  const defenseNote = lineup ? runPreventionDefenseNote(lineup) : null
 
   return (
     <Card size="sm" aria-labelledby="rating-heading">
@@ -46,6 +58,9 @@ export default function RatingBreakdown({ result }: RatingBreakdownProps) {
             Vulnerabilities:{' '}
             {result.weaknesses.map((w) => `${w.label} ${w.value}`).join(' · ')}
           </p>
+        )}
+        {defenseNote && (
+          <p className="text-xs text-muted-foreground">{defenseNote}</p>
         )}
         <p className="text-sm">
           Simulated record: <strong>{result.record}</strong>

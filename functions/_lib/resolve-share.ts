@@ -5,6 +5,7 @@ import {
   parseShareParams,
   reconstructLineup,
   type ParsedShare,
+  type ShareValidationError,
 } from '../../src/lib/share-url'
 import {
   sharePageDescription,
@@ -22,22 +23,29 @@ export type ResolvedShare = {
   description: string
 }
 
-export function resolveShareFromUrl(url: URL): ResolvedShare | null {
+export type ShareResolveFailure =
+  | { kind: 'validation'; error: ShareValidationError }
+  | { kind: 'lineup_unavailable' }
+  | { kind: 'simulation_failed' }
+
+export function resolveShareFromUrl(
+  url: URL,
+): ResolvedShare | ShareResolveFailure {
   const parsed = parseShareParams(url.searchParams)
   if (!isParsedShare(parsed)) {
-    return null
+    return { kind: 'validation', error: parsed }
   }
 
   const lineup = reconstructLineup(parsed)
   if (!lineup) {
-    return null
+    return { kind: 'lineup_unavailable' }
   }
 
   const rerollSeed =
     parsed.reroll > 0 ? String(parsed.reroll) : undefined
   const result = calculateSeasonResult(lineup, { rerollSeed })
   if (!result) {
-    return null
+    return { kind: 'simulation_failed' }
   }
 
   const shareUrl = `${url.origin}${url.pathname}${url.search}`

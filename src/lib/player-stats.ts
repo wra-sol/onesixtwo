@@ -72,6 +72,15 @@ export function seasonHitterCounts(stats: HitterStats): {
   }
 }
 
+/** Prorate fielding errors to a 162-game season when source stats include them. */
+export function seasonHitterErrors(stats: HitterStats): number | null {
+  if (stats.errors == null) {
+    return null
+  }
+  const games = Math.max(stats.fieldingGames ?? stats.g ?? 162, 1)
+  return Math.round((stats.errors / games) * 162)
+}
+
 export function seasonPitcherCounts(stats: PitcherStats): {
   so: number
   wins: number
@@ -187,7 +196,9 @@ export function formatPlayerTotals(player: Player): string {
   }
 
   const stats = player.stats as HitterStats
-  return `${formatCount(stats.hr)} HR · ${formatCount(stats.rbi)} RBI · ${formatCount(stats.sb)} SB`
+  const errors = seasonHitterErrors(stats)
+  const counting = `${formatCount(stats.hr)} HR · ${formatCount(stats.rbi)} RBI · ${formatCount(stats.sb)} SB`
+  return errors == null ? counting : `${counting} · ${formatCount(errors)} E`
 }
 
 export function formatSimulatedSlashLine(
@@ -209,8 +220,11 @@ export function formatSimulatedTotals(player: Player): string {
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
-  const counts = seasonHitterCounts(player.stats as HitterStats)
-  return `${formatCount(counts.hr)} HR · ${formatCount(counts.rbi)} RBI · ${formatCount(counts.sb)} SB`
+  const stats = player.stats as HitterStats
+  const counts = seasonHitterCounts(stats)
+  const errors = seasonHitterErrors(stats)
+  const counting = `${formatCount(counts.hr)} HR · ${formatCount(counts.rbi)} RBI · ${formatCount(counts.sb)} SB`
+  return errors == null ? counting : `${counting} · ${formatCount(errors)} E`
 }
 
 export function formatPlayerStats(player: Player): string {

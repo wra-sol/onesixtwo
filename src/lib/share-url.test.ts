@@ -57,6 +57,14 @@ describe('share-url', () => {
     expect(parseShareParams(params)).toBe('wrong_count')
   })
 
+  it('rejects invalid reroll param', () => {
+    const params = new URLSearchParams(buildSharePath(lineup).split('?')[1])
+    params.set('n', '-1')
+    expect(parseShareParams(params)).toBe('invalid_reroll')
+    params.set('n', 'abc')
+    expect(parseShareParams(params)).toBe('invalid_reroll')
+  })
+
   it('rejects unknown player IDs', () => {
     const parsed = parseShareParams(
       new URLSearchParams(buildSharePath(lineup).split('?')[1]),

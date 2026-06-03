@@ -12,6 +12,7 @@ import {
   isParsedShare,
   parseShareParams,
   reconstructLineup,
+  shareValidationMessage,
 } from '../lib/share-url'
 import { useSharePageMeta } from '../lib/use-share-page-meta'
 
@@ -39,16 +40,9 @@ export default function ShareRoute() {
   useSharePageMeta(result, lineup, isParsedShare(parsed) ? parsed : null, searchParams)
 
   if (!isParsedShare(parsed) || !lineup || !result) {
-    const message =
-      parsed === 'missing_players'
-        ? 'This share link is missing a lineup.'
-        : parsed === 'wrong_count'
-          ? 'This share link has an invalid lineup format.'
-          : parsed === 'unknown_player'
-            ? 'This share link includes unknown players.'
-            : parsed === 'duplicate_person'
-              ? 'This share link has duplicate players.'
-              : 'This share link could not be loaded.'
+    const message = !isParsedShare(parsed)
+      ? shareValidationMessage(parsed)
+      : 'This share link could not be loaded.'
 
     return (
       <div className="min-h-0 flex-1 overflow-y-auto py-2">

@@ -1,5 +1,6 @@
 import { isShareBot } from './_lib/html'
 import { resolveShareFromUrl } from './_lib/resolve-share'
+import { shareErrorResponse } from './_lib/share-errors'
 import {
   buildBotShareHtml,
   injectShareMetaIntoHtml,
@@ -13,11 +14,16 @@ type PagesContext = {
 
 export async function onRequest(context: PagesContext): Promise<Response> {
   const url = new URL(context.request.url)
-  const share = resolveShareFromUrl(url)
+  const resolved = resolveShareFromUrl(url)
 
-  if (!share) {
+  if ('kind' in resolved) {
+    if (resolved.kind === 'validation') {
+      return shareErrorResponse(resolved.error)
+    }
     return new Response('Share link not found', { status: 404 })
   }
+
+  const share = resolved
 
   const userAgent = context.request.headers.get('user-agent') ?? ''
 

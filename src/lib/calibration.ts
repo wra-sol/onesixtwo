@@ -81,4 +81,4 @@ export const BENCHMARK_EXPECTATIONS: Record<
 
 /** UI copy for simulation explanation. */
 export const SIMULATION_EXPLANATION =
-  'Roster quality sets the baseline; simulation variance decides the season.'
+  'Roster quality sets the baseline; lineup defense can trim run prevention; simulation variance decides the season.'

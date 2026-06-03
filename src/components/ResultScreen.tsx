@@ -115,7 +115,7 @@ export default function ResultScreen({
         <div aria-live="polite">
           <SeasonRecap result={result} />
         </div>
-        <RatingBreakdown result={result} />
+        <RatingBreakdown result={result} lineup={lineup} />
         <Separator />
         {result.scorecard ? (
           <RosterScorecard scorecard={result.scorecard} />
