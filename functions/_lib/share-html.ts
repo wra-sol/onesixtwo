@@ -12,7 +12,7 @@ export function buildShareMetaTags(share: ResolvedShare): string {
     `<meta property="og:image" content="${escapeHtml(share.ogImageUrl)}" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="${escapeHtml(`${share.title} lineup card`)}" />`,
+    `<meta property="og:image:alt" content="${escapeHtml(`${share.title} season card`)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escapeHtml(share.title)}" />`,
     `<meta name="twitter:description" content="${escapeHtml(share.description)}" />`,

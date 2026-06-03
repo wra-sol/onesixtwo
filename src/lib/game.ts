@@ -98,12 +98,29 @@ export function playerCanFillOpenPosition(
   return player.positions.some((position) => openPositions.includes(position))
 }
 
+function getSwitchDestinationForPosition(
+  lineup: Lineup,
+  position: LineupPosition,
+): LineupPosition | null {
+  const player = lineup[position]
+  if (!player) {
+    return null
+  }
+  const open = getOpenPositions(lineup)
+  return player.positions.find((pos) => pos !== position && open.includes(pos)) ?? null
+}
+
 export function getEligiblePositionsForPlayer(
   player: Player,
   lineup: Lineup,
 ): LineupPosition[] {
   const open = getOpenPositions(lineup)
-  return player.positions.filter((position) => open.includes(position))
+  return player.positions.filter((position) => {
+    if (open.includes(position)) {
+      return true
+    }
+    return getSwitchDestinationForPosition(lineup, position) !== null
+  })
 }
 
 export function isLineupComplete(lineup: Lineup): boolean {
@@ -346,10 +363,13 @@ export function canAssignPlayer(
   if (!player) {
     return false
   }
-  if (state.lineup[position] !== null) {
+  if (!player.positions.includes(position)) {
     return false
   }
-  return player.positions.includes(position)
+  if (state.lineup[position] !== null) {
+    return getSwitchDestinationForPosition(state.lineup, position) !== null
+  }
+  return true
 }
 
 export function assignPlayer(
@@ -360,7 +380,15 @@ export function assignPlayer(
     return state
   }
   const player = PLAYER_BY_ID.get(state.selectedPlayerId!)!
-  const lineup = { ...state.lineup, [position]: player }
+  const displacedPlayer = state.lineup[position]
+  const switchDestination = getSwitchDestinationForPosition(state.lineup, position)
+  const lineup = {
+    ...state.lineup,
+    ...(displacedPlayer && switchDestination
+      ? { [switchDestination]: displacedPlayer }
+      : {}),
+    [position]: player,
+  }
   const draftedPlayerIds = [...state.draftedPlayerIds, player.id]
   const draftedPersonIds = [...state.draftedPersonIds, player.personId]
   const historyEntry: DraftHistoryEntry = {

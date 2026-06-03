@@ -24,7 +24,7 @@ function buildOgResponse(url: URL): Response {
 
   const share = resolved
 
-  const svg = buildOgSvg(share.result, share.lineup)
+  const svg = buildOgSvg(share.result)
   return new Response(svg, {
     headers: {
       'Content-Type': 'image/svg+xml; charset=utf-8',

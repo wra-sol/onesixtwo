@@ -7,7 +7,7 @@ export const BRAND = {
   domain: 'onesixtytwo.win',
   url: 'https://onesixtytwo.win',
   logoPath: '/perfect-season-logo.png',
-  ogImagePath: '/og.png',
+  ogImagePath: '/og-perfect-season-20260603.png',
   contactEmail: 'privacy@onesixtytwo.win',
   legalLastUpdated: '2026-06-03',
   governingLaw: 'Canada',

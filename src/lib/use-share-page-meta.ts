@@ -63,7 +63,7 @@ export function useSharePageMeta(
       {
         selector: 'meta[property="og:image:alt"]',
         property: 'og:image:alt',
-        value: `${title} lineup card`,
+        value: `${title} season card`,
       },
       {
         selector: 'meta[name="twitter:title"]',

@@ -57,16 +57,19 @@ function LineupChip({
   const chipClass = `lineup-chip${filled ? ' lineup-chip--filled' : ''}${pitcher ? ' lineup-chip--pitcher' : ''}`
 
   if (canAssign) {
+    const actionLabel = filled ? 'Switch' : 'Tap'
     return (
       <button
         type="button"
         className={`${chipClass} lineup-chip--assignable`}
         data-pos={position}
         onClick={onAssign}
-        aria-label={`Assign to ${position}`}
+        aria-label={
+          filled ? `Switch ${filled.name} from ${position}` : `Assign to ${position}`
+        }
       >
         <span className="lineup-chip-pos">{position}</span>
-        <span className="lineup-chip-name">Tap</span>
+        <span className="lineup-chip-name">{actionLabel}</span>
       </button>
     )
   }
@@ -97,7 +100,7 @@ function MobileLineupStrip({
   const renderChip = (position: LineupPosition, pitcher = false) => {
     const filled = lineup[position]
     const canAssign =
-      selectedPlayer !== null && !filled && eligible.includes(position)
+      selectedPlayer !== null && eligible.includes(position)
     return (
       <LineupChip
         key={position}
@@ -189,7 +192,6 @@ export default function LineupGrid({
                 const filled = lineup[position]
                 const canAssign =
                   selectedPlayer !== null &&
-                  !filled &&
                   eligible.includes(position)
 
                 return (
@@ -199,7 +201,7 @@ export default function LineupGrid({
                     data-pos={position}
                   >
                     <span className="lineup-slot-pos">{position}</span>
-                    {filled ? (
+                    {filled && !canAssign ? (
                       <div className="lineup-slot-player">
                         <span className="lineup-slot-name">
                           {lastName(filled.name)}
@@ -213,7 +215,7 @@ export default function LineupGrid({
                         className="h-auto w-full px-1 py-0.5 text-[0.65rem] leading-tight"
                         onClick={() => onAssign(position)}
                       >
-                        Assign
+                        {filled ? 'Switch' : 'Assign'}
                       </Button>
                     ) : (
                       <span className="lineup-slot-empty">—</span>

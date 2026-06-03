@@ -137,6 +137,80 @@ describe('lineup positions', () => {
     expect(canAssignPlayer(state, 'SS')).toBe(true)
     expect(canAssignPlayer(state, 'P')).toBe(false)
   })
+
+  it('allows drafting into a filled position when the current player can switch to an open position', () => {
+    const flexiblePlayer = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('C') &&
+        p.positions.includes('1B'),
+    )
+    const catcher = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('C') &&
+        !p.positions.includes('1B') &&
+        p.id !== flexiblePlayer?.id,
+    )
+    expect(flexiblePlayer).toBeDefined()
+    expect(catcher).toBeDefined()
+
+    let state = createInitialGameState()
+    state = {
+      ...state,
+      status: 'assigning',
+      selectedPlayerId: catcher!.id,
+      lineup: { ...createEmptyLineup(), C: flexiblePlayer! },
+    }
+
+    expect(getEligiblePositionsForPlayer(catcher!, state.lineup)).toContain('C')
+    expect(canAssignPlayer(state, 'C')).toBe(true)
+
+    state = assignPlayer(state, 'C')
+    expect(state.lineup.C?.id).toBe(catcher!.id)
+    expect(state.lineup['1B']?.id).toBe(flexiblePlayer!.id)
+    expect(state.history.at(-1)?.position).toBe('C')
+  })
+
+  it('does not switch a filled position when the current player has no open alternate position', () => {
+    const flexiblePlayer = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('C') &&
+        p.positions.includes('1B'),
+    )
+    const catcher = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('C') &&
+        !p.positions.includes('1B') &&
+        p.id !== flexiblePlayer?.id,
+    )
+    const firstBaseman = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('1B') &&
+        p.id !== flexiblePlayer?.id,
+    )
+    expect(flexiblePlayer).toBeDefined()
+    expect(catcher).toBeDefined()
+    expect(firstBaseman).toBeDefined()
+
+    const lineup = {
+      ...createEmptyLineup(),
+      C: flexiblePlayer!,
+      '1B': firstBaseman!,
+    }
+    const state = {
+      ...createInitialGameState(),
+      status: 'assigning' as const,
+      selectedPlayerId: catcher!.id,
+      lineup,
+    }
+
+    expect(getEligiblePositionsForPlayer(catcher!, lineup)).not.toContain('C')
+    expect(canAssignPlayer(state, 'C')).toBe(false)
+  })
 })
 
 describe('draft flow', () => {
