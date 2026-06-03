@@ -35,7 +35,7 @@ export function shareValidationMessage(error: ShareValidationError): string {
 const PLAYER_PARAM = 'p'
 const REROLL_PARAM = 'n'
 /** Bump when OG image format/layout changes to bust social CDN caches. */
-const OG_IMAGE_VERSION = '2'
+const OG_IMAGE_VERSION = '3'
 
 function lineupPlayerIds(lineup: Lineup): string[] {
   return LINEUP_POSITIONS.map((pos) => {
