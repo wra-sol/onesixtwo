@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import DraftHistory from '../components/DraftHistory'
 import DraftPanel from '../components/DraftPanel'
 import HowToPlay from '../components/HowToPlay'
@@ -21,6 +21,7 @@ import {
   selectPlayer,
   startGame,
 } from '../lib/game'
+import { useReducedMotion } from '../lib/use-reduced-motion'
 import type { Era, GameState } from '../lib/types'
 
 function statusLabel(state: GameState): string {
@@ -55,6 +56,12 @@ export default function HomeRoute() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState)
   const [teamSpinTick, setTeamSpinTick] = useState(0)
   const [eraSpinTick, setEraSpinTick] = useState(0)
+  const prefersReducedMotion = useReducedMotion()
+  const draftScrollRef = useRef<HTMLDivElement>(null)
+  const dockRef = useRef<HTMLElement>(null)
+
+  const spinDurationMs = prefersReducedMotion ? 0 : SPIN_DURATION_MS
+  const spinTickMs = prefersReducedMotion ? 0 : SPIN_TICK_MS
 
   const teamPreview = useMemo(() => {
     if (TEAM_REEL.length === 0) return ''
@@ -66,6 +73,34 @@ export default function HomeRoute() {
     return ERA_REEL[eraSpinTick % ERA_REEL.length] ?? '1960s'
   }, [eraSpinTick])
 
+  const spinResultAnnouncement = useMemo(() => {
+    if (gameState.status !== 'picking' || !gameState.currentBucket) {
+      return ''
+    }
+    return `Spin result: ${gameState.currentBucket.teamName}, ${gameState.currentBucket.era}`
+  }, [gameState.status, gameState.currentBucket])
+
+  useEffect(() => {
+    const dock = dockRef.current
+    const scroll = draftScrollRef.current
+    if (!dock || !scroll) return
+
+    const syncDockHeight = () => {
+      scroll.style.setProperty('--lineup-dock-h', `${dock.offsetHeight}px`)
+    }
+
+    syncDockHeight()
+    const ro = new ResizeObserver(syncDockHeight)
+    ro.observe(dock)
+    return () => ro.disconnect()
+  }, [gameState.status, gameState.selectedPlayerId])
+
+  useEffect(() => {
+    if (gameState.status === 'assigning' && dockRef.current) {
+      dockRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    }
+  }, [gameState.status, gameState.selectedPlayerId])
+
   useEffect(() => {
     if (gameState.status !== 'spinning') {
       return
@@ -76,10 +111,14 @@ export default function HomeRoute() {
     const spinEra =
       gameState.spinIntent === 'round' || gameState.spinIntent === 'year'
 
-    // Reset reels when a new spin starts.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional spin reel reset
     setTeamSpinTick(0)
     setEraSpinTick(0)
+
+    if (spinDurationMs === 0) {
+      setGameState((current) => resolveSpin(current))
+      return
+    }
 
     const tick = window.setInterval(() => {
       if (spinTeam) {
@@ -88,11 +127,11 @@ export default function HomeRoute() {
       if (spinEra) {
         setEraSpinTick((t) => t + 1)
       }
-    }, SPIN_TICK_MS)
+    }, spinTickMs)
 
     const finish = window.setTimeout(() => {
       setGameState((current) => resolveSpin(current))
-    }, SPIN_DURATION_MS)
+    }, spinDurationMs)
 
     return () => {
       window.clearInterval(tick)
@@ -103,6 +142,8 @@ export default function HomeRoute() {
     gameState.round,
     gameState.draftedPersonIds.length,
     gameState.spinIntent,
+    spinDurationMs,
+    spinTickMs,
   ])
 
   const selectedPlayer = useMemo(() => {
@@ -173,7 +214,10 @@ export default function HomeRoute() {
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:grid md:grid-cols-2 md:items-start md:gap-6 md:overflow-visible">
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-28 md:pb-0">
+      <div
+        ref={draftScrollRef}
+        className="draft-scroll min-h-0 flex-1 space-y-4 overflow-y-auto md:pb-0"
+      >
         <DraftPanel
           round={gameState.round}
           bucket={gameState.currentBucket}
@@ -182,6 +226,7 @@ export default function HomeRoute() {
           spinIntent={gameState.spinIntent}
           teamPreview={teamPreview}
           eraPreview={eraPreview}
+          spinResultAnnouncement={spinResultAnnouncement}
           canRespinTeam={canRespinTeam(gameState)}
           canRespinYear={canRespinYear(gameState)}
           teamRespinUsed={gameState.teamRespinUsed}
@@ -203,14 +248,18 @@ export default function HomeRoute() {
         )}
         <DraftHistory history={gameState.history} />
       </div>
-      <aside className="lineup-aside absolute bottom-0 left-0 z-50 w-full md:static md:z-auto md:w-auto">
+      <aside
+        ref={dockRef}
+        className="lineup-aside absolute bottom-0 left-0 z-50 w-full md:static md:z-auto md:w-auto"
+      >
         <LineupGrid
           lineup={gameState.lineup}
           selectedPlayer={selectedPlayer}
+          isAssigning={gameState.status === 'assigning'}
           onAssign={handleAssign}
         />
         {gameState.status === 'assigning' && selectedPlayer && (
-          <p className="hidden text-sm text-muted-foreground md:block">
+          <p className="hidden px-4 pb-2 text-sm text-muted-foreground md:block">
             Tap a position to assign {selectedPlayer.name}.
           </p>
         )}

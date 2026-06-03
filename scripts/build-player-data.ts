@@ -51,6 +51,19 @@ function bucketScore(player: Player, franchiseId: TeamId, bucketEra: Era): numbe
   return player.ratings.overall + eraBonus - dist * 6
 }
 
+function dedupeRankedByPerson(
+  ranked: { seed: Player; score: number }[],
+): { seed: Player; score: number }[] {
+  const seen = new Set<string>()
+  const out: { seed: Player; score: number }[] = []
+  for (const entry of ranked) {
+    if (seen.has(entry.seed.personId)) continue
+    seen.add(entry.seed.personId)
+    out.push(entry)
+  }
+  return out
+}
+
 function cardForBucket(
   seed: Player,
   franchiseId: TeamId,
@@ -115,7 +128,7 @@ function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucket; play
     }
   }
 
-  ranked = ranked.slice(0, TOP_N)
+  ranked = dedupeRankedByPerson(ranked).slice(0, TOP_N)
   const players = ranked.map(({ seed }, i) => {
     const lahmanCardId = `${seed.personId}-${franchiseId}-${era}`
     if (seed.id === lahmanCardId) {

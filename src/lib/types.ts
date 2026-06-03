@@ -62,6 +62,8 @@ export type PlayerRole = 'hitter' | 'pitcher'
 
 export type HitterStats = {
   avg: string
+  obp?: string
+  slg?: string
   hr: number
   rbi: number
   sb: number

@@ -1,8 +1,16 @@
 import bucketsJson from './generated/buckets.json'
 import playersJson from './generated/players.json'
+import { decodeUnicodeEscapes } from '../lib/text'
 import type { DraftBucket, Player } from '../lib/types'
 
-export const PLAYERS: Player[] = playersJson as Player[]
+function normalizePlayerNames(players: Player[]): Player[] {
+  return players.map((player) => ({
+    ...player,
+    name: decodeUnicodeEscapes(player.name),
+  }))
+}
+
+export const PLAYERS: Player[] = normalizePlayerNames(playersJson as Player[])
 export const DRAFT_BUCKETS: DraftBucket[] = bucketsJson as DraftBucket[]
 
 export const PLAYER_BY_ID = new Map(PLAYERS.map((player) => [player.id, player]))
@@ -21,6 +29,11 @@ export function validateDataset(): string[] {
     const players = getPlayersForBucket(bucket)
     if (players.length < MIN_BUCKET_PLAYERS) {
       errors.push(`Bucket ${bucket.id} has only ${players.length} players`)
+    }
+    const personIds = players.map((p) => p.personId)
+    const uniquePersonIds = new Set(personIds)
+    if (personIds.length !== uniquePersonIds.size) {
+      errors.push(`Bucket ${bucket.id} has duplicate personId entries`)
     }
   }
   const allPositions = new Set(PLAYERS.flatMap((p) => p.positions))

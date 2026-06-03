@@ -1,3 +1,4 @@
+import { BRAND, formatShareText } from './brand'
 import {
   DRAFT_BUCKETS,
   getPlayersForBucket,
@@ -518,7 +519,7 @@ export function projectWins(teamScore: number): { wins: number; losses: number }
 
 export function getHeadline(wins: number, losses: number): string {
   if (wins === 162 && losses === 0) {
-    return 'PERFECT SEASON! You went 162-0!'
+    return `PERFECT SEASON! You went ${BRAND.perfectRecord}!`
   }
   if (wins >= 120) {
     return 'Dynasty! Your lineup dominated the league.'
@@ -527,7 +528,7 @@ export function getHeadline(wins: number, losses: number): string {
     return 'Contender! A strong season, but not perfect.'
   }
   if (wins >= 85) {
-    return 'Playoff push — close, but 162-0 slipped away.'
+    return `Playoff push — close, but ${BRAND.perfectRecord} slipped away.`
   }
   return 'Rebuild season. Try another draft!'
 }
@@ -581,7 +582,7 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
   const weakest = sorted[sorted.length - 1]
   const gamesFromPerfect = 162 - wins
 
-  const shareText = `162-0: I built an all-time lineup and projected ${wins}-${losses}. Can you beat it?`
+  const shareText = formatShareText(wins, losses)
 
   return {
     wins,

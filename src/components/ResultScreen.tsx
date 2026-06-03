@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { BRAND } from '../lib/brand'
 import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
 
@@ -24,15 +25,33 @@ export default function ResultScreen({
   onRestart,
 }: ResultScreenProps) {
   const [copied, setCopied] = useState(false)
+  const [showShareText, setShowShareText] = useState(false)
 
   const handleCopy = async () => {
+    setShowShareText(false)
     try {
       await navigator.clipboard.writeText(result.shareText)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 2000)
+      return
     } catch {
       setCopied(false)
     }
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({
+          title: BRAND.name,
+          text: result.shareText,
+          url: BRAND.url,
+        })
+        return
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+      }
+    }
+
+    setShowShareText(true)
   }
 
   return (
@@ -57,7 +76,7 @@ export default function ResultScreen({
       <CardContent className="space-y-4 text-left">
         {result.gamesFromPerfect > 0 && (
           <p className="text-center text-sm text-muted-foreground">
-            {result.gamesFromPerfect} wins short of 162-0
+            {result.gamesFromPerfect} wins short of {BRAND.perfectRecord}
           </p>
         )}
         {result.bestPlayer && (
@@ -95,6 +114,19 @@ export default function ResultScreen({
             })}
           </ul>
         </div>
+        {showShareText && (
+          <div className="space-y-2 text-left">
+            <p className="text-xs text-muted-foreground">
+              Copy did not work in this browser. Select the text below:
+            </p>
+            <textarea
+              readOnly
+              className="h-20 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 text-xs"
+              value={result.shareText}
+              onFocus={(e) => e.target.select()}
+            />
+          </div>
+        )}
       </CardContent>
       <CardFooter className="justify-center gap-3 border-t-0 bg-transparent">
         <Button type="button" variant="outline" onClick={handleCopy}>

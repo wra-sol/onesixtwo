@@ -8,7 +8,6 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -16,14 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { getPlayerDisabledReason } from '../lib/game'
 import {
-  comparePlayersByCategory,
-  getPlayerDisabledReason,
-  PLAYER_CATEGORY_LABELS,
-} from '../lib/game'
-import type { PlayerCategoryLabel } from '../lib/game'
+  comparePlayersByStat,
+  PLAYER_STAT_SORT_LABELS,
+} from '../lib/player-stats'
+import type { PlayerStatSortLabel } from '../lib/player-stats'
 import type { GameState, LineupPosition, Player } from '../lib/types'
 import { LINEUP_POSITIONS } from '../lib/types'
+import { normalizeForSearch } from '../lib/text'
 import PlayerCard from './PlayerCard'
 
 type PlayerChoicesProps = {
@@ -43,19 +43,19 @@ export default function PlayerChoices({
   const [positionFilter, setPositionFilter] = useState<LineupPosition | 'all'>(
     'all',
   )
-  const [sort, setSort] = useState<PlayerCategoryLabel>('Contact')
+  const [sort, setSort] = useState<PlayerStatSortLabel>('OPS')
   const [compact, setCompact] = useState(true)
 
   const filtered = useMemo(() => {
     let list = [...players]
-    const q = search.trim().toLowerCase()
+    const q = normalizeForSearch(search.trim())
     if (q) {
-      list = list.filter((p) => p.name.toLowerCase().includes(q))
+      list = list.filter((p) => normalizeForSearch(p.name).includes(q))
     }
     if (positionFilter !== 'all') {
       list = list.filter((p) => p.positions.includes(positionFilter))
     }
-    list.sort((a, b) => comparePlayersByCategory(a, b, sort))
+    list.sort((a, b) => comparePlayersByStat(a, b, sort))
     return list
   }, [players, search, positionFilter, sort])
 
@@ -74,7 +74,12 @@ export default function PlayerChoices({
     )
   }
 
-  const playerList = (
+  const playerList =
+    filtered.length === 0 ? (
+      <p className="px-3 py-6 text-center text-sm text-muted-foreground" role="status">
+        No players match filters.
+      </p>
+    ) : (
     <div
       className={
         compact
@@ -94,7 +99,6 @@ export default function PlayerChoices({
               disabled={!selectable}
               disabledReason={disabledReason}
               compact={compact}
-              sortCategory={sort}
               onSelect={() => onSelect(player.id)}
             />
           </div>
@@ -114,7 +118,7 @@ export default function PlayerChoices({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="flex flex-col gap-2 sm:grid sm:grid-cols-4">
           <div className="space-y-1.5">
             <Label htmlFor="player-search" className="text-xs">
               Search
@@ -156,13 +160,13 @@ export default function PlayerChoices({
             </Label>
             <Select
               value={sort}
-              onValueChange={(v) => setSort(v as PlayerCategoryLabel)}
+              onValueChange={(v) => setSort(v as PlayerStatSortLabel)}
             >
               <SelectTrigger id="sort-filter" className="w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {PLAYER_CATEGORY_LABELS.map((label) => (
+                {PLAYER_STAT_SORT_LABELS.map((label) => (
                   <SelectItem key={label} value={label}>
                     {label}
                   </SelectItem>
@@ -182,12 +186,9 @@ export default function PlayerChoices({
           </div>
         </div>
 
-        <div className="rounded-lg border border-border bg-background/50 md:hidden">
+        <div className="max-h-[min(42dvh,24rem)] overflow-y-auto rounded-lg border border-border bg-background/50 md:max-h-[min(50vh,480px)]">
           {playerList}
         </div>
-        <ScrollArea className="hidden max-h-[min(50vh,480px)] rounded-lg border border-border bg-background/50 md:block">
-          {playerList}
-        </ScrollArea>
       </CardContent>
     </Card>
   )

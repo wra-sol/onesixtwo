@@ -52,13 +52,30 @@ This runs `npm run build` then `wrangler pages deploy dist`.
 3. Confirm `_headers` apply (check response headers in browser devtools).
 4. Smoke-test: start draft, spin, filter players, finish 9 rounds, view result recap and copy share text.
 
+## Custom domain
+
+Production hostname: **onesixtytwo.win** (see [DOMAIN.md](./DOMAIN.md) for WHOIS privacy and DNS).
+
+1. Pages → project **onesixtwo** → **Custom domains** → add `onesixtytwo.win` (and optional `www`).
+2. Ensure the zone’s DNS CNAME points at the Pages target Cloudflare shows (often `onesixtwo.pages.dev`).
+3. Wait for SSL active, then verify `https://onesixtytwo.win`.
+
 ## Production URL
 
 | Environment | URL |
 |-------------|-----|
-| Production  | _Pending first successful deploy_ |
+| Production  | https://onesixtytwo.win |
+| Pages default | `https://onesixtwo.pages.dev` (fallback until custom domain is attached) |
+
+## Cloudflare Web Analytics (optional)
+
+1. Dashboard → **Analytics & Logs** → **Web Analytics** → add site `onesixtytwo.win`.
+2. Copy the beacon token.
+3. Set `VITE_CF_BEACON_TOKEN` in GitHub Actions (Deploy workflow env) or locally when running `npm run build`. The Vite plugin injects the beacon script into `index.html` at build time.
+4. Privacy Policy at `/privacy` describes analytics before enabling in production.
 
 ## Notes
 
 - Dataset JSON is bundled into the main JS chunk (~2.7 MB minified, ~199 KB gzip). Acceptable for static Pages; consider lazy-loading or splitting if bundle grows further.
 - No Workers/D1 required for v2; static hosting only.
+- Legal pages: `/privacy`, `/terms`, `/data` (SPA routes; refresh works via `_redirects`).

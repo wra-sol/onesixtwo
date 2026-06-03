@@ -1,8 +1,10 @@
-# 162-0 — Engineering Handoff
+# Perfect Season — Engineering Handoff
+
+**Site:** https://onesixtytwo.win · **Brand module:** `src/lib/brand.ts`
 
 ## What was built
 
-A browser-based MLB all-time draft game inspired by [82-0](https://www.82-0.com/). Players spin random franchise/era combinations, draft legends into a **9-man starting lineup** (`C`, `1B`, `2B`, `3B`, `SS`, `LF`, `CF`, `RF`, `P`), and receive a projected **162-game record** with recap and shareable text.
+A browser-based MLB all-time draft game (goal: **162-0**) inspired by [82-0](https://www.82-0.com/). Players spin random franchise/era combinations, draft legends into a **9-man starting lineup** (`C`, `1B`, `2B`, `3B`, `SS`, `LF`, `CF`, `RF`, `P`), and receive a projected **162-game record** with recap and shareable text.
 
 ## Stack
 
@@ -74,7 +76,9 @@ npm run deploy
 
 Config: `wrangler.toml`, `public/_redirects`, `public/_headers`.
 
-**Production URL:** _Record here after first deploy._
+**Production URL:** https://onesixtytwo.win (attach custom domain in Cloudflare Pages; see `docs/DOMAIN.md`)
+
+**Legal:** `/privacy`, `/terms`, `/data` · **Analytics:** set `VITE_CF_BEACON_TOKEN` at build (see `docs/CLOUDFLARE_DEPLOY.md`)
 
 ## Known limitations
 

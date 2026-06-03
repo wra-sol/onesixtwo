@@ -26,7 +26,8 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Derived from Lahman `Appearances` game counts (≥10 games at position).
 
 ## Duplicate policy
-- Same `personId` (BBRef id) may appear on multiple franchise-decade **cards**.
+- Each franchise-decade bucket lists at most one card per `personId` (BBRef id).
+- The same `personId` may still appear on cards in different franchise-decade buckets.
 - Draft prevents selecting any card whose `personId` is already in the lineup.
 
 ## Bucket coverage
@@ -36,3 +37,4 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 ## Licensing
 - **Do not** scrape Baseball Reference or FanGraphs.
 - Lahman data is the approved historical source for real player names in v2+.
+- Lahman Baseball Database © Sean Lahman / SABR. Used under their public distribution terms for research and non-commercial use. See https://sabr.org/lahman-database/

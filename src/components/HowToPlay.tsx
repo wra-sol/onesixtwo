@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { BRAND } from '@/lib/brand'
 import {
   Card,
   CardContent,
@@ -14,12 +15,17 @@ type HowToPlayProps = {
 export default function HowToPlay({ onStart }: HowToPlayProps) {
   return (
     <Card className="mx-auto max-w-xl">
-      <CardHeader>
-        <CardTitle className="font-display text-xl text-primary">
-          How to Play 162-0
+      <CardHeader className="items-center text-center">
+        <img
+          src={BRAND.logoPath}
+          alt="Perfect Season logo"
+          className="mb-2 size-28 rounded-3xl object-cover shadow-xl ring-2 ring-primary/70"
+        />
+        <CardTitle className="font-display text-2xl text-primary">
+          How to Play {BRAND.name}
         </CardTitle>
         <CardDescription className="text-base text-foreground">
-          Build the ultimate MLB all-time lineup and see if you can go 162-0!
+          {BRAND.description}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -45,7 +51,7 @@ export default function HowToPlay({ onStart }: HowToPlayProps) {
             Your team is rated on offense and run prevention — higher stats win
             more games.
           </li>
-          <li>Aim for the perfect 162-0 season!</li>
+          <li>Aim for the perfect {BRAND.perfectRecord} season!</li>
         </ol>
         <Button type="button" size="lg" onClick={onStart}>
           Start Draft

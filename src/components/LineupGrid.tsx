@@ -15,6 +15,7 @@ import {
 type LineupGridProps = {
   lineup: Lineup
   selectedPlayer: Player | null
+  isAssigning?: boolean
   onAssign: (position: LineupPosition) => void
 }
 
@@ -65,7 +66,7 @@ function LineupChip({
         aria-label={`Assign to ${position}`}
       >
         <span className="lineup-chip-pos">{position}</span>
-        <span className="lineup-chip-name">Assign</span>
+        <span className="lineup-chip-name">Tap</span>
       </button>
     )
   }
@@ -129,6 +130,7 @@ function MobileLineupStrip({
 export default function LineupGrid({
   lineup,
   selectedPlayer,
+  isAssigning = false,
   onAssign,
 }: LineupGridProps) {
   const eligible = selectedPlayer
@@ -138,10 +140,19 @@ export default function LineupGrid({
 
   return (
     <>
-        <section
+      <section
         className="lineup-mobile px-4 md:hidden"
         aria-labelledby="lineup-heading-mobile"
       >
+        {isAssigning && selectedPlayer && (
+          <p
+            className="lineup-assign-banner mb-1.5 rounded-md border border-primary/50 bg-primary/10 px-2 py-1.5 text-center text-xs font-medium text-foreground"
+            role="status"
+          >
+            Tap a position for{' '}
+            <span className="font-bold text-primary">{selectedPlayer.name}</span>
+          </p>
+        )}
         <h2
           id="lineup-heading-mobile"
           className="font-display text-xs text-primary"

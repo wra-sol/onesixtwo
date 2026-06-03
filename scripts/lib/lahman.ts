@@ -9,8 +9,13 @@ import type {
   TeamId,
 } from '../../src/lib/types.ts'
 import { ERAS } from '../../src/data/franchises.ts'
+import { decodeUnicodeEscapes } from '../../src/lib/text.ts'
 import { parseCsv } from './parse-csv.ts'
 import { lahmanFranchToTeam } from './lahman-franchises.ts'
+
+function lahmanName(first: string, last: string): string {
+  return decodeUnicodeEscapes(`${first} ${last}`.trim())
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export const LAHMAN_DIR = join(__dirname, '../../data/lahman')
@@ -32,6 +37,8 @@ type Aggregated = {
   positions: LineupPosition[]
   ab: number
   h: number
+  doubles: number
+  triples: number
   hr: number
   rbi: number
   sb: number
@@ -84,10 +91,36 @@ function formatWhip(h: number, bb: number, ipOuts: number): string {
   return ((h + bb) / ip).toFixed(2)
 }
 
-function formatOps(h: number, ab: number, bb: number, hr: number): string {
+function formatRate(value: number): string {
+  if (!Number.isFinite(value)) return '.000'
+  return value >= 1
+    ? '.999'
+    : `.${Math.min(999, Math.round(value * 1000)).toString().padStart(3, '0')}`
+}
+
+function formatObp(h: number, bb: number, ab: number): string {
+  const pa = ab + bb
+  if (pa < 1) return '.000'
+  return formatRate((h + bb) / pa)
+}
+
+function formatSlg(
+  h: number,
+  doubles: number,
+  triples: number,
+  hr: number,
+  ab: number,
+): string {
+  if (ab < 1) return '.000'
+  const tb = h + doubles + 2 * triples + 3 * hr
+  return formatRate(tb / ab)
+}
+
+function formatOps(h: number, ab: number, bb: number, doubles: number, triples: number, hr: number): string {
   if (ab < 1) return '.700'
-  const obp = (h + bb) / (ab + bb)
-  const tb = h + hr * 2
+  const pa = ab + bb
+  const obp = (h + bb) / pa
+  const tb = h + doubles + 2 * triples + 3 * hr
   const slg = tb / ab
   return (obp + slg).toFixed(3).replace(/^0/, '')
 }
@@ -240,10 +273,12 @@ function aggToPlayer(agg: Aggregated, teamName: string, rank: number): Player {
     role: 'hitter',
     stats: {
       avg: formatAvg(agg.h, agg.ab),
+      obp: formatObp(agg.h, agg.bb, agg.ab),
+      slg: formatSlg(agg.h, agg.doubles, agg.triples, agg.hr, agg.ab),
       hr: agg.hr,
       rbi: agg.rbi,
       sb: agg.sb,
-      ops: formatOps(agg.h, agg.ab, agg.bb, agg.hr),
+      ops: formatOps(agg.h, agg.ab, agg.bb, agg.doubles, agg.triples, agg.hr),
     },
   }
 }
@@ -296,7 +331,7 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     const key = `${playerID}|${teamId}|${era}`
     let agg = index.get(key)
     if (!agg) {
-      const name = `${person.nameFirst} ${person.nameLast}`.trim()
+      const name = lahmanName(person.nameFirst, person.nameLast)
       agg = {
         playerID,
         personId: person.bbrefID,
@@ -307,6 +342,8 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
         positions: [],
         ab: 0,
         h: 0,
+        doubles: 0,
+        triples: 0,
         hr: 0,
         rbi: 0,
         sb: 0,
@@ -331,6 +368,8 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     touch(row.playerID ?? '', year, row.teamID ?? '', (agg) => {
       agg.ab += num(row.AB ?? '0')
       agg.h += num(row.H ?? '0')
+      agg.doubles += num(row['2B'] ?? '0')
+      agg.triples += num(row['3B'] ?? '0')
       agg.hr += num(row.HR ?? '0')
       agg.rbi += num(row.RBI ?? '0')
       agg.sb += num(row.SB ?? '0')
@@ -378,7 +417,7 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
         continue
       }
       const obp = (agg.h + agg.bb) / (agg.ab + agg.bb)
-      const slg = (agg.h + agg.hr * 2) / agg.ab
+      const slg = (agg.h + agg.doubles + 2 * agg.triples + 3 * agg.hr) / agg.ab
       const opsNum = obp + slg
       agg.valueScore =
         agg.hr * 2.2 +

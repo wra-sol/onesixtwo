@@ -35,6 +35,11 @@ function main() {
     if (!positions.has('P') && !resolved.some((p) => p?.role === 'pitcher')) {
       errors.push(`Bucket ${bucket.id} has no pitcher`)
     }
+    const personIds = resolved.map((p) => p?.personId).filter(Boolean)
+    const uniquePersonIds = new Set(personIds)
+    if (personIds.length !== uniquePersonIds.size) {
+      errors.push(`Bucket ${bucket.id} has duplicate personId entries`)
+    }
   }
 
   for (const p of players) {

@@ -17,12 +17,25 @@ type DraftPanelProps = {
   spinIntent?: SpinIntent
   teamPreview?: string
   eraPreview?: Era
+  spinResultAnnouncement?: string
   canRespinTeam?: boolean
   canRespinYear?: boolean
   teamRespinUsed?: boolean
   yearRespinUsed?: boolean
   onRespinTeam?: () => void
   onRespinYear?: () => void
+}
+
+function teamRespinLabel(used: boolean, canRespin: boolean): string {
+  if (used) return 'Respin team · Used'
+  if (canRespin) return 'Respin team · 1 left'
+  return 'Respin team'
+}
+
+function yearRespinLabel(used: boolean, canRespin: boolean): string {
+  if (used) return 'Respin year · Used'
+  if (canRespin) return 'Respin year · 1 left'
+  return 'Respin year'
 }
 
 export default function DraftPanel({
@@ -33,6 +46,7 @@ export default function DraftPanel({
   spinIntent = 'round',
   teamPreview = '',
   eraPreview = '1960s',
+  spinResultAnnouncement = '',
   canRespinTeam = false,
   canRespinYear = false,
   teamRespinUsed = false,
@@ -70,6 +84,7 @@ export default function DraftPanel({
         {showSpinCard && (
           <div
             className={`spin-card ${isSpinning ? 'spin-card--active' : ''}`}
+            aria-live={spinResultAnnouncement ? 'polite' : undefined}
           >
             <span className="mb-2 block text-xs tracking-widest text-muted-foreground uppercase">
               {isSpinning ? 'Spinning…' : 'Spin result'}
@@ -82,6 +97,9 @@ export default function DraftPanel({
               teamPreview={teamPreview || teamName}
               eraPreview={eraPreview}
             />
+            {spinResultAnnouncement && !isSpinning && (
+              <span className="sr-only">{spinResultAnnouncement}</span>
+            )}
           </div>
         )}
         {showRespins && (
@@ -93,7 +111,7 @@ export default function DraftPanel({
               disabled={!canRespinTeam}
               onClick={onRespinTeam}
             >
-              {teamRespinUsed ? 'Team respin used' : 'Respin team'}
+              {teamRespinLabel(teamRespinUsed, canRespinTeam)}
             </Button>
             <Button
               type="button"
@@ -102,7 +120,7 @@ export default function DraftPanel({
               disabled={!canRespinYear}
               onClick={onRespinYear}
             >
-              {yearRespinUsed ? 'Year respin used' : 'Respin year'}
+              {yearRespinLabel(yearRespinUsed, canRespinYear)}
             </Button>
           </div>
         )}

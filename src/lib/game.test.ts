@@ -65,6 +65,14 @@ describe('dataset', () => {
     expect(names).toContain('Derek Jeter')
     expect(names.length).toBeGreaterThan(1000)
   })
+
+  it('lists each person at most once per franchise-decade bucket', () => {
+    for (const bucket of DRAFT_BUCKETS) {
+      const personIds = bucket.playerIds.map((id) => PLAYER_BY_ID.get(id)?.personId)
+      const unique = new Set(personIds)
+      expect(unique.size).toBe(personIds.length)
+    }
+  })
 })
 
 describe('personId duplicate prevention', () => {
@@ -138,8 +146,9 @@ describe('draft flow', () => {
       expect(state.availablePlayers.length).toBeGreaterThan(0)
       const player = state.availablePlayers.find((p) => playerIsPickable(p, state))
       expect(player).toBeDefined()
-      state = selectPlayer(state, player!.id)
-      const pos = getEligiblePositionsForPlayer(player, state.lineup)[0]
+      const pick = player!
+      state = selectPlayer(state, pick.id)
+      const pos = getEligiblePositionsForPlayer(pick, state.lineup)[0]
       state = assignPlayer(state, pos)
     }
 
@@ -256,6 +265,8 @@ describe('scoring benchmarks', () => {
   it('includes recap fields', () => {
     const result = calculateSeasonResult(buildBenchmarkLineup('elite'))
     expect(result?.bestPlayer).not.toBeNull()
+    expect(result?.shareText).toContain('onesixtytwo.win')
+    expect(result?.shareText).toContain('Perfect Season')
     expect(result?.shareText).toContain('162-0')
   })
 })
