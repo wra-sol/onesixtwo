@@ -10,6 +10,8 @@ export function buildShareMetaTags(share: ResolvedShare): string {
     `<meta property="og:description" content="${escapeHtml(share.description)}" />`,
     `<meta property="og:url" content="${escapeHtml(share.shareUrl)}" />`,
     `<meta property="og:image" content="${escapeHtml(share.ogImageUrl)}" />`,
+    `<meta property="og:image:secure_url" content="${escapeHtml(share.ogImageUrl)}" />`,
+    `<meta property="og:image:type" content="image/png" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
     `<meta property="og:image:alt" content="${escapeHtml(`${share.title} season card`)}" />`,

@@ -61,7 +61,7 @@ npm run dev:pages
 4. Smoke-test: start draft, spin, filter players, finish 9 rounds, view result recap and copy share text.
 5. Open a copied `/share?p=...` URL and confirm it renders a read-only result recap.
 6. Fetch `/share?p=...` with a crawler user agent and confirm dynamic `og:title` and `og:image` meta tags.
-7. Fetch `/og?p=...` and confirm it returns a 1200×630 SVG social card with the record and lineup.
+7. Fetch `/og?p=...&v=2` and confirm it returns a 1200×630 PNG social card with the record and tagline.
 
 ## Custom domain
 

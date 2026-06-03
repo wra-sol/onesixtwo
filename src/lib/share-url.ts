@@ -34,6 +34,8 @@ export function shareValidationMessage(error: ShareValidationError): string {
 
 const PLAYER_PARAM = 'p'
 const REROLL_PARAM = 'n'
+/** Bump when OG image format/layout changes to bust social CDN caches. */
+const OG_IMAGE_VERSION = '2'
 
 function lineupPlayerIds(lineup: Lineup): string[] {
   return LINEUP_POSITIONS.map((pos) => {
@@ -68,6 +70,7 @@ export function buildOgPath(parsed: ParsedShare): string {
   if (parsed.reroll > 0) {
     params.set(REROLL_PARAM, String(parsed.reroll))
   }
+  params.set('v', OG_IMAGE_VERSION)
   return `/og?${params.toString()}`
 }
 

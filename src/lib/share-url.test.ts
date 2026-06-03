@@ -49,6 +49,7 @@ describe('share-url', () => {
     if (!isParsedShare(parsed)) return
     expect(buildOgPath(parsed)).toMatch(/^\/og\?p=/)
     expect(buildOgPath(parsed)).toContain('&n=1')
+    expect(buildOgPath(parsed)).toContain('&v=2')
   })
 
   it('rejects wrong player count', () => {

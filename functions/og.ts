@@ -1,4 +1,5 @@
 import { buildOgSvg } from './_lib/og-image'
+import { renderOgPng } from './_lib/og-png'
 import { respondWithEdgeCache } from './_lib/cache'
 import { resolveShareFromUrl } from './_lib/resolve-share'
 import { shareErrorResponse } from './_lib/share-errors'
@@ -12,7 +13,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
   return respondWithEdgeCache(url, () => buildOgResponse(url))
 }
 
-function buildOgResponse(url: URL): Response {
+async function buildOgResponse(url: URL): Promise<Response> {
   const resolved = resolveShareFromUrl(url)
 
   if ('kind' in resolved) {
@@ -25,9 +26,10 @@ function buildOgResponse(url: URL): Response {
   const share = resolved
 
   const svg = buildOgSvg(share.result)
-  return new Response(svg, {
+  const png = await renderOgPng(svg)
+  return new Response(png, {
     headers: {
-      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Content-Type': 'image/png',
       'Cache-Control': 'public, max-age=31536000, immutable',
     },
   })

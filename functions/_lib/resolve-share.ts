@@ -1,6 +1,6 @@
 import { calculateSeasonResult } from '../../src/lib/game'
 import {
-  buildOgUrl,
+  buildOgPath,
   isParsedShare,
   parseShareParams,
   reconstructLineup,
@@ -54,7 +54,7 @@ export function resolveShareFromUrl(
     lineup,
     result,
     shareUrl,
-    ogImageUrl: buildOgUrl(parsed),
+    ogImageUrl: `${url.origin}${buildOgPath(parsed)}`,
     title: sharePageTitle(result.record),
     description: sharePageDescription(result, lineup),
   }
