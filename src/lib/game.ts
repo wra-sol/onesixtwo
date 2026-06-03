@@ -58,10 +58,19 @@ export function getPlayerDisabledReason(
   }
   const open = getOpenPositions(state.lineup)
   if (!playerCanFillOpenPosition(player, open)) {
-    const openLabel = open.join(', ')
-    return `No open fit (${openLabel})`
+    const filled = player.positions.filter(
+      (position) => state.lineup[position] !== null,
+    )
+    if (filled.length > 0) {
+      return `${filled.join(', ')} filled`
+    }
+    return 'No open positions'
   }
   return null
+}
+
+export function playerIsPickable(player: Player, state: GameState): boolean {
+  return getPlayerDisabledReason(player, state) === null
 }
 
 export function getOpenPositions(lineup: Lineup): LineupPosition[] {
@@ -91,11 +100,17 @@ export function filterAvailablePlayers(
   bucket: DraftBucket,
   state: GameState,
 ): Player[] {
-  const open = getOpenPositions(state.lineup)
   return getPlayersForBucket(bucket).filter(
-    (player) =>
-      !state.draftedPersonIds.includes(player.personId) &&
-      playerCanFillOpenPosition(player, open),
+    (player) => !state.draftedPersonIds.includes(player.personId),
+  )
+}
+
+function bucketHasPickablePlayer(
+  bucket: DraftBucket,
+  state: GameState,
+): boolean {
+  return filterAvailablePlayers(bucket, state).some((player) =>
+    playerIsPickable(player, state),
   )
 }
 
@@ -109,7 +124,7 @@ export function getSpinEligibleBuckets(
     if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) {
       return false
     }
-    return filterAvailablePlayers(bucket, state).length > 0
+    return bucketHasPickablePlayer(bucket, state)
   })
 }
 
@@ -382,6 +397,19 @@ export function scorePlayer(player: Player): number {
   return player.ratings.overall
 }
 
+export const PLAYER_CATEGORY_LABELS = [
+  'Contact',
+  'Power',
+  'Speed',
+  'Run Production',
+  'Run Prevention',
+  'Control',
+  'Dominance',
+  'Workload',
+] as const
+
+export type PlayerCategoryLabel = (typeof PLAYER_CATEGORY_LABELS)[number]
+
 export function getPlayerCategories(player: Player): CategoryScore[] {
   if (player.role === 'pitcher') {
     return [
@@ -397,6 +425,49 @@ export function getPlayerCategories(player: Player): CategoryScore[] {
     { label: 'Speed', value: player.ratings.speed },
     { label: 'Run Production', value: player.ratings.runProduction },
   ]
+}
+
+export function getPlayerCategoryValue(
+  player: Player,
+  label: string,
+): number | null {
+  const category = getPlayerCategories(player).find((c) => c.label === label)
+  return category?.value ?? null
+}
+
+export function comparePlayersByCategory(
+  a: Player,
+  b: Player,
+  label: string,
+): number {
+  const aValue = getPlayerCategoryValue(a, label)
+  const bValue = getPlayerCategoryValue(b, label)
+  if (aValue === null && bValue === null) {
+    return 0
+  }
+  if (aValue === null) {
+    return 1
+  }
+  if (bValue === null) {
+    return -1
+  }
+  return bValue - aValue
+}
+
+export function getPlayerTopCategory(player: Player): CategoryScore {
+  const categories = getPlayerCategories(player)
+  return categories.reduce(
+    (best, category) => (category.value > best.value ? category : best),
+    categories[0]!,
+  )
+}
+
+export function getPlayerWeakestCategory(player: Player): CategoryScore {
+  const categories = getPlayerCategories(player)
+  return categories.reduce(
+    (worst, category) => (category.value < worst.value ? category : worst),
+    categories[0]!,
+  )
 }
 
 export function calculateTeamScore(lineup: Lineup): number | null {
@@ -495,7 +566,6 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
     { label: 'Power', value: Math.round(power) },
     { label: 'Speed', value: Math.round(speed) },
     { label: 'Run Prevention', value: Math.round(runPrevention) },
-    { label: 'Overall', value: teamScore },
   ]
 
   const lineupPlayers = LINEUP_POSITIONS.map((pos) => ({
@@ -503,7 +573,9 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
     player: lineup[pos]!,
   }))
   const sorted = [...lineupPlayers].sort(
-    (a, b) => b.player.ratings.overall - a.player.ratings.overall,
+    (a, b) =>
+      getPlayerTopCategory(b.player).value -
+      getPlayerTopCategory(a.player).value,
   )
   const best = sorted[0]
   const weakest = sorted[sorted.length - 1]
@@ -524,14 +596,14 @@ export function calculateSeasonResult(lineup: Lineup): SeasonResult | null {
       ? {
           name: best.player.name,
           position: best.position,
-          overall: best.player.ratings.overall,
+          highlightCategory: getPlayerTopCategory(best.player),
         }
       : null,
     weakestPlayer: weakest
       ? {
           name: weakest.player.name,
           position: weakest.position,
-          overall: weakest.player.ratings.overall,
+          highlightCategory: getPlayerWeakestCategory(weakest.player),
         }
       : null,
     gamesFromPerfect,

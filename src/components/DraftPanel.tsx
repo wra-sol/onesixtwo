@@ -1,11 +1,22 @@
-import type { DraftBucket } from '../lib/types'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Progress, ProgressLabel, ProgressValue } from '@/components/ui/progress'
+import type { DraftBucket, Era, SpinIntent } from '../lib/types'
+import SpinReels from './SpinReels'
 
 type DraftPanelProps = {
   round: number
   bucket: DraftBucket | null
   statusLabel: string
   isSpinning?: boolean
-  spinPreview?: DraftBucket | null
+  spinIntent?: SpinIntent
+  teamPreview?: string
+  eraPreview?: Era
   canRespinTeam?: boolean
   canRespinYear?: boolean
   teamRespinUsed?: boolean
@@ -19,7 +30,9 @@ export default function DraftPanel({
   bucket,
   statusLabel,
   isSpinning = false,
-  spinPreview = null,
+  spinIntent = 'round',
+  teamPreview = '',
+  eraPreview = '1960s',
   canRespinTeam = false,
   canRespinYear = false,
   teamRespinUsed = false,
@@ -27,51 +40,73 @@ export default function DraftPanel({
   onRespinTeam,
   onRespinYear,
 }: DraftPanelProps) {
-  const display = isSpinning && spinPreview ? spinPreview : bucket
   const showRespins =
     !isSpinning && bucket && (onRespinTeam || onRespinYear)
 
+  const showSpinCard = isSpinning || bucket !== null
+  const teamName = bucket?.teamName ?? teamPreview
+  const era = bucket?.era ?? eraPreview
+
   return (
-    <section className="draft-panel" aria-labelledby="draft-panel-heading">
-      <h2 id="draft-panel-heading">The Draft</h2>
-      <p className="round-label">
-        Round <span className="round-num">{round}</span> of 9
-      </p>
-      <p className="status-label" aria-live="polite">
-        {statusLabel}
-      </p>
-      {display && (
-        <div
-          className={`spin-card ${isSpinning ? 'spin-card--active' : ''}`}
-          role="status"
+    <Card aria-labelledby="draft-panel-heading">
+      <CardHeader className="pb-2">
+        <CardTitle
+          id="draft-panel-heading"
+          className="font-display text-primary"
         >
-          <span className="spin-label">
-            {isSpinning ? 'Spinning…' : 'Spin result'}
-          </span>
-          <p className="spin-team">{display.teamName}</p>
-          <p className="spin-era">{display.era}</p>
-        </div>
-      )}
-      {showRespins && (
-        <div className="respin-actions">
-          <button
-            type="button"
-            className="btn btn-secondary btn-respin"
-            disabled={!canRespinTeam}
-            onClick={onRespinTeam}
+          The Draft
+        </CardTitle>
+        <Progress value={(round / 9) * 100} max={100} className="gap-1.5">
+          <ProgressLabel className="text-sm text-muted-foreground">
+            Round {round} of 9
+          </ProgressLabel>
+          <ProgressValue />
+        </Progress>
+        <p className="text-sm italic text-muted-foreground" aria-live="polite">
+          {statusLabel}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {showSpinCard && (
+          <div
+            className={`spin-card ${isSpinning ? 'spin-card--active' : ''}`}
           >
-            {teamRespinUsed ? 'Team respin used' : 'Respin team'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary btn-respin"
-            disabled={!canRespinYear}
-            onClick={onRespinYear}
-          >
-            {yearRespinUsed ? 'Year respin used' : 'Respin year'}
-          </button>
-        </div>
-      )}
-    </section>
+            <span className="mb-2 block text-xs tracking-widest text-muted-foreground uppercase">
+              {isSpinning ? 'Spinning…' : 'Spin result'}
+            </span>
+            <SpinReels
+              teamName={teamName}
+              era={era}
+              isSpinning={isSpinning}
+              spinIntent={spinIntent}
+              teamPreview={teamPreview || teamName}
+              eraPreview={eraPreview}
+            />
+          </div>
+        )}
+        {showRespins && (
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="min-w-32 flex-1"
+              disabled={!canRespinTeam}
+              onClick={onRespinTeam}
+            >
+              {teamRespinUsed ? 'Team respin used' : 'Respin team'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-w-32 flex-1"
+              disabled={!canRespinYear}
+              onClick={onRespinYear}
+            >
+              {yearRespinUsed ? 'Year respin used' : 'Respin year'}
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

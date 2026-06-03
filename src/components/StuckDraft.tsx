@@ -1,18 +1,24 @@
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Button } from '@/components/ui/button'
+
 type StuckDraftProps = {
   onRestart: () => void
 }
 
 export default function StuckDraft({ onRestart }: StuckDraftProps) {
   return (
-    <section className="stuck-draft" role="alert">
-      <h2>No valid spins left</h2>
-      <p>
+    <Alert
+      variant="destructive"
+      className="mx-auto max-w-md border-2 px-6 py-6 text-center"
+    >
+      <AlertTitle className="font-display text-lg">No valid spins left</AlertTitle>
+      <AlertDescription className="mt-2 mb-4">
         No remaining team-era combinations can fill your open lineup spots with
         undrafted players. Start a new draft to try again.
-      </p>
-      <button type="button" className="btn btn-primary" onClick={onRestart}>
+      </AlertDescription>
+      <Button type="button" onClick={onRestart}>
         Restart draft
-      </button>
-    </section>
+      </Button>
+    </Alert>
   )
 }

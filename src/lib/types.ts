@@ -164,8 +164,16 @@ export type SeasonResult = {
   overallRating: number
   categories: CategoryScore[]
   isPerfectSeason: boolean
-  bestPlayer: { name: string; position: LineupPosition; overall: number } | null
-  weakestPlayer: { name: string; position: LineupPosition; overall: number } | null
+  bestPlayer: {
+    name: string
+    position: LineupPosition
+    highlightCategory: CategoryScore
+  } | null
+  weakestPlayer: {
+    name: string
+    position: LineupPosition
+    highlightCategory: CategoryScore
+  } | null
   gamesFromPerfect: number
   shareText: string
 }

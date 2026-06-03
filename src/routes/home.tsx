@@ -7,6 +7,7 @@ import PlayerChoices from '../components/PlayerChoices'
 import ResultScreen from '../components/ResultScreen'
 import StuckDraft from '../components/StuckDraft'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
+import { MODERN_ERAS } from '../data/franchises'
 import {
   assignPlayer,
   calculateSeasonResult,
@@ -20,7 +21,7 @@ import {
   selectPlayer,
   startGame,
 } from '../lib/game'
-import type { GameState } from '../lib/types'
+import type { Era, GameState } from '../lib/types'
 
 function statusLabel(state: GameState): string {
   switch (state.status) {
@@ -44,28 +45,55 @@ function statusLabel(state: GameState): string {
 const SPIN_DURATION_MS = 900
 const SPIN_TICK_MS = 70
 
+const TEAM_REEL = [...new Set(DRAFT_BUCKETS.map((bucket) => bucket.teamName))].sort(
+  (a, b) => a.localeCompare(b),
+)
+
+const ERA_REEL: Era[] = MODERN_ERAS
+
 export default function HomeRoute() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState)
-  const [spinTick, setSpinTick] = useState(0)
+  const [teamSpinTick, setTeamSpinTick] = useState(0)
+  const [eraSpinTick, setEraSpinTick] = useState(0)
 
-  const spinPreview = useMemo(() => {
-    if (DRAFT_BUCKETS.length === 0) return null
-    return DRAFT_BUCKETS[spinTick % DRAFT_BUCKETS.length] ?? null
-  }, [spinTick])
+  const teamPreview = useMemo(() => {
+    if (TEAM_REEL.length === 0) return ''
+    return TEAM_REEL[teamSpinTick % TEAM_REEL.length] ?? ''
+  }, [teamSpinTick])
+
+  const eraPreview = useMemo(() => {
+    if (ERA_REEL.length === 0) return '1960s' as Era
+    return ERA_REEL[eraSpinTick % ERA_REEL.length] ?? '1960s'
+  }, [eraSpinTick])
 
   useEffect(() => {
     if (gameState.status !== 'spinning') {
       return
     }
-    // Reset reel when a new spin starts (round / draft state changed).
+
+    const spinTeam =
+      gameState.spinIntent === 'round' || gameState.spinIntent === 'team'
+    const spinEra =
+      gameState.spinIntent === 'round' || gameState.spinIntent === 'year'
+
+    // Reset reels when a new spin starts.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional spin reel reset
-    setSpinTick(0)
+    setTeamSpinTick(0)
+    setEraSpinTick(0)
+
     const tick = window.setInterval(() => {
-      setSpinTick((t) => t + 1)
+      if (spinTeam) {
+        setTeamSpinTick((t) => t + 1)
+      }
+      if (spinEra) {
+        setEraSpinTick((t) => t + 1)
+      }
     }, SPIN_TICK_MS)
+
     const finish = window.setTimeout(() => {
       setGameState((current) => resolveSpin(current))
     }, SPIN_DURATION_MS)
+
     return () => {
       window.clearInterval(tick)
       window.clearTimeout(finish)
@@ -116,32 +144,44 @@ export default function HomeRoute() {
   }, [])
 
   if (gameState.status === 'intro') {
-    return <HowToPlay onStart={handleStart} />
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <HowToPlay onStart={handleStart} />
+      </div>
+    )
   }
 
   if (gameState.status === 'stuck') {
-    return <StuckDraft onRestart={handleRestart} />
+    return (
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <StuckDraft onRestart={handleRestart} />
+      </div>
+    )
   }
 
   if (gameState.status === 'complete' && seasonResult) {
     return (
-      <ResultScreen
-        result={seasonResult}
-        lineup={gameState.lineup}
-        onRestart={handleRestart}
-      />
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <ResultScreen
+          result={seasonResult}
+          lineup={gameState.lineup}
+          onRestart={handleRestart}
+        />
+      </div>
     )
   }
 
   return (
-    <div className="game-layout">
-      <div className="game-column game-column--draft">
+    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:grid md:grid-cols-2 md:items-start md:gap-6 md:overflow-visible">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-28 md:pb-0">
         <DraftPanel
           round={gameState.round}
           bucket={gameState.currentBucket}
           statusLabel={statusLabel(gameState)}
           isSpinning={gameState.status === 'spinning'}
-          spinPreview={spinPreview}
+          spinIntent={gameState.spinIntent}
+          teamPreview={teamPreview}
+          eraPreview={eraPreview}
           canRespinTeam={canRespinTeam(gameState)}
           canRespinYear={canRespinYear(gameState)}
           teamRespinUsed={gameState.teamRespinUsed}
@@ -163,18 +203,18 @@ export default function HomeRoute() {
         )}
         <DraftHistory history={gameState.history} />
       </div>
-      <div className="game-column game-column--lineup">
+      <aside className="lineup-aside absolute bottom-0 left-0 z-50 w-full md:static md:z-auto md:w-auto">
         <LineupGrid
           lineup={gameState.lineup}
           selectedPlayer={selectedPlayer}
           onAssign={handleAssign}
         />
         {gameState.status === 'assigning' && selectedPlayer && (
-          <p className="assign-hint">
+          <p className="hidden text-sm text-muted-foreground md:block">
             Tap a position to assign {selectedPlayer.name}.
           </p>
         )}
-      </div>
+      </aside>
     </div>
   )
 }

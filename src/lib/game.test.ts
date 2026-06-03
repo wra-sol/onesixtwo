@@ -17,7 +17,9 @@ import {
   createEmptyLineup,
   createInitialGameState,
   getEligiblePositionsForPlayer,
+  filterAvailablePlayers,
   getPlayerDisabledReason,
+  playerIsPickable,
   getSpinEligibleBuckets,
   getTeamRespinCandidates,
   getYearRespinCandidates,
@@ -84,6 +86,30 @@ describe('personId duplicate prevention', () => {
   })
 })
 
+describe('available players list', () => {
+  it('includes undrafted players whose positions are already filled', () => {
+    const pitcher = [...PLAYER_BY_ID.values()].find((p) => p.role === 'pitcher')
+    expect(pitcher).toBeDefined()
+    const bucket = DRAFT_BUCKETS.find((b) => b.playerIds.includes(pitcher!.id))
+    expect(bucket).toBeDefined()
+
+    const otherPitcher = [...PLAYER_BY_ID.values()].find(
+      (p) => p.role === 'pitcher' && p.id !== pitcher!.id,
+    )
+    expect(otherPitcher).toBeDefined()
+
+    let state = createInitialGameState()
+    state = {
+      ...state,
+      lineup: { ...createEmptyLineup(), P: otherPitcher! },
+    }
+    const listed = filterAvailablePlayers(bucket!, state)
+    expect(listed.some((p) => p.id === pitcher!.id)).toBe(true)
+    expect(getPlayerDisabledReason(pitcher!, state)).toBe('P filled')
+    expect(playerIsPickable(pitcher!, state)).toBe(false)
+  })
+})
+
 describe('lineup positions', () => {
   it('rejects assignment to wrong position', () => {
     const hitter = [...PLAYER_BY_ID.values()].find(
@@ -110,8 +136,9 @@ describe('draft flow', () => {
     for (let i = 0; i < 9; i++) {
       state = applySpin(state, alwaysFirst)
       expect(state.availablePlayers.length).toBeGreaterThan(0)
-      const player = state.availablePlayers[0]
-      state = selectPlayer(state, player.id)
+      const player = state.availablePlayers.find((p) => playerIsPickable(p, state))
+      expect(player).toBeDefined()
+      state = selectPlayer(state, player!.id)
       const pos = getEligiblePositionsForPlayer(player, state.lineup)[0]
       state = assignPlayer(state, pos)
     }

@@ -1,4 +1,14 @@
 import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
 
@@ -26,54 +36,74 @@ export default function ResultScreen({
   }
 
   return (
-    <section className="result-screen" aria-labelledby="result-heading">
-      <h2 id="result-heading">Season result</h2>
-      <p
-        className={`result-record ${result.isPerfectSeason ? 'result-record--perfect' : ''}`}
-      >
-        {result.record}
-      </p>
-      <p className="result-headline">{result.headline}</p>
-      {result.gamesFromPerfect > 0 && (
-        <p className="result-distance">
-          {result.gamesFromPerfect} wins short of 162-0
+    <Card className="mx-auto max-w-lg text-center" aria-labelledby="result-heading">
+      <CardHeader>
+        <CardTitle
+          id="result-heading"
+          className="font-display text-xl text-primary"
+        >
+          Season result
+        </CardTitle>
+        <p
+          className={cn(
+            'font-display text-5xl font-bold',
+            result.isPerfectSeason && 'result-record--perfect',
+          )}
+        >
+          {result.record}
         </p>
-      )}
-      {result.bestPlayer && (
-        <p className="result-highlight">
-          MVP: {result.bestPlayer.name} ({result.bestPlayer.position}) — OVR{' '}
-          {result.bestPlayer.overall}
-        </p>
-      )}
-      {result.weakestPlayer && (
-        <p className="result-highlight result-highlight--weak">
-          Weakest link: {result.weakestPlayer.name} ({result.weakestPlayer.position}) — OVR{' '}
-          {result.weakestPlayer.overall}
-        </p>
-      )}
-      <RatingBreakdown result={result} />
-      <div className="final-lineup">
-        <h3>Your lineup</h3>
-        <ul className="final-lineup-list">
-          {LINEUP_POSITIONS.map((pos) => {
-            const player = lineup[pos]
-            return (
-              <li key={pos}>
-                <span className="final-pos">{pos}</span>
-                <span className="final-name">{player?.name ?? '—'}</span>
-              </li>
-            )
-          })}
-        </ul>
-      </div>
-      <div className="result-actions">
-        <button type="button" className="btn btn-secondary" onClick={handleCopy}>
+        <p className="text-base">{result.headline}</p>
+      </CardHeader>
+      <CardContent className="space-y-4 text-left">
+        {result.gamesFromPerfect > 0 && (
+          <p className="text-center text-sm text-muted-foreground">
+            {result.gamesFromPerfect} wins short of 162-0
+          </p>
+        )}
+        {result.bestPlayer && (
+          <p className="text-center text-sm">
+            MVP: {result.bestPlayer.name} ({result.bestPlayer.position}) —{' '}
+            {result.bestPlayer.highlightCategory.label}{' '}
+            {result.bestPlayer.highlightCategory.value}
+          </p>
+        )}
+        {result.weakestPlayer && (
+          <p className="text-center text-sm text-muted-foreground">
+            Weakest link: {result.weakestPlayer.name} (
+            {result.weakestPlayer.position}) —{' '}
+            {result.weakestPlayer.highlightCategory.label}{' '}
+            {result.weakestPlayer.highlightCategory.value}
+          </p>
+        )}
+        <RatingBreakdown result={result} />
+        <Separator />
+        <div>
+          <h3 className="font-display mb-2 text-base text-primary">
+            Your lineup
+          </h3>
+          <ul className="grid grid-cols-3 gap-1.5 text-xs">
+            {LINEUP_POSITIONS.map((pos) => {
+              const player = lineup[pos]
+              return (
+                <li key={pos} className="rounded-md bg-muted/50 px-2 py-1.5">
+                  <span className="block text-[0.7rem] font-extrabold text-primary">
+                    {pos}
+                  </span>
+                  <span className="block truncate">{player?.name ?? '—'}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      </CardContent>
+      <CardFooter className="justify-center gap-3 border-t-0 bg-transparent">
+        <Button type="button" variant="outline" onClick={handleCopy}>
           {copied ? 'Copied!' : 'Copy result'}
-        </button>
-        <button type="button" className="btn btn-primary" onClick={onRestart}>
+        </Button>
+        <Button type="button" onClick={onRestart}>
           Draft again
-        </button>
-      </div>
-    </section>
+        </Button>
+      </CardFooter>
+    </Card>
   )
 }

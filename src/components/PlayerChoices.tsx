@@ -1,11 +1,30 @@
 import { useMemo, useState } from 'react'
-import type { LineupPosition, Player } from '../lib/types'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  comparePlayersByCategory,
+  getPlayerDisabledReason,
+  PLAYER_CATEGORY_LABELS,
+} from '../lib/game'
+import type { PlayerCategoryLabel } from '../lib/game'
+import type { GameState, LineupPosition, Player } from '../lib/types'
 import { LINEUP_POSITIONS } from '../lib/types'
-import { getPlayerDisabledReason } from '../lib/game'
-import type { GameState } from '../lib/types'
 import PlayerCard from './PlayerCard'
-
-type SortKey = 'overall' | 'name' | 'position'
 
 type PlayerChoicesProps = {
   players: Player[]
@@ -24,7 +43,7 @@ export default function PlayerChoices({
   const [positionFilter, setPositionFilter] = useState<LineupPosition | 'all'>(
     'all',
   )
-  const [sort, setSort] = useState<SortKey>('overall')
+  const [sort, setSort] = useState<PlayerCategoryLabel>('Contact')
   const [compact, setCompact] = useState(true)
 
   const filtered = useMemo(() => {
@@ -36,101 +55,140 @@ export default function PlayerChoices({
     if (positionFilter !== 'all') {
       list = list.filter((p) => p.positions.includes(positionFilter))
     }
-    list.sort((a, b) => {
-      if (sort === 'name') {
-        return a.name.localeCompare(b.name)
-      }
-      if (sort === 'position') {
-        return a.positions[0].localeCompare(b.positions[0])
-      }
-      return b.ratings.overall - a.ratings.overall
-    })
+    list.sort((a, b) => comparePlayersByCategory(a, b, sort))
     return list
   }, [players, search, positionFilter, sort])
 
+  const pickableCount = useMemo(
+    () =>
+      players.filter((p) => getPlayerDisabledReason(p, gameState) === null)
+        .length,
+    [players, gameState],
+  )
+
   if (players.length === 0) {
     return (
-      <p className="empty-choices" role="status">
-        No eligible players in this spin. Respinning…
+      <p className="text-sm text-muted-foreground" role="status">
+        No players left in this spin. Respinning…
       </p>
     )
   }
 
+  const playerList = (
+    <div
+      className={
+        compact
+          ? 'divide-y divide-border'
+          : 'grid gap-3 p-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]'
+      }
+      role="list"
+    >
+      {filtered.map((player) => {
+        const disabledReason = getPlayerDisabledReason(player, gameState)
+        const selectable = disabledReason === null
+        return (
+          <div key={player.id} role="listitem">
+            <PlayerCard
+              player={player}
+              selected={selectedPlayerId === player.id}
+              disabled={!selectable}
+              disabledReason={disabledReason}
+              compact={compact}
+              sortCategory={sort}
+              onSelect={() => onSelect(player.id)}
+            />
+          </div>
+        )
+      })}
+    </div>
+  )
+
   return (
-    <section className="player-choices" aria-labelledby="choices-heading">
-      <h3 id="choices-heading">Pick one player ({filtered.length})</h3>
-      <div className="player-filters">
-        <label className="filter-label">
-          Search
-          <input
-            type="search"
-            className="filter-input"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Player name"
-          />
-        </label>
-        <label className="filter-label">
-          Position
-          <select
-            className="filter-select"
-            value={positionFilter}
-            onChange={(e) =>
-              setPositionFilter(e.target.value as LineupPosition | 'all')
-            }
-          >
-            <option value="all">All</option>
-            {LINEUP_POSITIONS.map((pos) => (
-              <option key={pos} value={pos}>
-                {pos}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="filter-label">
-          Sort
-          <select
-            className="filter-select"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-          >
-            <option value="overall">Overall</option>
-            <option value="name">Name</option>
-            <option value="position">Position</option>
-          </select>
-        </label>
-        <label className="filter-label filter-label--check">
-          <input
-            type="checkbox"
-            checked={compact}
-            onChange={(e) => setCompact(e.target.checked)}
-          />
-          Compact list
-        </label>
-      </div>
-      <div
-        className={
-          compact ? 'player-choices-list' : 'player-choices-grid'
-        }
-        role="list"
-      >
-        {filtered.map((player) => {
-          const disabledReason = getPlayerDisabledReason(player, gameState)
-          const selectable = disabledReason === null
-          return (
-            <div key={player.id} role="listitem">
-              <PlayerCard
-                player={player}
-                selected={selectedPlayerId === player.id}
-                disabled={!selectable}
-                disabledReason={disabledReason}
-                compact={compact}
-                onSelect={() => onSelect(player.id)}
-              />
-            </div>
-          )
-        })}
-      </div>
-    </section>
+    <Card aria-labelledby="choices-heading">
+      <CardHeader className="pb-2">
+        <CardTitle
+          id="choices-heading"
+          className="font-display text-base text-primary"
+        >
+          Pick one player ({pickableCount} of {filtered.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="player-search" className="text-xs">
+              Search
+            </Label>
+            <Input
+              id="player-search"
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Player name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="position-filter" className="text-xs">
+              Position
+            </Label>
+            <Select
+              value={positionFilter}
+              onValueChange={(v) =>
+                setPositionFilter(v as LineupPosition | 'all')
+              }
+            >
+              <SelectTrigger id="position-filter" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {LINEUP_POSITIONS.map((pos) => (
+                  <SelectItem key={pos} value={pos}>
+                    {pos}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="sort-filter" className="text-xs">
+              Sort
+            </Label>
+            <Select
+              value={sort}
+              onValueChange={(v) => setSort(v as PlayerCategoryLabel)}
+            >
+              <SelectTrigger id="sort-filter" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PLAYER_CATEGORY_LABELS.map((label) => (
+                  <SelectItem key={label} value={label}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end gap-2 pb-0.5">
+            <Checkbox
+              id="compact-list"
+              checked={compact}
+              onCheckedChange={(checked) => setCompact(checked === true)}
+            />
+            <Label htmlFor="compact-list" className="text-xs font-normal">
+              Compact list
+            </Label>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-background/50 md:hidden">
+          {playerList}
+        </div>
+        <ScrollArea className="hidden max-h-[min(50vh,480px)] rounded-lg border border-border bg-background/50 md:block">
+          {playerList}
+        </ScrollArea>
+      </CardContent>
+    </Card>
   )
 }
