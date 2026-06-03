@@ -237,6 +237,34 @@ describe('lineup positions', () => {
     expect(state.history.at(-1)?.position).toBe('C')
   })
 
+  it('allows picking a single-position player when a flexible incumbent can switch to an open spot', () => {
+    const flexiblePlayer = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.includes('LF') &&
+        p.positions.includes('CF'),
+    )
+    const leftFielder = [...PLAYER_BY_ID.values()].find(
+      (p) =>
+        p.role === 'hitter' &&
+        p.positions.length === 1 &&
+        p.positions[0] === 'LF' &&
+        p.id !== flexiblePlayer?.id,
+    )
+    expect(flexiblePlayer).toBeDefined()
+    expect(leftFielder).toBeDefined()
+
+    const lineup = { ...createEmptyLineup(), LF: flexiblePlayer! }
+    const state = {
+      ...createInitialGameState(),
+      lineup,
+    }
+
+    expect(getPlayerDisabledReason(leftFielder!, state)).toBeNull()
+    expect(playerIsPickable(leftFielder!, state)).toBe(true)
+    expect(getEligiblePositionsForPlayer(leftFielder!, lineup)).toContain('LF')
+  })
+
   it('does not switch a filled position when the current player has no open alternate position', () => {
     const flexiblePlayer = [...PLAYER_BY_ID.values()].find(
       (p) =>

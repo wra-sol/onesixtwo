@@ -81,8 +81,7 @@ export function getPlayerDisabledReason(
   if (getDraftedEraCount(state, player.era) >= MAX_PLAYERS_PER_ERA) {
     return `${player.era} maxed`
   }
-  const open = getOpenPositions(state.lineup)
-  if (!playerCanFillOpenPosition(player, open)) {
+  if (getEligiblePositionsForPlayer(player, state.lineup).length === 0) {
     const filled = player.positions.filter(
       (position) => state.lineup[position] !== null,
     )
