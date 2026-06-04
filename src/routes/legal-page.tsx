@@ -158,12 +158,6 @@ const DATA_SECTIONS: LegalSection[] = [
       'Thank you to my Dad, Dean, for showing me how to fall in love with baseball.',
     ],
   },
-  {
-    title: 'For developers',
-    paragraphs: [
-      'Build pipeline, licensing notes, and dataset policy: see docs/DATA_POLICY.md in the project repository.',
-    ],
-  },
 ]
 
 const PAGES: Record<LegalPageConfig['slug'], LegalPageConfig> = {

@@ -115,14 +115,24 @@ describe('isStarterEligible / isReliefEligible', () => {
     expect(isReliefEligible(player)).toBe(true)
   })
 
-  it('classifies a swingman as both profiles', () => {
+  it('classifies a relief-heavy swingman as dedicated relief only', () => {
+    const player = pitcher({
+      positions: ['SP', 'RP'],
+      stats: { era: '3.20', whip: '1.15', so: 150, wins: 12, gs: 14, g: 55, reliefGames: 41 },
+    })
+    expect(isStarterEligible(player)).toBe(false)
+    expect(isReliefEligible(player)).toBe(true)
+    expect(isDedicatedReliefEligible(player)).toBe(true)
+  })
+
+  it('excludes near-even swingmen from dedicated relief profile', () => {
     const player = pitcher({
       positions: ['SP', 'RP'],
       stats: { era: '3.20', whip: '1.15', so: 150, wins: 12, gs: 25, g: 55, reliefGames: 30 },
     })
     expect(isStarterEligible(player)).toBe(true)
     expect(isReliefEligible(player)).toBe(true)
-    expect(isDedicatedReliefEligible(player)).toBe(true)
+    expect(isDedicatedReliefEligible(player)).toBe(false)
   })
 
   it('excludes starter-heavy workloads from dedicated relief profile', () => {

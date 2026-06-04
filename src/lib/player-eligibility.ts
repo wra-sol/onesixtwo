@@ -69,7 +69,7 @@ export function isDedicatedReliefEligible(player: Player): boolean {
   const gs = stats.gs ?? 0
   const g = stats.g ?? gs
   const reliefGames = stats.reliefGames ?? Math.max(0, g - gs)
-  return reliefGames >= 20 && reliefGames > gs
+  return reliefGames >= 20 && reliefGames >= gs * 2
 }
 
 export function isStarterEligible(player: Player): boolean {

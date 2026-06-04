@@ -3,6 +3,7 @@ import { buildBucket } from './build-player-data.ts'
 import { lahmanDataAvailable } from './lib/lahman.ts'
 import { canonicalPersonId } from './lib/person-id.ts'
 import { SEED_PLAYERS_BACKUP } from '../src/data/seed-players.backup.ts'
+import { isDedicatedReliefEligible, isStarterEligible } from '../src/lib/player-eligibility.ts'
 import type { HitterStats, PitcherStats } from '../src/lib/types.ts'
 
 const hasLahman = lahmanDataAvailable()
@@ -94,24 +95,8 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
 
   it('includes at least two starter-profile and two dedicated reliever-profile pitchers', () => {
     const { players } = buildBucket('yankees', '1990s')
-    const starters = players.filter(
-      (player) => player.role !== 'hitter' && (player.pitchingStats ?? player.stats),
-    ).filter((player) => {
-      const stats = player.pitchingStats ?? player.stats
-      if (!('gs' in stats)) return false
-      const gs = stats.gs ?? 0
-      const g = stats.g ?? gs
-      const relief = stats.reliefGames ?? Math.max(0, g - gs)
-      return gs >= 20 || gs > relief
-    })
-    const relievers = players.filter((player) => {
-      const stats = player.pitchingStats ?? player.stats
-      if (!('gs' in stats)) return false
-      const gs = stats.gs ?? 0
-      const g = stats.g ?? gs
-      const relief = stats.reliefGames ?? Math.max(0, g - gs)
-      return relief >= 20 && relief > gs
-    })
+    const starters = players.filter(isStarterEligible)
+    const relievers = players.filter(isDedicatedReliefEligible)
     expect(starters.length).toBeGreaterThanOrEqual(2)
     expect(relievers.length).toBeGreaterThanOrEqual(2)
   })
@@ -119,17 +104,11 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
   it('guarantees the best dedicated relievers from the era, not starter swingmen', () => {
     const { players } = buildBucket('nationals', '2020s')
     const relievers = players
-      .filter((player) => {
-        const stats = player.pitchingStats ?? player.stats
-        if (!('gs' in stats)) return false
-        const gs = stats.gs ?? 0
-        const g = stats.g ?? gs
-        const relief = stats.reliefGames ?? Math.max(0, g - gs)
-        return relief >= 20 && relief > gs
-      })
+      .filter(isDedicatedReliefEligible)
       .map((player) => player.name)
     expect(relievers).toContain('Erasmo Ramirez')
-    expect(relievers).toContain('Joe Ross')
+    expect(relievers).toContain('Brad Lord')
+    expect(relievers).not.toContain('Joe Ross')
     expect(relievers).not.toContain('Mitchell Parker')
   })
 })

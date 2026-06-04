@@ -11,6 +11,7 @@ import type {
   TeamId,
 } from '../../src/lib/types.ts'
 import {
+  isDedicatedReliefEligible,
   reliefProfileFromStats,
   starterProfileFromStats,
 } from '../../src/lib/player-eligibility.ts'
@@ -365,6 +366,21 @@ function buildPitcherStats(agg: Aggregated): PitcherStats {
   }
 }
 
+function hasDedicatedReliefProfile(agg: Aggregated): boolean {
+  return isDedicatedReliefEligible({
+    id: agg.personId,
+    personId: agg.personId,
+    name: agg.name,
+    teamId: agg.teamId,
+    teamName: '',
+    era: agg.era,
+    role: agg.role,
+    positions: [],
+    stats: buildPitcherStats(agg),
+    ratings: pitcherRatings(0, 0, 0, 0, 0, 0),
+  })
+}
+
 function finalizePositions(
   agg: Aggregated,
   positions: LineupPosition[],
@@ -675,7 +691,7 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
       agg.role = 'pitcher'
       const era = ip > 0 ? (agg.er * 9) / ip : 5
       const reliefGames = Math.max(0, agg.g - agg.gs)
-      if (reliefGames >= 20 && reliefGames > agg.gs) {
+      if (hasDedicatedReliefProfile(agg)) {
         const svPer70 =
           reliefGames > 0
             ? (agg.sv / reliefGames) * STANDARD_RP_APPEARANCES
