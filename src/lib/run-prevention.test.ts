@@ -92,4 +92,54 @@ describe('calculateRunPrevention', () => {
     expect(result.value).toBe(100)
     expect(result.errorPenalty).toBe(0)
   })
+
+  it('includes two-way SP in pitcher run prevention', () => {
+    const twoWaySp: Player = {
+      id: 'ohtani',
+      personId: 'ohtani',
+      name: 'Two-Way Star',
+      teamId: 'yankees',
+      teamName: 'Yankees',
+      era: '2010s',
+      role: 'two-way',
+      positions: ['SP', 'DH'],
+      stats: {
+        era: '3.00',
+        whip: '1.10',
+        so: 200,
+        wins: 15,
+        gs: 30,
+      },
+      ratings: {
+        contact: 80,
+        power: 80,
+        speed: 70,
+        runProduction: 80,
+        ops: 80,
+        era: 88,
+        whip: 85,
+        strikeouts: 85,
+        wins: 80,
+        workload: 80,
+        overall: 84,
+      },
+      pitchingRatings: {
+        contact: 0,
+        power: 0,
+        speed: 0,
+        runProduction: 0,
+        ops: 0,
+        era: 88,
+        whip: 85,
+        strikeouts: 85,
+        wins: 80,
+        workload: 80,
+        overall: 84,
+      },
+    }
+    const fielders = Array.from({ length: 8 }, () => hitter())
+    const result = calculateRunPrevention([...fielders, twoWaySp])
+    expect(result.pitcherValue).toBe(88)
+    expect(result.value).toBeLessThanOrEqual(result.pitcherValue)
+  })
 })

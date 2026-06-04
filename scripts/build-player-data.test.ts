@@ -70,6 +70,20 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
     expect(ohtani!.positions).toContain('SP')
   })
 
+  it('classifies NL-style aces as pitcher-only, not two-way', () => {
+    const dodgers2010s = buildBucket('dodgers', '2010s').players
+    const kershaw = dodgers2010s.find((player) => player.name === 'Clayton Kershaw')
+    expect(kershaw).toBeDefined()
+    expect(kershaw!.role).toBe('pitcher')
+    expect(kershaw!.battingStats).toBeUndefined()
+
+    const braves1990s = buildBucket('braves', '1990s').players
+    const maddux = braves1990s.find((player) => player.name === 'Greg Maddux')
+    expect(maddux).toBeDefined()
+    expect(maddux!.role).toBe('pitcher')
+    expect(maddux!.battingStats).toBeUndefined()
+  })
+
   it('does not place Bonds in Pirates 2000s with archived career totals', () => {
     const { players } = buildBucket('pirates', '2000s')
     const bonds = players.find((player) => player.name === 'Barry Bonds')

@@ -40,6 +40,9 @@ function lahmanName(first: string, last: string): string {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 export const LAHMAN_DIR = join(__dirname, '../../data/lahman')
 
+/** Both batting and pitching overall must meet this bar for purpose-made two-way cards. */
+export const TWO_WAY_MIN_OVERALL = 60
+
 type PersonRow = {
   playerID: string
   nameFirst: string
@@ -583,19 +586,39 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     const isPurePitcher = ip >= 80 && ip >= agg.ab / 3
 
     if (battingQualified && pitchingQualified) {
-      agg.role = 'two-way'
+      const batOverall = ratingsFromAggBatting(agg).overall
+      const pitOverall = ratingsFromAggPitching(agg).overall
       const era = ip > 0 ? (agg.er * 9) / ip : 5
       const obp = (agg.h + agg.bb) / (agg.ab + agg.bb)
       const slg = (agg.h + agg.doubles + 2 * agg.triples + 3 * agg.hr) / agg.ab
       const opsNum = obp + slg
-      agg.valueScore =
-        agg.hr * 2.2 +
-        agg.rbi * 0.35 +
-        agg.h * 0.15 +
-        opsNum * 40 +
-        agg.w * 2 +
-        agg.so * 0.05 +
-        Math.max(0, 6 - era) * 10
+
+      if (
+        batOverall >= TWO_WAY_MIN_OVERALL &&
+        pitOverall >= TWO_WAY_MIN_OVERALL
+      ) {
+        agg.role = 'two-way'
+        agg.valueScore =
+          agg.hr * 2.2 +
+          agg.rbi * 0.35 +
+          agg.h * 0.15 +
+          opsNum * 40 +
+          agg.w * 2 +
+          agg.so * 0.05 +
+          Math.max(0, 6 - era) * 10
+      } else if (isPurePitcher || pitOverall >= batOverall) {
+        agg.role = 'pitcher'
+        agg.valueScore = agg.w * 4 + agg.so * 0.08 + Math.max(0, 6 - era) * 15
+        if (!agg.positions.includes('SP')) agg.positions = ['SP', ...agg.positions]
+      } else {
+        agg.role = 'hitter'
+        agg.valueScore =
+          agg.hr * 2.2 +
+          agg.rbi * 0.35 +
+          agg.h * 0.15 +
+          agg.sb * 0.4 +
+          opsNum * 40
+      }
     } else if (isPurePitcher || (ip >= 80 && !battingQualified)) {
       agg.role = 'pitcher'
       const era = ip > 0 ? (agg.er * 9) / ip : 5

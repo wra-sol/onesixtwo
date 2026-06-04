@@ -2,6 +2,7 @@ import type { LineupPosition, PitcherStats, Player, RosterFormatId } from './typ
 import { getActiveLineupPositions } from './roster-format'
 
 export function playerHasBattingProfile(player: Player): boolean {
+  if (player.role === 'pitcher') return false
   if (player.role === 'hitter' || player.role === 'two-way') return true
   return Boolean(player.battingStats)
 }

@@ -28,7 +28,8 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Derived from Lahman `Appearances` (≥10 games at position) plus role rules in [`scripts/lib/lahman.ts`](../scripts/lib/lahman.ts).
 
 ## Two-way players
-- One card per person per franchise-decade when `AB ≥ 80` and `IP ≥ 40` in that bucket.
+- One card per person per franchise-decade when `AB ≥ 80` and `IP ≥ 40` in that bucket **and** both batting and pitching overall ratings are ≥ 60 (purpose-made two-way only).
+- NL pitchers who merely accumulated plate appearances while pitching are classified as `pitcher` and do not drag team offense.
 - Carries `battingStats`, `pitchingStats`, and combined ratings; contributes to offense and pitching from a single roster slot.
 - Example: Shohei Ohtani (`ohtansh01`) on Angels decade cards.
 

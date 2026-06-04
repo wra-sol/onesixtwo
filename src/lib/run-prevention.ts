@@ -1,3 +1,5 @@
+import { playerHasPitchingProfile } from './player-eligibility'
+import { getPitchingRatings } from './player-ratings'
 import { lineupErrorPenalty } from './rating-anchors'
 import type { HitterStats, Player } from './types'
 
@@ -27,8 +29,10 @@ export type RunPreventionBreakdown = {
 
 /** Pitcher run prevention minus lineup fielding error penalty. */
 export function calculateRunPrevention(players: Player[]): RunPreventionBreakdown {
-  const pitchers = players.filter((p) => p.role === 'pitcher')
-  const pitcherValue = avg(pitchers.map((p) => p.ratings.era))
+  const pitchers = players.filter(
+    (p) => playerHasPitchingProfile(p) && p.role !== 'hitter',
+  )
+  const pitcherValue = avg(pitchers.map((p) => getPitchingRatings(p).era))
   const errorsTotal = lineupErrorsPer162(players)
   const errorPenalty = lineupErrorPenalty(errorsTotal)
   const value = Math.round(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyLineup } from './roster-format'
 import { buildScoreExplanation } from './team-scoring'
-import type { PitcherStats, Player } from './types'
+import type { LineupPosition, PitcherStats, Player } from './types'
 
 function closer(): Player {
   return {
@@ -37,6 +37,96 @@ function closer(): Player {
     },
   }
 }
+
+function fieldHitter(rating: number): Player {
+  return {
+    id: `h-${rating}`,
+    personId: `h-${rating}`,
+    name: 'Test Hitter',
+    teamId: 'yankees',
+    teamName: 'Yankees',
+    era: '1990s',
+    role: 'hitter',
+    positions: ['RF'],
+    stats: {
+      avg: '.280',
+      hr: 20,
+      rbi: 80,
+      sb: 10,
+      ops: '.800',
+    },
+    ratings: {
+      contact: rating,
+      power: rating,
+      speed: rating,
+      runProduction: rating,
+      ops: rating,
+      era: 0,
+      whip: 0,
+      strikeouts: 0,
+      wins: 0,
+      workload: 0,
+      overall: rating,
+    },
+  }
+}
+
+function starterPitcher(): Player {
+  return {
+    id: 'starter',
+    personId: 'starter',
+    name: 'Test Starter',
+    teamId: 'yankees',
+    teamName: 'Yankees',
+    era: '1990s',
+    role: 'pitcher',
+    positions: ['SP'],
+    stats: {
+      era: '3.00',
+      whip: '1.10',
+      so: 200,
+      wins: 15,
+      gs: 32,
+      g: 33,
+    } satisfies PitcherStats,
+    ratings: {
+      contact: 0,
+      power: 0,
+      speed: 0,
+      runProduction: 0,
+      ops: 0,
+      era: 95,
+      whip: 95,
+      strikeouts: 85,
+      wins: 70,
+      workload: 75,
+      overall: 88,
+    },
+  }
+}
+
+describe('buildScoreExplanation offense', () => {
+  it('does not count pitcher SP toward offense score', () => {
+    const lineup = createEmptyLineup()
+    const fieldPositions: LineupPosition[] = [
+      'C',
+      '1B',
+      '2B',
+      '3B',
+      'SS',
+      'LF',
+      'CF',
+      'RF',
+    ]
+    for (const position of fieldPositions) {
+      lineup[position] = fieldHitter(80)
+    }
+    lineup.SP = starterPitcher()
+
+    const explanation = buildScoreExplanation(lineup, 'classic')
+    expect(explanation.offenseScore).toBe(80)
+  })
+})
 
 describe('buildScoreExplanation role fit', () => {
   it('penalizes a non-starter profile in the SP slot', () => {

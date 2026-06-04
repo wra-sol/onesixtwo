@@ -4,6 +4,7 @@ import {
   getPlayerEligiblePositions,
   isReliefEligible,
   isStarterEligible,
+  playerHasBattingProfile,
   reliefProfileFromStats,
   starterProfileFromStats,
 } from './player-eligibility'
@@ -34,6 +35,23 @@ function pitcher(overrides: Partial<Player> & { stats: PitcherStats }): Player {
     ...overrides,
   }
 }
+
+describe('playerHasBattingProfile', () => {
+  it('returns false for pitcher role even when stale battingStats exist', () => {
+    const player = pitcher({
+      positions: ['SP'],
+      stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 33 },
+    })
+    player.battingStats = {
+      avg: '.150',
+      hr: 0,
+      rbi: 2,
+      sb: 0,
+      ops: '.400',
+    }
+    expect(playerHasBattingProfile(player)).toBe(false)
+  })
+})
 
 describe('starterProfileFromStats', () => {
   it('marks high-start workloads as starter profile', () => {
