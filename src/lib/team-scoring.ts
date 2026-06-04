@@ -214,7 +214,6 @@ export function calculateTeamScoreFromLineup(
     return null
   }
   const explanation = buildScoreExplanation(lineup, formatId)
-  const players = lineupPlayers(lineup, formatId)
   const offenseScore = explanation.offenseScore
   const pitchingScore = explanation.pitchingScore
   const roleFit = explanation.roleFitScore

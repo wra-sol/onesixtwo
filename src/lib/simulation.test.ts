@@ -34,6 +34,7 @@ function pitcher(
       whip: ratings.whip,
       strikeouts: ratings.strikeouts,
       wins: 70,
+      saves: 50,
       workload: ratings.workload,
       overall: 80,
     },

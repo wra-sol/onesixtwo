@@ -31,6 +31,7 @@ function pitcher(overrides: Partial<Player> & { stats: PitcherStats }): Player {
       whip: 80,
       strikeouts: 80,
       wins: 80,
+      saves: 50,
       workload: 80,
       overall: 80,
     },
