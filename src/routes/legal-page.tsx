@@ -123,6 +123,14 @@ const TERMS_SECTIONS: LegalSection[] = [
 
 const DATA_SECTIONS: LegalSection[] = [
   {
+    title: 'How the game works',
+    paragraphs: [
+      'Each draft round starts with a spin for a franchise and an era. That gives you a small pool of players who actually fit that team-decade combination. Pick one, place them in an open lineup spot, then keep building until your roster is full.',
+      'When the lineup is complete, the engine turns your choices into a 162-game projection. Hitters help through things like getting on base, hitting for power, and avoiding weak spots in the order. Pitchers help by preventing runs. The final record is a playful estimate of how dominant that fantasy roster might be, not a claim about what would happen in real life.',
+      'The fun is in the tradeoffs: do you take the best player available, save a position for later, spend a respin, or trust that another legend will show up? The goal is simple: chase the perfect 162-0 season.',
+    ],
+  },
+  {
     title: 'Player data',
     paragraphs: [
       'Player names and career statistics come primarily from the Lahman Baseball Database (via Baseball Reference IDs), plus curated seed entries for iconic cards. See https://sabr.org/lahman-database/.',
@@ -140,7 +148,14 @@ const DATA_SECTIONS: LegalSection[] = [
   {
     title: 'Design inspiration',
     paragraphs: [
-      `Gameplay is inspired by ${BRAND.inspiredByName} (${BRAND.inspiredByUrl}). ${BRAND.name} is an independent project.`,
+      `The idea behind the game engine owes a clear debt to Strat-O-Matic Baseball, the tabletop classic that taught generations of fans how statistics, chance, and imagination can make baseball feel alive. ${BRAND.name} is an independent fan project and is not affiliated with Strat-O-Matic, MLB, or its teams.`,
+      `The web-game format is also inspired by ${BRAND.inspiredByName} (${BRAND.inspiredByUrl}).`,
+    ],
+  },
+  {
+    title: 'A personal thank you',
+    paragraphs: [
+      'Thank you to my Dad, Dean, for showing me how to fall in love with baseball.',
     ],
   },
   {
