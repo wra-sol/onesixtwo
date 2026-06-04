@@ -1,5 +1,5 @@
 /**
- * Builds franchise-decade buckets with up to 25 ranked players each.
+ * Builds franchise-decade buckets with 25–50 ranked players each (top 50 when data allows).
  * Run: npm run build:data
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -20,6 +20,7 @@ import {
 } from '../src/lib/player-eligibility.ts'
 import { getPitchingRatings } from '../src/lib/player-ratings.ts'
 import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
+import { BUCKET_MAX, BUCKET_MIN } from './lib/bucket-size.ts'
 import {
   getLahmanPlayerForBucket,
   getLahmanPlayersForBucket,
@@ -30,7 +31,6 @@ import {
   normalizePlayerName,
 } from './lib/person-id.ts'
 
-const TOP_N = 25
 const MIN_BUCKET_SP = 2
 const MIN_BUCKET_RP = 2
 const DEFAULT_HINT_PRIORITY = 88
@@ -168,7 +168,7 @@ function injectPitcherProfiles(
       franchiseId,
       era,
       teamName,
-      50,
+      BUCKET_MAX,
       usedPerson,
       predicate,
     )
@@ -193,11 +193,11 @@ function sortByReliefPitchingOverall(players: Player[]): Player[] {
   )
 }
 
-function trimToTopNWithQuotas(
+function trimToMaxWithQuotas(
   ranked: { seed: Player; score: number }[],
 ): { seed: Player; score: number }[] {
   const sorted = dedupeRanked(ranked).sort((a, b) => b.score - a.score)
-  if (sorted.length <= TOP_N) return sorted
+  if (sorted.length <= BUCKET_MAX) return sorted
 
   const requiredIds = new Set<string>()
   let sp = 0
@@ -228,7 +228,7 @@ function trimToTopNWithQuotas(
     seen.add(entry.seed.personId)
   }
   for (const entry of sorted) {
-    if (out.length >= TOP_N) break
+    if (out.length >= BUCKET_MAX) break
     if (seen.has(entry.seed.personId)) continue
     out.push(entry)
     seen.add(entry.seed.personId)
@@ -293,8 +293,8 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
     ranked.map((r) => normalizePlayerName(r.seed.name)),
   )
 
-  if (ranked.length < TOP_N && lahmanDataAvailable()) {
-    const need = TOP_N - ranked.length
+  if (ranked.length < BUCKET_MAX && lahmanDataAvailable()) {
+    const need = BUCKET_MAX - ranked.length
     const lahman = getLahmanPlayersForBucket(
       franchiseId,
       era,
@@ -303,7 +303,7 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
       usedPerson,
     )
     for (const p of lahman) {
-      if (ranked.length >= TOP_N) break
+      if (ranked.length >= BUCKET_MAX) break
       const name = normalizePlayerName(p.name)
       if (usedPerson.has(p.personId) || usedName.has(name)) continue
       usedPerson.add(p.personId)
@@ -329,7 +329,7 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
     MIN_BUCKET_RP,
     sortByReliefPitchingOverall,
   )
-  ranked = trimToTopNWithQuotas(ranked)
+  ranked = trimToMaxWithQuotas(ranked)
 
   const players = ranked.map(({ seed }, i) =>
     finalizeBucketCard(seed, franchiseId, era, i + 1),
@@ -371,13 +371,13 @@ function main() {
   const coverage = buckets.map((b) => ({
     id: b.id,
     count: b.playerIds.length,
-    exception: b.playerIds.length < TOP_N,
+    exception: b.playerIds.length < BUCKET_MIN,
   }))
   writeFileSync(join(outDir, 'coverage-report.json'), JSON.stringify(coverage, null, 2))
 
   console.log(`Generated ${playersArr.length} player cards across ${buckets.length} buckets`)
   const exceptions = coverage.filter((c) => c.exception).length
-  console.log(`Buckets with fewer than ${TOP_N} players: ${exceptions}`)
+  console.log(`Buckets with fewer than ${BUCKET_MIN} players: ${exceptions}`)
 }
 
 main()

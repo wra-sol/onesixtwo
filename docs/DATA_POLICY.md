@@ -3,7 +3,7 @@
 ## Source strategy
 - **Primary**: [Lahman Baseball Database](https://sabr.org/lahman-database/) CSV under `data/lahman/` (names align with Baseball Reference via `bbrefID`).
 - **Curated seeds**: [`src/data/seed-players.ts`](../src/data/seed-players.ts) for iconic cards with tuned display stats/ratings.
-- **Build**: [`scripts/build-player-data.ts`](../scripts/build-player-data.ts) merges seed + Lahman top performers per franchise-decade (20 players per bucket).
+- **Build**: [`scripts/build-player-data.ts`](../scripts/build-player-data.ts) merges seed + Lahman top performers per franchise-decade (**25–50 players per bucket**, up to 50 when data allows).
 
 Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 
@@ -46,7 +46,7 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Draft prevents selecting any card whose `personId` is already in the lineup.
 
 ## Bucket coverage
-- Target **20 players** per playable `franchiseId + era` bucket.
+- Target **25–50 players** per playable `franchiseId + era` bucket (top 50 by value score when enough qualifiers exist; sparse eras may be smaller).
 - Documented in `src/data/generated/coverage-report.json`.
 
 ## Licensing

@@ -30,12 +30,12 @@ npm run deploy        # build + wrangler pages deploy
 
 | Metric | Value |
 |--------|-------|
-| Franchise-era buckets | 194 |
-| Players per bucket | 20 (min enforced by build script) |
-| Total player cards | ~3880 |
+| Franchise-era buckets | 236 |
+| Players per bucket | 25–50 (top 50 when Lahman has enough; min 25 target) |
+| Total player cards | ~11700 |
 | Name source | Lahman DB (`bbrefID` = Baseball Reference) + seed stars |
 | Franchises | 30 (`src/data/franchises.ts`) |
-| Eras | 1960s–2020s per franchise |
+| Eras | 1930s–2020s per franchise |
 
 Pipeline:
 
@@ -53,9 +53,9 @@ Policy docs: `docs/DATA_POLICY.md`, `docs/QA_NOTES.md`, `docs/NEXT_ITERATION_HAN
 
 ## Verification (local)
 
-- `npm run validate:data` — passes (0 buckets under 20 players)
+- `npm run validate:data` — passes (sparse buckets may be under 25 players)
 - `npm test` — 13 tests passing
-- `npm run build` — succeeds (~2.7 MB JS, ~199 KB gzip)
+- `npm run build` — succeeds (~8.3 MB JS, ~1.1 MB gzip with full player dataset)
 
 ## Gameplay (v2)
 

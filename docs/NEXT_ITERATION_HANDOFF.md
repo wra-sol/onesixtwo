@@ -2,7 +2,7 @@
 
 ## What shipped (v2)
 
-- **275 franchise-era buckets** (30 franchises × 11 eras), **20 players each**, **5500 player cards**
+- **236 franchise-era buckets**, **25–50 players each** (up to 50 when data allows), **~11700 player cards**
 - **Seed + generate pipeline:** `src/data/seed-players.ts` → `scripts/build-player-data.ts` → `src/data/generated/*.json`
 - **Validation:** `npm run validate:data` (coverage report in `coverage-report.json`)
 - **`personId` duplicate prevention** across franchise-era cards

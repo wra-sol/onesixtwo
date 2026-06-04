@@ -8,6 +8,7 @@ import {
   STANDARD_RP_IP,
 } from '../src/lib/calibration.ts'
 import { buildLahmanBucketIndex, lahmanDataAvailable } from './lib/lahman.ts'
+import { BUCKET_MAX } from './lib/bucket-size.ts'
 import {
   isPlayableCardMetrics,
   metricsFromAgg,
@@ -49,15 +50,13 @@ function summarizeLowerBetter(name: string, values: number[], digits = 2) {
   )
 }
 
-const TOP_N_PER_BUCKET = 25
-
 function collectMetrics(): LahmanAggMetrics[] {
   const buckets = buildLahmanBucketIndex()
   const out: LahmanAggMetrics[] = []
   for (const list of buckets.values()) {
     const ranked = [...list]
       .sort((a, b) => b.valueScore - a.valueScore)
-      .slice(0, TOP_N_PER_BUCKET)
+      .slice(0, BUCKET_MAX)
     for (const agg of ranked) {
       const metrics = metricsFromAgg(agg)
       if (metrics && isPlayableCardMetrics(metrics)) out.push(metrics)
