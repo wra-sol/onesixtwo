@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { PLAYERS } from '../data'
 import { buildBenchmarkLineup } from './benchmarks'
 import { getActiveLineupPositions } from './roster-format'
+import { createEmptyLineup } from './roster-format'
 import { calculateSeasonResult } from './game'
+import { resolveShareFromUrl } from '../../functions/_lib/resolve-share'
 import {
   buildOgPath,
   buildSharePath,
@@ -10,6 +13,37 @@ import {
   parseShareParams,
   reconstructLineup,
 } from './share-url'
+import type { Lineup, RosterFormatId } from './types'
+
+function extendLineupToFormat(
+  base: Lineup,
+  formatId: RosterFormatId,
+): Lineup {
+  const lineup = createEmptyLineup()
+  const positions = getActiveLineupPositions(formatId)
+  const used = new Set<string>()
+
+  for (const pos of positions) {
+    const fromBase = base[pos]
+    if (fromBase) {
+      lineup[pos] = fromBase
+      used.add(fromBase.personId)
+    }
+  }
+
+  for (const pos of positions) {
+    if (lineup[pos]) continue
+    const pick = PLAYERS.find(
+      (p) => !used.has(p.personId) && p.positions.includes(pos),
+    )
+    if (pick) {
+      lineup[pos] = pick
+      used.add(pick.personId)
+    }
+  }
+
+  return lineup
+}
 
 describe('share-url', () => {
   const lineup = buildBenchmarkLineup('great')
@@ -106,5 +140,42 @@ describe('share-url', () => {
     const direct = calculateSeasonResult(lineup, { rerollSeed: '3' })
     expect(fromUrl?.record).toBe(direct?.record)
     expect(fromUrl?.wins).toBe(direct?.wins)
+  })
+
+  it('parsed dh-rp URL produces same record as direct calculation', () => {
+    const dhRpLineup = extendLineupToFormat(lineup, 'dh-rp')
+    const path = buildSharePath(dhRpLineup, 2, 'dh-rp')
+    expect(path).toContain('&f=dh-rp')
+
+    const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
+    expect(isParsedShare(parsed)).toBe(true)
+    if (!isParsedShare(parsed)) return
+
+    const fromUrl = calculateSeasonResult(reconstructLineup(parsed)!, {
+      rerollSeed: String(parsed.reroll),
+      rosterFormatId: parsed.rosterFormatId,
+    })
+    const direct = calculateSeasonResult(dhRpLineup, {
+      rerollSeed: '2',
+      rosterFormatId: 'dh-rp',
+    })
+    expect(fromUrl?.record).toBe(direct?.record)
+    expect(fromUrl?.wins).toBe(direct?.wins)
+  })
+
+  it('resolveShareFromUrl uses roster format from share URL', () => {
+    const dhRpLineup = extendLineupToFormat(lineup, 'dh-rp')
+    const path = buildSharePath(dhRpLineup, 2, 'dh-rp')
+    const url = new URL(`https://onesixtytwo.win${path}`)
+    const resolved = resolveShareFromUrl(url)
+    expect('kind' in resolved).toBe(false)
+    if ('kind' in resolved) return
+
+    const direct = calculateSeasonResult(dhRpLineup, {
+      rerollSeed: '2',
+      rosterFormatId: 'dh-rp',
+    })
+    expect(resolved.result.record).toBe(direct?.record)
+    expect(resolved.result.wins).toBe(direct?.wins)
   })
 })

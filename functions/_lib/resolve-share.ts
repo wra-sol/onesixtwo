@@ -43,7 +43,10 @@ export function resolveShareFromUrl(
 
   const rerollSeed =
     parsed.reroll > 0 ? String(parsed.reroll) : undefined
-  const result = calculateSeasonResult(lineup, { rerollSeed })
+  const result = calculateSeasonResult(lineup, {
+    rerollSeed,
+    rosterFormatId: parsed.rosterFormatId,
+  })
   if (!result) {
     return { kind: 'simulation_failed' }
   }
