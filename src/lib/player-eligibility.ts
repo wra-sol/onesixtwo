@@ -2,14 +2,27 @@ import type { LineupPosition, PitcherStats, Player, RosterFormatId } from './typ
 import { getActiveLineupPositions } from './roster-format'
 
 export function playerHasBattingProfile(player: Player): boolean {
-  if (player.role === 'pitcher') return false
-  if (player.role === 'hitter' || player.role === 'two-way') return true
-  return Boolean(player.battingStats)
+  return player.role === 'hitter' || player.role === 'two-way'
 }
 
 export function playerHasPitchingProfile(player: Player): boolean {
-  if (player.role === 'pitcher' || player.role === 'two-way') return true
-  return Boolean(player.pitchingStats)
+  return player.role === 'pitcher' || player.role === 'two-way'
+}
+
+const PITCHING_LINEUP_POSITIONS = new Set<LineupPosition>(['SP', 'RP'])
+
+/** Positions shown on cards — pitchers are SP/RP only; hitters omit pitching slots. */
+export function getDisplayPositions(player: Player): LineupPosition[] {
+  if (player.role === 'pitcher') {
+    const pitching = player.positions.filter((pos) =>
+      PITCHING_LINEUP_POSITIONS.has(pos),
+    )
+    return pitching.length > 0 ? pitching : ['SP']
+  }
+  if (player.role === 'hitter') {
+    return player.positions.filter((pos) => !PITCHING_LINEUP_POSITIONS.has(pos))
+  }
+  return player.positions
 }
 
 export function reliefProfileFromStats(
@@ -66,10 +79,10 @@ export function getPlayerEligiblePositions(
   const active = new Set(getActiveLineupPositions(formatId))
   const out = new Set<LineupPosition>()
 
-  const batting = playerHasBattingProfile(player)
-  const pitching = playerHasPitchingProfile(player)
+  const canBat = playerHasBattingProfile(player)
+  const canPitch = playerHasPitchingProfile(player)
 
-  if (batting) {
+  if (canBat) {
     for (const pos of player.positions) {
       if (pos !== 'SP' && pos !== 'RP' && active.has(pos)) {
         out.add(pos)
@@ -80,12 +93,13 @@ export function getPlayerEligiblePositions(
     }
   }
 
-  if (pitching) {
+  if (canPitch) {
     if (
       active.has('SP') &&
       (player.positions.includes('SP') ||
         isStarterEligible(player) ||
-        player.role !== 'hitter')
+        player.role === 'pitcher' ||
+        player.role === 'two-way')
     ) {
       out.add('SP')
     }

@@ -84,7 +84,7 @@ export function buildTeamGrades(
     },
     {
       label: 'Run Prevention',
-      value: calculateRunPrevention(players).value,
+      value: calculateRunPrevention(lineup, formatId).value,
     },
     { label: 'Control', value: avg(pitRatings.map((r) => r.whip)) },
     { label: 'Dominance', value: avg(pitRatings.map((r) => r.strikeouts)) },

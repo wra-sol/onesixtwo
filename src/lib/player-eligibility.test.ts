@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import type { Player, PitcherStats } from './types'
 import {
   getPlayerEligiblePositions,
+  getDisplayPositions,
   isReliefEligible,
   isStarterEligible,
   playerHasBattingProfile,
+  playerHasPitchingProfile,
   reliefProfileFromStats,
   starterProfileFromStats,
 } from './player-eligibility'
@@ -50,6 +52,25 @@ describe('playerHasBattingProfile', () => {
       ops: '.400',
     }
     expect(playerHasBattingProfile(player)).toBe(false)
+  })
+})
+
+describe('playerHasPitchingProfile', () => {
+  it('returns false for hitter role even when stale pitchingStats exist', () => {
+    const player = pitcher({
+      positions: ['SP'],
+      stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 33 },
+    })
+    player.role = 'hitter'
+    player.pitchingStats = {
+      era: '3.00',
+      whip: '1.10',
+      so: 200,
+      wins: 15,
+      gs: 32,
+      g: 33,
+    }
+    expect(playerHasPitchingProfile(player)).toBe(false)
   })
 })
 
@@ -103,6 +124,15 @@ describe('isStarterEligible / isReliefEligible', () => {
 })
 
 describe('getPlayerEligiblePositions', () => {
+  it('does not give pitchers DH eligibility', () => {
+    const starter = pitcher({
+      positions: ['SP', 'DH'],
+      stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 33 },
+    })
+    expect(getPlayerEligiblePositions(starter, 'dh')).not.toContain('DH')
+    expect(getPlayerEligiblePositions(starter, 'dh-rp')).toEqual(['SP'])
+  })
+
   it('allows any pitcher in the SP slot', () => {
     const closer = pitcher({
       positions: ['RP'],
@@ -117,5 +147,15 @@ describe('getPlayerEligiblePositions', () => {
       stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 33 },
     })
     expect(getPlayerEligiblePositions(starter, 'rp')).not.toContain('RP')
+  })
+})
+
+describe('getDisplayPositions', () => {
+  it('shows only pitching slots for pitchers', () => {
+    const starter = pitcher({
+      positions: ['SP', 'RP', '3B'],
+      stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 33 },
+    })
+    expect(getDisplayPositions(starter)).toEqual(['SP', 'RP'])
   })
 })

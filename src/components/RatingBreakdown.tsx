@@ -5,7 +5,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { calculateRunPrevention } from '../lib/run-prevention'
-import { lineupPlayers } from '../lib/roster-format'
 import type { Lineup, SeasonResult } from '../lib/types'
 
 type RatingBreakdownProps = {
@@ -17,8 +16,7 @@ function runPreventionDefenseNote(
   lineup: Lineup,
   rosterFormatId: SeasonResult['rosterFormatId'],
 ): string | null {
-  const players = lineupPlayers(lineup, rosterFormatId)
-  const breakdown = calculateRunPrevention(players)
+  const breakdown = calculateRunPrevention(lineup, rosterFormatId)
   if (breakdown.errorPenalty <= 0) {
     return null
   }

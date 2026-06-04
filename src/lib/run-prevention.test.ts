@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { HitterStats, Player } from './types'
+import { createEmptyLineup } from './roster-format'
+import type { HitterStats, LineupPosition, Player } from './types'
 import { calculateRunPrevention } from './run-prevention'
 
-function hitter(overrides: Partial<HitterStats> = {}): Player {
+function hitter(overrides: Partial<HitterStats> = {}, id = 'h1'): Player {
   return {
-    id: 'h1',
-    personId: 'h1',
+    id,
+    personId: id,
     name: 'Test Hitter',
     teamId: 'yankees',
     teamName: 'Yankees',
@@ -72,23 +73,48 @@ function pitcher(eraRating: number): Player {
   }
 }
 
+function fillClassicField(lineup: ReturnType<typeof createEmptyLineup>, fielders: Player[]) {
+  const positions: LineupPosition[] = [
+    'C',
+    '1B',
+    '2B',
+    '3B',
+    'SS',
+    'LF',
+    'CF',
+    'RF',
+  ]
+  for (const [index, position] of positions.entries()) {
+    lineup[position] = fielders[index] ?? fielders[0]!
+  }
+}
+
 describe('calculateRunPrevention', () => {
   it('subtracts lineup error penalty from pitcher run prevention', () => {
-    const players = [
-      ...Array.from({ length: 8 }, () => hitter()),
-      pitcher(95),
-    ]
-    const result = calculateRunPrevention(players)
+    const lineup = createEmptyLineup()
+    fillClassicField(
+      lineup,
+      Array.from({ length: 8 }, (_, i) => hitter({}, `h${i}`)),
+    )
+    lineup.SP = pitcher(95)
+
+    const result = calculateRunPrevention(lineup, 'classic')
     expect(result.pitcherValue).toBe(95)
     expect(result.errorPenalty).toBeGreaterThan(0)
     expect(result.value).toBeLessThan(result.pitcherValue)
   })
 
   it('allows 100 when pitching is elite and defense is clean', () => {
-    const cleanFielders = Array.from({ length: 8 }, () =>
-      hitter({ errors: 4, fieldingGames: 162 }),
+    const lineup = createEmptyLineup()
+    fillClassicField(
+      lineup,
+      Array.from({ length: 8 }, (_, i) =>
+        hitter({ errors: 4, fieldingGames: 162 }, `h${i}`),
+      ),
     )
-    const result = calculateRunPrevention([...cleanFielders, pitcher(100)])
+    lineup.SP = pitcher(100)
+
+    const result = calculateRunPrevention(lineup, 'classic')
     expect(result.value).toBe(100)
     expect(result.errorPenalty).toBe(0)
   })
@@ -137,9 +163,38 @@ describe('calculateRunPrevention', () => {
         overall: 84,
       },
     }
-    const fielders = Array.from({ length: 8 }, () => hitter())
-    const result = calculateRunPrevention([...fielders, twoWaySp])
+    const lineup = createEmptyLineup()
+    fillClassicField(
+      lineup,
+      Array.from({ length: 8 }, (_, i) => hitter({}, `h${i}`)),
+    )
+    lineup.SP = twoWaySp
+
+    const result = calculateRunPrevention(lineup, 'classic')
     expect(result.pitcherValue).toBe(88)
     expect(result.value).toBeLessThanOrEqual(result.pitcherValue)
+  })
+
+  it('excludes DH slot from fielding error penalty', () => {
+    const cleanFielders = Array.from({ length: 8 }, (_, i) =>
+      hitter({ errors: 4, fieldingGames: 162 }, `field-${i}`),
+    )
+    const sloppyDh = hitter({ errors: 40, fieldingGames: 162 }, 'dh-sloppy')
+
+    const classic = createEmptyLineup()
+    fillClassicField(classic, cleanFielders)
+    classic.SP = pitcher(90)
+
+    const withDh = createEmptyLineup()
+    fillClassicField(withDh, cleanFielders)
+    withDh.DH = sloppyDh
+    withDh.SP = pitcher(90)
+
+    const classicResult = calculateRunPrevention(classic, 'classic')
+    const dhResult = calculateRunPrevention(withDh, 'dh')
+
+    expect(dhResult.errorPenalty).toBe(classicResult.errorPenalty)
+    expect(dhResult.lineupErrorsPer162).toBe(classicResult.lineupErrorsPer162)
+    expect(dhResult.value).toBe(classicResult.value)
   })
 })

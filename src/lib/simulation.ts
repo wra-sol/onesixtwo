@@ -11,7 +11,7 @@ import {
 } from './calibration'
 import { calculateRunPrevention } from './run-prevention'
 import { projectWins } from './game'
-import { lineupPlayers, lineupToSeed as buildLineupSeed } from './roster-format'
+import { lineupPlayers, lineupToSeed as buildLineupSeed, getActiveLineupPositions } from './roster-format'
 import { getBattingRatings } from './player-ratings'
 import { blendedPitchingRating } from './pitching-contributors'
 import { playerHasBattingProfile } from './player-eligibility'
@@ -107,10 +107,14 @@ export function buildTeamProfile(
   const power = avg(batRatings.map((r) => r.power))
   const speed = avg(batRatings.map((r) => r.speed))
   const runProduction = avg(batRatings.map((r) => r.runProduction))
-  const runPrevention = calculateRunPrevention(players).value
+  const runPrevention = calculateRunPrevention(lineup, formatId).value
   const control = blendedPitchingRating(lineup, formatId, (r) => r.whip)
   const dominance = blendedPitchingRating(lineup, formatId, (r) => r.strikeouts)
   const workload = blendedPitchingRating(lineup, formatId, (r) => r.workload)
+  const hasRpSlot = getActiveLineupPositions(formatId).includes('RP')
+  const closerValue = hasRpSlot
+    ? blendedPitchingRating(lineup, formatId, (r) => r.saves)
+    : null
 
   const overalls = players.map((p) => p.ratings.overall)
   const starPower = Math.max(...overalls, 0)
@@ -122,7 +126,10 @@ export function buildTeamProfile(
   const volatility = Math.min(1, Math.sqrt(variance) / 30)
 
   const offenseStrength = (contact + power + runProduction) / 3
-  const pitchingStrength = (runPrevention + control + dominance + workload) / 4
+  const pitchingStrength =
+    closerValue != null
+      ? (runPrevention + control + dominance + workload + closerValue) / 5
+      : (runPrevention + control + dominance + workload) / 4
 
   return {
     teamScore,

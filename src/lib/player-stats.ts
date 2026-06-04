@@ -23,6 +23,7 @@ export const PLAYER_STAT_SORT_LABELS = [
   'WHIP',
   'K',
   'W',
+  'SV',
 ] as const
 
 export type PlayerStatSortLabel = (typeof PLAYER_STAT_SORT_LABELS)[number]
@@ -101,12 +102,14 @@ export function seasonStarterPitcherCounts(stats: PitcherStats): {
 export function seasonReliefPitcherCounts(stats: PitcherStats): {
   so: number
   wins: number
+  saves: number
 } {
   const ip = Math.max(stats.ip ?? STANDARD_RP_IP, 1)
   const factor = STANDARD_RP_IP / ip
   return {
     so: Math.round(stats.so * factor),
     wins: Math.round(stats.wins * factor),
+    saves: Math.round((stats.saves ?? 0) * factor),
   }
 }
 
@@ -134,11 +137,32 @@ export function seasonPitcherCountsForSlot(
 ): {
   so: number
   wins: number
+  saves?: number
 } {
   if (usesReliefPitcherCounts(player, position)) {
     return seasonReliefPitcherCounts(stats)
   }
   return seasonStarterPitcherCounts(stats)
+}
+
+function shouldShowPitcherSaves(
+  player: Player,
+  position?: LineupPosition,
+): boolean {
+  if (position === 'RP') return true
+  if (position === 'SP') return false
+  return isReliefEligible(player) && !isStarterEligible(player)
+}
+
+function formatPitcherCountingLine(
+  counts: { so: number; wins: number; saves?: number },
+  player: Player,
+  position?: LineupPosition,
+): string {
+  const base = `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
+  if (!shouldShowPitcherSaves(player, position)) return base
+  if (counts.saves == null || counts.saves <= 0) return base
+  return `${base} · ${formatCount(counts.saves)} SV`
 }
 
 export type SimulatedHitterRates = {
@@ -240,6 +264,32 @@ export function simulatedSeasonRates(
   return { avg: formatRate(avg), ops: formatOpsRate(ops) }
 }
 
+function formatTwoWaySlashLine(player: Player): string {
+  const bat = hitterStatsFor(player)
+  const pit = pitcherStatsFor(player)
+  const batLine =
+    bat.obp && bat.slg
+      ? `${bat.avg} / ${bat.obp} / ${bat.slg}`
+      : `${bat.avg} AVG · ${bat.ops} OPS`
+  return `${batLine} · ${pit.era} ERA · ${pit.whip} WHIP`
+}
+
+function formatTwoWayTotals(player: Player, position?: LineupPosition): string {
+  const bat = hitterStatsFor(player)
+  const counts = seasonHitterCounts(bat)
+  const errors = seasonHitterErrors(bat)
+  const batting = `${formatCount(counts.hr)} HR · ${formatCount(counts.rbi)} RBI · ${formatCount(counts.sb)} SB`
+  const batLine =
+    errors == null ? batting : `${batting} · ${formatCount(errors)} E`
+  const pitCounts = seasonPitcherCountsForSlot(
+    pitcherStatsFor(player),
+    player,
+    position,
+  )
+  const pitLine = `${formatCount(pitCounts.so)} K · ${formatCount(pitCounts.wins)} W`
+  return `${batLine} · ${pitLine}`
+}
+
 function formatHitterSlashFromRates(rates: SimulatedHitterRates): string {
   if (rates.obp && rates.slg) {
     return `${rates.avg} / ${rates.obp} / ${rates.slg}`
@@ -260,13 +310,7 @@ export function formatPlayerSlashLine(
     return `${stats.era} ERA · ${stats.whip} WHIP`
   }
   if (player.role === 'two-way' && !position) {
-    const bat = hitterStatsFor(player)
-    const pit = pitcherStatsFor(player)
-    const batLine =
-      bat.obp && bat.slg
-        ? `${bat.avg} / ${bat.obp} / ${bat.slg}`
-        : `${bat.avg} AVG · ${bat.ops} OPS`
-    return `${batLine} · ${pit.era} ERA`
+    return formatTwoWaySlashLine(player)
   }
 
   const stats = hitterStatsFor(player)
@@ -281,20 +325,21 @@ export function formatPlayerTotals(
   position?: LineupPosition,
 ): string {
   if (position && usesPitchingLine(player, position)) {
-    const counts = seasonPitcherCountsForSlot(
-      pitcherStatsFor(player),
+    return formatPitcherCountingLine(
+      seasonPitcherCountsForSlot(pitcherStatsFor(player), player, position),
       player,
       position,
     )
-    return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
   if (player.role === 'pitcher') {
-    const counts = seasonPitcherCountsForSlot(
-      pitcherStatsFor(player),
+    return formatPitcherCountingLine(
+      seasonPitcherCountsForSlot(pitcherStatsFor(player), player, position),
       player,
       position,
     )
-    return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
+  }
+  if (player.role === 'two-way' && !position) {
+    return formatTwoWayTotals(player)
   }
 
   const stats = hitterStatsFor(player)
@@ -323,12 +368,11 @@ export function formatSimulatedTotals(
   profile?: 'batting' | 'pitching',
 ): string {
   if (position && usesPitchingLine(player, position, profile)) {
-    const counts = seasonPitcherCountsForSlot(
-      pitcherStatsFor(player),
+    return formatPitcherCountingLine(
+      seasonPitcherCountsForSlot(pitcherStatsFor(player), player, position),
       player,
       position,
     )
-    return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
   const stats = hitterStatsFor(player)
@@ -374,6 +418,8 @@ export function getPlayerStatSortValue(
       return stats.so
     case 'W':
       return stats.wins
+    case 'SV':
+      return stats.saves ?? null
     default:
       return null
   }

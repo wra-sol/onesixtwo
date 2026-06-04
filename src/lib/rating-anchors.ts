@@ -134,6 +134,16 @@ export const PITCHER_IP_PER_30GS_ANCHORS: RatingAnchor[] = [
   { value: 377, score: 100 },
 ]
 
+/** Saves prorated to a 70-relief-appearance season. */
+export const PITCHER_SAVES_PER_70_RP_ANCHORS: RatingAnchor[] = [
+  { value: 8, score: 50 },
+  { value: 14, score: 60 },
+  { value: 20, score: 70 },
+  { value: 26, score: 80 },
+  { value: 32, score: 90 },
+  { value: 42, score: 100 },
+]
+
 /** Lineup total errors per 162 — higher values subtract more from run prevention. */
 export const LINEUP_ERRORS_PENALTY_ANCHORS: RatingAnchor[] = [
   { value: 67, score: 0 },

@@ -109,9 +109,8 @@ function hitterErrorsPer162(player: Player): number {
 }
 
 function partialRunPrevention(lineup: Lineup): number {
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]).filter(Boolean) as Player[]
-  if (players.length === 0) return 0
-  return calculateRunPrevention(players).value
+  if (LINEUP_POSITIONS.every((pos) => lineup[pos] == null)) return 0
+  return calculateRunPrevention(lineup, 'classic').value
 }
 
 function pickChoiceOverall(players: Player[], state: GameState): PickChoice | null {
@@ -224,9 +223,7 @@ function simulateDraft(strategy: PickStrategy, seed: number): DraftResult {
   }
 
   const result = calculateSeasonResult(state.lineup)!
-  const rp = calculateRunPrevention(
-    LINEUP_POSITIONS.map((pos) => state.lineup[pos]!).filter(Boolean),
-  )
+  const rp = calculateRunPrevention(state.lineup, 'classic')
 
   return {
     state,

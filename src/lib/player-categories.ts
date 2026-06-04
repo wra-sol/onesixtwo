@@ -1,3 +1,4 @@
+import { isReliefEligible } from './player-eligibility'
 import type { CategoryScore, Player } from './types'
 import { getPitchingRatings, getBattingRatings } from './player-ratings'
 
@@ -9,6 +10,7 @@ export const PLAYER_CATEGORY_LABELS = [
   'Run Prevention',
   'Control',
   'Dominance',
+  'Saves',
   'Workload',
 ] as const
 
@@ -17,12 +19,16 @@ export type PlayerCategoryLabel = (typeof PLAYER_CATEGORY_LABELS)[number]
 export function getPlayerCategories(player: Player): CategoryScore[] {
   if (player.role === 'pitcher') {
     const r = getPitchingRatings(player)
-    return [
+    const categories: CategoryScore[] = [
       { label: 'Run Prevention', value: r.era },
       { label: 'Control', value: r.whip },
       { label: 'Dominance', value: r.strikeouts },
       { label: 'Workload', value: r.workload },
     ]
+    if (isReliefEligible(player)) {
+      categories.splice(3, 0, { label: 'Saves', value: r.saves })
+    }
+    return categories
   }
   if (player.role === 'two-way') {
     const bat = getBattingRatings(player)

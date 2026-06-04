@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { getDisplayPositions } from '../lib/player-eligibility'
 import {
   formatPlayerSlashLine,
   formatPlayerTotals,
@@ -22,6 +23,8 @@ export default function PlayerCard({
   compact = false,
   onSelect,
 }: PlayerCardProps) {
+  const displayPositions = getDisplayPositions(player)
+
   if (compact) {
     return (
       <button
@@ -40,7 +43,7 @@ export default function PlayerCard({
       >
         <span className="truncate text-sm font-bold">{player.name}</span>
         <span className="justify-self-end text-[0.68rem] font-semibold text-primary">
-          {player.positions.join(' · ')}
+          {displayPositions.join(' · ')}
         </span>
         <span className="col-span-2 text-[0.68rem] tabular-nums text-muted-foreground">
           {formatPlayerSlashLine(player)}
@@ -82,7 +85,7 @@ export default function PlayerCard({
         {formatPlayerTotals(player)}
       </span>
       <span className="text-xs font-semibold text-primary">
-        {player.positions.join(' · ')}
+        {displayPositions.join(' · ')}
       </span>
       {disabled && disabledReason && (
         <span className="text-xs font-medium text-muted-foreground">

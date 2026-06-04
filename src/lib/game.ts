@@ -527,7 +527,7 @@ export function calculateSeasonResult(
   const contact = avgRating(batters, (r) => r.contact)
   const power = avgRating(batters, (r) => r.power)
   const speed = avgRating(batters, (r) => r.speed)
-  const runPrevention = calculateRunPrevention(players).value
+  const runPrevention = calculateRunPrevention(lineup, formatId).value
 
   const categories: CategoryScore[] = [
     { label: 'Contact', value: Math.round(contact) },

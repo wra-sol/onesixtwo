@@ -35,6 +35,7 @@ function hitterRatings(
     whip: 0,
     strikeouts: 0,
     wins: 0,
+    saves: 0,
     workload: 0,
     overall,
   }
@@ -64,6 +65,7 @@ function pitcherRatings(
     whip,
     strikeouts,
     wins,
+    saves: 50,
     workload,
     overall,
   }

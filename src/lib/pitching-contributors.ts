@@ -60,6 +60,18 @@ export function pitcherComponentScore(players: Player[]): number {
   )
 }
 
+/** RP slot score — closers get extra value from save totals. */
+export function reliefComponentScore(players: Player[]): number {
+  if (players.length === 0) return 50
+  const ratings = players.map(getPitchingRatings)
+  return Math.round(
+    avg(ratings.map((r) => r.era)) * 0.25 +
+      avg(ratings.map((r) => r.whip)) * 0.2 +
+      avg(ratings.map((r) => r.strikeouts)) * 0.2 +
+      avg(ratings.map((r) => r.saves)) * 0.35,
+  )
+}
+
 function avgRatingForPlayers(
   players: Player[],
   pick: (ratings: PlayerRatings) => number,

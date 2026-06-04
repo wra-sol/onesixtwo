@@ -3,6 +3,7 @@ import { getBattingRatings, getPitchingRatings } from './player-ratings'
 import {
   pitchingContributors,
   pitcherComponentScore,
+  reliefComponentScore,
 } from './pitching-contributors'
 import {
   getActiveLineupPositions,
@@ -110,14 +111,14 @@ export function buildScoreExplanation(
 
   const offenseScore = offenseScoreFromBatters(batters)
   const starterScore = pitcherComponentScore(pitching.starters)
-  const reliefScore = pitcherComponentScore(pitching.relievers)
+  const reliefScore = reliefComponentScore(pitching.relievers)
   const hasRpSlot = getActiveLineupPositions(formatId).includes('RP')
 
   const pitchingScore = hasRpSlot
     ? Math.round(starterScore * 0.72 + reliefScore * 0.28)
     : starterScore
 
-  const runPrev = calculateRunPrevention(players)
+  const runPrev = calculateRunPrevention(lineup, formatId)
   const pitchingScoreAdjusted = Math.round(
     pitchingScore * 0.65 + runPrev.value * 0.35,
   )
@@ -217,7 +218,7 @@ export function calculateTeamScoreFromLineup(
   const offenseScore = explanation.offenseScore
   const pitchingScore = explanation.pitchingScore
   const roleFit = explanation.roleFitScore
-  const runPrev = calculateRunPrevention(players)
+  const runPrev = calculateRunPrevention(lineup, formatId)
 
   return clamp(
     Math.round(

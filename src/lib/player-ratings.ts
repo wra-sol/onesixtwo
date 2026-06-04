@@ -13,6 +13,7 @@ export function getBattingRatings(player: Player): PlayerRatings {
       whip: 0,
       strikeouts: 0,
       wins: 0,
+      saves: 0,
       workload: 0,
       overall: 0,
     }
@@ -33,6 +34,7 @@ export function getPitchingRatings(player: Player): PlayerRatings {
       whip: 0,
       strikeouts: 0,
       wins: 0,
+      saves: 0,
       workload: 0,
       overall: 0,
     }

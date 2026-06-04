@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { HitterStats, PitcherStats, Player } from './types'
 import {
   comparePlayersRandom,
+  formatPlayerSlashLine,
   formatPlayerTotals,
   formatSimulatedSlashLine,
   formatSimulatedTotals,
@@ -35,6 +36,7 @@ function hitterPlayer(stats: HitterStats): Player {
       whip: 0,
       strikeouts: 0,
       wins: 0,
+      saves: 0,
       workload: 0,
       overall: 80,
     },
@@ -62,6 +64,7 @@ function pitcherPlayer(stats: PitcherStats): Player {
       whip: 85,
       strikeouts: 85,
       wins: 85,
+      saves: 50,
       workload: 85,
       overall: 85,
     },
@@ -230,6 +233,83 @@ describe('pitcher totals formatting', () => {
     expect(formatSimulatedTotals(player, 'RP')).toBe(
       `${counts.so.toLocaleString('en-US')} K · ${counts.wins.toLocaleString('en-US')} W`,
     )
+  })
+
+  it('shows prorated saves on relief cards when present', () => {
+    const player = pitcherPlayer({
+      era: '2.50',
+      whip: '1.00',
+      so: 100,
+      wins: 5,
+      saves: 228,
+      gs: 0,
+      g: 439,
+      reliefGames: 439,
+      ip: 473,
+    })
+    player.positions = ['RP']
+    expect(formatPlayerTotals(player)).toContain('SV')
+  })
+})
+
+describe('two-way player stat formatting', () => {
+  it('shows both batting and pitching lines on draft cards', () => {
+    const player: Player = {
+      id: 'tw',
+      personId: 'tw',
+      name: 'Two-Way Star',
+      teamId: 'angels',
+      teamName: 'Angels',
+      era: '2010s',
+      role: 'two-way',
+      positions: ['SP', 'DH'],
+      stats: {
+        avg: '.286',
+        obp: '.350',
+        slg: '.455',
+        hr: 40,
+        rbi: 123,
+        sb: 22,
+        ops: '.805',
+      },
+      battingStats: {
+        avg: '.286',
+        obp: '.350',
+        slg: '.455',
+        hr: 40,
+        rbi: 123,
+        sb: 22,
+        ops: '.805',
+      },
+      pitchingStats: {
+        era: '3.31',
+        whip: '1.12',
+        so: 180,
+        wins: 12,
+        gs: 30,
+        g: 31,
+      },
+      ratings: {
+        contact: 80,
+        power: 80,
+        speed: 70,
+        runProduction: 80,
+        ops: 80,
+        era: 85,
+        whip: 85,
+        strikeouts: 85,
+        wins: 80,
+        saves: 50,
+        workload: 80,
+        overall: 82,
+      },
+    }
+
+    expect(formatPlayerSlashLine(player)).toContain('.286 / .350 / .455')
+    expect(formatPlayerSlashLine(player)).toContain('3.31 ERA')
+    expect(formatPlayerSlashLine(player)).toContain('1.12 WHIP')
+    expect(formatPlayerTotals(player)).toContain('40 HR')
+    expect(formatPlayerTotals(player)).toContain('180 K')
   })
 })
 

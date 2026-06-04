@@ -107,6 +107,8 @@ export type PitcherStats = {
   reliefGames?: number
   /** Innings pitched in source window for relief proration. */
   ip?: number
+  /** Saves in source window. */
+  saves?: number
 }
 
 export type PlayerRatings = {
@@ -119,6 +121,8 @@ export type PlayerRatings = {
   whip: number
   strikeouts: number
   wins: number
+  /** Closer value from prorated save totals (50 for starters). */
+  saves: number
   workload: number
   overall: number
   war?: number

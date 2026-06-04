@@ -28,10 +28,12 @@ import {
   PITCHER_ERA_ANCHORS,
   PITCHER_IP_PER_30GS_ANCHORS,
   PITCHER_K9_ANCHORS,
+  PITCHER_SAVES_PER_70_RP_ANCHORS,
   PITCHER_WHIP_ANCHORS,
   per162,
   scoreFromAnchors,
 } from '../../src/lib/rating-anchors.ts'
+import { STANDARD_RP_APPEARANCES } from '../../src/lib/calibration.ts'
 
 function lahmanName(first: string, last: string): string {
   return decodeUnicodeEscapes(`${first} ${last}`.trim())
@@ -72,6 +74,7 @@ export type Aggregated = {
   er: number
   so: number
   w: number
+  sv: number
   g: number
   gs: number
   fieldingErrors: number
@@ -179,6 +182,7 @@ function hitterRatings(
     whip: 0,
     strikeouts: 0,
     wins: 0,
+    saves: 0,
     workload: 0,
     overall,
   }
@@ -190,8 +194,10 @@ function pitcherRatings(
   strikeouts: number,
   wins: number,
   workload: number,
+  saves: number,
+  overall?: number,
 ): PlayerRatings {
-  const overall = Math.round(
+  const computedOverall = Math.round(
     era * 0.35 + whip * 0.25 + strikeouts * 0.25 + workload * 0.15,
   )
   return {
@@ -204,8 +210,9 @@ function pitcherRatings(
     whip,
     strikeouts,
     wins,
+    saves,
     workload,
-    overall,
+    overall: overall ?? computedOverall,
   }
 }
 
@@ -242,6 +249,12 @@ function ratingsFromAggPitching(agg: Aggregated): PlayerRatings {
   const k9 = ip > 0 ? (agg.so * 9) / ip : 0
   const gs = Math.max(agg.gs, 1)
   const ipPer30Gs = (ip / gs) * 30
+  const reliefGames = Math.max(0, agg.g - agg.gs)
+  const isRelief = reliefProfileFromStats(agg.gs, agg.g, reliefGames)
+  const savesPer70 =
+    reliefGames > 0
+      ? (agg.sv / reliefGames) * STANDARD_RP_APPEARANCES
+      : 0
 
   const eraScore = scoreFromAnchors(eraVal, PITCHER_ERA_ANCHORS, {
     lowerIsBetter: true,
@@ -255,7 +268,37 @@ function ratingsFromAggPitching(agg: Aggregated): PlayerRatings {
     { value: 0, score: 50 },
     { value: 200, score: 92 },
   ])
-  return pitcherRatings(eraScore, whipScore, kScore, wScore, workload)
+  const savesScore = scoreFromAnchors(
+    savesPer70,
+    PITCHER_SAVES_PER_70_RP_ANCHORS,
+  )
+
+  if (isRelief) {
+    const overall = Math.round(
+      eraScore * 0.25 +
+        whipScore * 0.2 +
+        kScore * 0.2 +
+        savesScore * 0.35,
+    )
+    return pitcherRatings(
+      eraScore,
+      whipScore,
+      kScore,
+      wScore,
+      workload,
+      savesScore,
+      overall,
+    )
+  }
+
+  return pitcherRatings(
+    eraScore,
+    whipScore,
+    kScore,
+    wScore,
+    workload,
+    50,
+  )
 }
 
 function positionsFromAppearance(row: Record<string, string>): LineupPosition[] {
@@ -316,6 +359,7 @@ function buildPitcherStats(agg: Aggregated): PitcherStats {
     g,
     reliefGames: Math.max(0, g - gs),
     ip,
+    saves: agg.sv,
   }
 }
 
@@ -352,6 +396,10 @@ function finalizePositions(
     'RF',
     'DH',
   ]
+  if (agg.role === 'pitcher') {
+    const pitching = order.filter((p) => (p === 'SP' || p === 'RP') && set.has(p))
+    return pitching.length > 0 ? pitching : ['SP']
+  }
   return order.filter((p) => set.has(p))
 }
 
@@ -511,6 +559,7 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
         er: 0,
         so: 0,
         w: 0,
+        sv: 0,
         g: 0,
         gs: 0,
         fieldingErrors: 0,
@@ -552,6 +601,7 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
       agg.er += num(row.ER ?? '0')
       agg.so += num(row.SO ?? '0')
       agg.w += num(row.W ?? '0')
+      agg.sv += num(row.SV ?? '0')
       agg.g += num(row.G ?? '0')
       agg.gs += num(row.GS ?? '0')
     })
