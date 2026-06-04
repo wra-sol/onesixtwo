@@ -82,6 +82,25 @@ export function isStarterEligible(player: Player): boolean {
   return starterProfileFromStats(gs, g, reliefGames)
 }
 
+/** Whether a card's profile covers a lineup position for bucket coverage checks. */
+export function playerCoversLineupPosition(
+  player: Player,
+  position: LineupPosition,
+): boolean {
+  if (position === 'SP') {
+    return (
+      player.positions.includes('SP') ||
+      isStarterEligible(player) ||
+      player.role === 'pitcher' ||
+      player.role === 'two-way'
+    )
+  }
+  if (position === 'RP') {
+    return player.positions.includes('RP') || isReliefEligible(player)
+  }
+  return player.positions.includes(position)
+}
+
 /** Positions this card may occupy given roster format. */
 export function getPlayerEligiblePositions(
   player: Player,

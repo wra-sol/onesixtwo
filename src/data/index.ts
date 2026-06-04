@@ -1,5 +1,7 @@
 import bucketsJson from './generated/buckets.json'
 import playersJson from './generated/players.json'
+import { playerCoversLineupPosition } from '../lib/player-eligibility'
+import { BASE_LINEUP_POSITIONS } from '../lib/roster-format'
 import { decodeUnicodeEscapes } from '../lib/text'
 import type { DraftBucket, Player } from '../lib/types'
 
@@ -40,11 +42,10 @@ export function validateDataset(): string[] {
     if (names.length !== uniqueNames.size) {
       errors.push(`Bucket ${bucket.id} has duplicate player names`)
     }
-  }
-  const allPositions = new Set(PLAYERS.flatMap((p) => p.positions))
-  for (const pos of ['C', 'SS', 'CF', 'SP'] as const) {
-    if (!allPositions.has(pos)) {
-      errors.push(`Dataset missing position coverage: ${pos}`)
+    for (const position of BASE_LINEUP_POSITIONS) {
+      if (!players.some((player) => playerCoversLineupPosition(player, position))) {
+        errors.push(`Bucket ${bucket.id} missing position coverage: ${position}`)
+      }
     }
   }
   return errors

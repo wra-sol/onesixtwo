@@ -17,9 +17,11 @@ import { SEED_HINTS, type SeedHint } from '../src/data/seed-players.ts'
 import {
   isDedicatedReliefEligible,
   isStarterEligible,
+  playerCoversLineupPosition,
 } from '../src/lib/player-eligibility.ts'
 import { getPitchingRatings } from '../src/lib/player-ratings.ts'
-import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
+import { BASE_LINEUP_POSITIONS } from '../src/lib/roster-format.ts'
+import type { DraftBucket, Era, LineupPosition, Player, TeamId } from '../src/lib/types.ts'
 import { BUCKET_MAX, BUCKET_MIN } from './lib/bucket-size.ts'
 import {
   getLahmanPlayerForBucket,
@@ -33,6 +35,7 @@ import {
 
 const MIN_BUCKET_SP = 2
 const MIN_BUCKET_RP = 2
+const REQUIRED_BUCKET_POSITIONS = BASE_LINEUP_POSITIONS
 const DEFAULT_HINT_PRIORITY = 88
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = join(__dirname, '../src/data/generated')
@@ -193,6 +196,46 @@ function sortByReliefPitchingOverall(players: Player[]): Player[] {
   )
 }
 
+function hasPositionCoverage(
+  ranked: { seed: Player; score: number }[],
+  position: LineupPosition,
+): boolean {
+  return ranked.some((entry) =>
+    playerCoversLineupPosition(entry.seed, position),
+  )
+}
+
+function injectPositionCoverage(
+  ranked: { seed: Player; score: number }[],
+  franchiseId: TeamId,
+  era: Era,
+  teamName: string,
+): { seed: Player; score: number }[] {
+  if (!lahmanDataAvailable()) return ranked
+
+  const usedPerson = new Set(ranked.map((entry) => entry.seed.personId))
+  let next = ranked
+
+  for (const position of REQUIRED_BUCKET_POSITIONS) {
+    while (!hasPositionCoverage(next, position)) {
+      const candidates = getLahmanPlayersForBucket(
+        franchiseId,
+        era,
+        teamName,
+        BUCKET_MAX,
+        usedPerson,
+        (player) => playerCoversLineupPosition(player, position),
+      )
+      if (candidates.length === 0) break
+      const pick = candidates[0]!
+      usedPerson.add(pick.personId)
+      next = [...next, { seed: pick, score: pick.ratings.overall }]
+    }
+  }
+
+  return next
+}
+
 function trimToMaxWithQuotas(
   ranked: { seed: Player; score: number }[],
 ): { seed: Player; score: number }[] {
@@ -218,6 +261,15 @@ function trimToMaxWithQuotas(
     if (rp >= MIN_BUCKET_RP) break
     requiredIds.add(entry.seed.personId)
     rp++
+  }
+
+  for (const position of REQUIRED_BUCKET_POSITIONS) {
+    const covering = sorted
+      .filter((entry) => playerCoversLineupPosition(entry.seed, position))
+      .sort((a, b) => b.score - a.score)
+    if (covering.length > 0) {
+      requiredIds.add(covering[0]!.seed.personId)
+    }
   }
 
   const out: { seed: Player; score: number }[] = []
@@ -329,6 +381,7 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
     MIN_BUCKET_RP,
     sortByReliefPitchingOverall,
   )
+  ranked = injectPositionCoverage(ranked, franchiseId, era, teamName)
   ranked = trimToMaxWithQuotas(ranked)
 
   const players = ranked.map(({ seed }, i) =>
