@@ -31,7 +31,9 @@ const PRIVACY_SECTIONS: LegalSection[] = [
     title: 'What we collect',
     paragraphs: [
       'The game does not require an account. We do not ask you to submit your name, email, or other personal information to play.',
-      'Your draft progress lives in your browser memory until you refresh or leave the page. We do not store your lineup on our servers.',
+      'Your draft progress lives in your browser memory until you refresh or leave the page. We do not store your lineup on our servers unless you choose to submit to the leaderboard.',
+      'If you submit to the leaderboard, we store your chosen initials (2–3 letters), your validated score and record, a share link for your lineup, a timestamp, and a hashed network identifier for rate limiting. Leaderboard data is stored in Cloudflare D1 and shown publicly on the site.',
+      'Your browser may remember your last leaderboard initials in local storage for convenience. You can clear this by clearing site data for this domain.',
     ],
   },
   {

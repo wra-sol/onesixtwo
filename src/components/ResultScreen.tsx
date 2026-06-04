@@ -19,6 +19,7 @@ import RatingBreakdown from './RatingBreakdown'
 import ResultStatTables from './ResultStatTables'
 import ScoreExplanationPanel from './ScoreExplanationPanel'
 import SeasonRecap from './SeasonRecap'
+import LeaderboardSubmit from './LeaderboardSubmit'
 
 type ResultScreenProps = {
   result: SeasonResult
@@ -164,6 +165,13 @@ export default function ResultScreen({
         )}
       </CardContent>
       <CardFooter className="flex-col gap-3 border-t-0 bg-transparent">
+        {!readOnly && (
+          <LeaderboardSubmit
+            lineup={lineup}
+            rosterFormatId={result.rosterFormatId}
+            rerollIndex={rerollIndex}
+          />
+        )}
         {!readOnly && onSimulateAgain && (
           <div className="w-full space-y-1.5 text-center">
             <Button

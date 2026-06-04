@@ -9,6 +9,13 @@ export default function SiteFooter() {
         aria-label="Site links"
       >
         <Link
+          to="/leaderboard"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Leaderboard
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link
           to="/privacy"
           className="underline underline-offset-2 hover:text-foreground"
         >

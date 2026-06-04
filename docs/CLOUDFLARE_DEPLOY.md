@@ -45,12 +45,33 @@ npm run deploy
 
 This runs `npm run build` then `wrangler pages deploy dist`.
 
+## Leaderboard database (D1)
+
+One-time setup (requires `wrangler login`):
+
+```bash
+npx wrangler d1 create onesixtwo-leaderboard
+# Copy the database_id from output into wrangler.toml [[d1_databases]]
+npx wrangler d1 migrations apply onesixtwo-leaderboard --local
+npx wrangler d1 migrations apply onesixtwo-leaderboard --remote
+```
+
+Attach the **DB** D1 binding to the Pages project **onesixtwo** in the Cloudflare dashboard (Settings → Functions → D1 database bindings) if production `/api/leaderboard` returns 500.
+
+API routes: `GET /api/leaderboard?period=daily|weekly|all`, `POST /api/leaderboard` with `{ initials, p, f?, n? }`.
+
 ## Local Pages runtime
 
-Use the Vite dev server for fast UI work, but use Pages dev when you need the SPA and Pages Functions (`/share`, `/og`) in one local runtime:
+Use the Vite dev server for fast UI work, but use Pages dev when you need the SPA, Pages Functions (`/share`, `/og`), and leaderboard API in one local runtime:
 
 ```bash
 npm run dev:pages
+```
+
+Apply local D1 migrations before first leaderboard test:
+
+```bash
+npx wrangler d1 migrations apply onesixtwo-leaderboard --local
 ```
 
 ## Post-deploy verification
@@ -89,5 +110,5 @@ Production hostname: **onesixtytwo.win** (see [DOMAIN.md](./DOMAIN.md) for WHOIS
 
 - Dataset JSON is bundled into the main JS chunk (~2.7 MB minified, ~199 KB gzip). Acceptable for static Pages; consider lazy-loading or splitting if bundle grows further.
 - Cloudflare Pages Functions power `/share` and `/og` for dynamic social cards. Vite dev does not run these functions; use `npm run build` followed by `npx wrangler pages dev dist --compatibility-date=2024-01-01` for local end-to-end testing.
-- No D1 required for v2; share links are encoded in query params.
+- D1 stores optional leaderboard submissions (initials + validated score); share links remain encoded in query params.
 - Legal pages: `/privacy`, `/terms`, `/data` (SPA routes; refresh works via `_redirects`).

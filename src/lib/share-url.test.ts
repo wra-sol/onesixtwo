@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { PLAYERS } from '../data'
 import { buildBenchmarkLineup } from './benchmarks'
-import { getActiveLineupPositions } from './roster-format'
-import { createEmptyLineup } from './roster-format'
 import { calculateSeasonResult } from './game'
+import { getActiveLineupPositions, createEmptyLineup } from './roster-format'
 import { resolveShareFromUrl } from '../../functions/_lib/resolve-share'
 import {
+  decodeShareLineup,
+  encodeShareLineup,
+  PLAYER_INDEX_BY_ID,
+} from './share-codec'
+import {
+  buildLegacySharePath,
   buildOgPath,
   buildSharePath,
   buildShareUrl,
@@ -13,12 +18,12 @@ import {
   parseShareParams,
   reconstructLineup,
 } from './share-url'
-import type { Lineup, RosterFormatId } from './types'
+import type { RosterFormatId } from './types'
 
 function extendLineupToFormat(
-  base: Lineup,
+  base: ReturnType<typeof buildBenchmarkLineup>,
   formatId: RosterFormatId,
-): Lineup {
+) {
   const lineup = createEmptyLineup()
   const positions = getActiveLineupPositions(formatId)
   const used = new Set<string>()
@@ -45,14 +50,35 @@ function extendLineupToFormat(
   return lineup
 }
 
+describe('share-codec', () => {
+  const lineup = buildBenchmarkLineup('great')
+
+  it('round-trips compact lineup encoding', () => {
+    const ids = getActiveLineupPositions('classic').map((pos) => lineup[pos]!.id)
+    const encoded = encodeShareLineup(ids, 'classic')
+    expect(typeof encoded).toBe('string')
+
+    const decoded = decodeShareLineup(encoded as string)
+    expect(typeof decoded).toBe('object')
+    if (typeof decoded === 'string') throw new Error(decoded)
+    expect(decoded.playerIds).toEqual(ids)
+    expect(decoded.rosterFormatId).toBe('classic')
+  })
+
+  it('uses stable player indices', () => {
+    expect(PLAYER_INDEX_BY_ID.get(lineup.C!.id)).toBeTypeOf('number')
+  })
+})
+
 describe('share-url', () => {
   const lineup = buildBenchmarkLineup('great')
 
-  it('round-trips encode and decode classic', () => {
+  it('builds compact share paths', () => {
     const path = buildSharePath(lineup, 2, 'classic')
-    expect(path).toMatch(/^\/share\?p=/)
+    expect(path).toMatch(/^\/share\?d=/)
     expect(path).toContain('&n=2')
     expect(path).not.toContain('&f=')
+    expect(path.length).toBeLessThan(120)
 
     const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
     expect(isParsedShare(parsed)).toBe(true)
@@ -87,9 +113,20 @@ describe('share-url', () => {
     )
     expect(isParsedShare(parsed)).toBe(true)
     if (!isParsedShare(parsed)) return
-    expect(buildOgPath(parsed)).toMatch(/^\/og\?p=/)
+    expect(buildOgPath(parsed)).toMatch(/^\/og\?d=/)
     expect(buildOgPath(parsed)).toContain('&n=1')
     expect(buildOgPath(parsed)).toContain('&v=5')
+  })
+
+  it('still parses legacy comma-separated player URLs', () => {
+    const legacy = buildLegacySharePath(lineup, 2, 'classic')
+    expect(legacy).toContain('p=')
+
+    const parsed = parseShareParams(new URLSearchParams(legacy.split('?')[1]))
+    expect(isParsedShare(parsed)).toBe(true)
+    if (!isParsedShare(parsed)) return
+    expect(parsed.reroll).toBe(2)
+    expect(parsed.playerIds).toHaveLength(9)
   })
 
   it('rejects wrong player count', () => {
@@ -145,7 +182,7 @@ describe('share-url', () => {
   it('parsed dh-rp URL produces same record as direct calculation', () => {
     const dhRpLineup = extendLineupToFormat(lineup, 'dh-rp')
     const path = buildSharePath(dhRpLineup, 2, 'dh-rp')
-    expect(path).toContain('&f=dh-rp')
+    expect(path).toMatch(/^\/share\?d=/)
 
     const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
     expect(isParsedShare(parsed)).toBe(true)

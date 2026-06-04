@@ -4,3 +4,9 @@ pages_build_output_dir = "dist"
 
 # Uncomment after `wrangler login` if deploy fails with account ID errors:
 # account_id = "YOUR_CLOUDFLARE_ACCOUNT_ID"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "onesixtwo-leaderboard"
+database_id = "0790f2dc-b034-40b6-80b2-58a35244297b"
+migrations_dir = "migrations"

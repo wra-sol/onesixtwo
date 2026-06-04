@@ -7,6 +7,8 @@ export type AnalyticsEvent =
   | 'share_copied'
   | 'native_share_opened'
   | 'perfect_season_achieved'
+  | 'leaderboard_submit'
+  | 'leaderboard_submit_error'
 
 export function trackEvent(
   event: AnalyticsEvent,
