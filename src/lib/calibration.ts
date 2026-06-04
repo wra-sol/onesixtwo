@@ -1,4 +1,5 @@
 import type { BenchmarkLineupId } from './benchmarks'
+import type { RosterFormatId } from './types'
 
 /**
  * Simulation calibration contract:
@@ -27,6 +28,38 @@ export const PERFECT_SEASON_THRESHOLD = 95
 
 /** Minimum team score required for any perfect-season outcome. */
 export const PERFECT_SEASON_MIN_SCORE = 93
+
+/** Minimum projected wins (from team score) required to allow 162-0. Matches score 95 on the win curve. */
+export const PERFECT_SEASON_EXPECTED_WINS = 150
+
+export type PerfectSeasonGate = {
+  minTeamScore: number
+  minExpectedWins: number
+  minRawWins: number
+}
+
+/** Format-tuned perfect-season gate — targets ~0.1% rate under optimal drafting. */
+export function getPerfectSeasonGate(formatId: RosterFormatId): PerfectSeasonGate {
+  if (formatId === 'dh-rp') {
+    return {
+      minTeamScore: PERFECT_SEASON_THRESHOLD,
+      minExpectedWins: 149,
+      minRawWins: SEASON_LENGTH - 2,
+    }
+  }
+  if (formatId === 'dh' || formatId === 'rp') {
+    return {
+      minTeamScore: PERFECT_SEASON_THRESHOLD,
+      minExpectedWins: 149,
+      minRawWins: SEASON_LENGTH - 2,
+    }
+  }
+  return {
+    minTeamScore: PERFECT_SEASON_THRESHOLD,
+    minExpectedWins: PERFECT_SEASON_EXPECTED_WINS,
+    minRawWins: SEASON_LENGTH - 1,
+  }
+}
 
 /** Volatility multiplier for stars-and-scrubs rosters. */
 export const VOLATILITY_MODIFIER = 0.08

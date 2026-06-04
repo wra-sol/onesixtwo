@@ -15,9 +15,10 @@ import {
 import { SEED_PLAYERS_BACKUP } from '../src/data/seed-players.backup.ts'
 import { SEED_HINTS, type SeedHint } from '../src/data/seed-players.ts'
 import {
-  isReliefEligible,
+  isDedicatedReliefEligible,
   isStarterEligible,
 } from '../src/lib/player-eligibility.ts'
+import { getPitchingRatings } from '../src/lib/player-ratings.ts'
 import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
 import {
   getLahmanPlayerForBucket,
@@ -155,6 +156,7 @@ function injectPitcherProfiles(
   teamName: string,
   predicate: (player: Player) => boolean,
   minimum: number,
+  sortCandidates?: (players: Player[]) => Player[],
 ): { seed: Player; score: number }[] {
   if (!lahmanDataAvailable()) return ranked
 
@@ -162,7 +164,7 @@ function injectPitcherProfiles(
   let next = ranked
 
   while (countProfile(next, predicate) < minimum) {
-    const candidates = getLahmanPlayersForBucket(
+    let candidates = getLahmanPlayersForBucket(
       franchiseId,
       era,
       teamName,
@@ -170,16 +172,25 @@ function injectPitcherProfiles(
       usedPerson,
       predicate,
     )
+    if (sortCandidates) {
+      candidates = sortCandidates(candidates)
+    }
     if (candidates.length === 0) break
     const pick = candidates[0]!
     usedPerson.add(pick.personId)
     next = [
       ...next,
-      { seed: pick, score: pick.ratings.overall },
+      { seed: pick, score: getPitchingRatings(pick).overall },
     ]
   }
 
   return next
+}
+
+function sortByReliefPitchingOverall(players: Player[]): Player[] {
+  return [...players].sort(
+    (a, b) => getPitchingRatings(b).overall - getPitchingRatings(a).overall,
+  )
 }
 
 function trimToTopNWithQuotas(
@@ -197,11 +208,16 @@ function trimToTopNWithQuotas(
       sp++
     }
   }
-  for (const entry of sorted) {
-    if (rp < MIN_BUCKET_RP && isReliefEligible(entry.seed)) {
-      requiredIds.add(entry.seed.personId)
-      rp++
-    }
+  const dedicatedRelief = sorted
+    .filter((entry) => isDedicatedReliefEligible(entry.seed))
+    .sort(
+      (a, b) =>
+        getPitchingRatings(b.seed).overall - getPitchingRatings(a.seed).overall,
+    )
+  for (const entry of dedicatedRelief) {
+    if (rp >= MIN_BUCKET_RP) break
+    requiredIds.add(entry.seed.personId)
+    rp++
   }
 
   const out: { seed: Player; score: number }[] = []
@@ -309,8 +325,9 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
     franchiseId,
     era,
     teamName,
-    isReliefEligible,
+    isDedicatedReliefEligible,
     MIN_BUCKET_RP,
+    sortByReliefPitchingOverall,
   )
   ranked = trimToTopNWithQuotas(ranked)
 

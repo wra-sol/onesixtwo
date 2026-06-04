@@ -72,7 +72,22 @@ function pitcherPlayer(stats: PitcherStats): Player {
 }
 
 describe('seasonHitterCounts', () => {
-  it('prorates counting stats to 162 games', () => {
+  it('prorates counting stats to 600 plate appearances', () => {
+    const counts = seasonHitterCounts({
+      avg: '.300',
+      hr: 40,
+      rbi: 120,
+      sb: 20,
+      ops: '.900',
+      pa: 500,
+      g: 140,
+    })
+    expect(counts.hr).toBe(Math.round(40 * (600 / 500)))
+    expect(counts.rbi).toBe(Math.round(120 * (600 / 500)))
+    expect(counts.sb).toBe(Math.round(20 * (600 / 500)))
+  })
+
+  it('falls back to 162-game proration when plate appearances are absent', () => {
     const counts = seasonHitterCounts({
       avg: '.300',
       hr: 40,
@@ -123,6 +138,7 @@ describe('hitter fielding totals formatting', () => {
       rbi: 70,
       sb: 8,
       ops: '.780',
+      pa: 600,
       errors: 18,
       fieldingGames: 162,
     })
@@ -271,6 +287,7 @@ describe('two-way player stat formatting', () => {
         rbi: 123,
         sb: 22,
         ops: '.805',
+        pa: 600,
       },
       battingStats: {
         avg: '.286',
@@ -280,6 +297,7 @@ describe('two-way player stat formatting', () => {
         rbi: 123,
         sb: 22,
         ops: '.805',
+        pa: 600,
       },
       pitchingStats: {
         era: '3.31',

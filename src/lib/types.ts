@@ -86,6 +86,8 @@ export type HitterStats = {
   rbi: number
   sb: number
   ops: string
+  /** Plate appearances in source window for 600 PA proration. */
+  pa?: number
   /** Games played in source window (decade/career) for season proration. */
   g?: number
   /** Fielding errors in source window (team-era card). */

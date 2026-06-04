@@ -98,7 +98,10 @@ function twoWayBonus(lineup: Lineup, formatId: RosterFormatId): number {
 function formatNormalizationAdjustment(formatId: RosterFormatId): number {
   const slots = rosterFormatSlotCount(formatId)
   if (slots <= 9) return 0
-  return (9 - slots) * 0.4
+  // Extra slots add draftable talent; extended formats need a slightly larger bonus
+  // so elite DH/RP lineups reach the same score band as classic (~95+).
+  if (formatId === 'dh-rp') return (slots - 9) * 0.64
+  return (slots - 9) * 0.55
 }
 
 export function buildScoreExplanation(

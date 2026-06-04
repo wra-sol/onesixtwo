@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
-  isReliefEligible,
+  isDedicatedReliefEligible,
   isStarterEligible,
 } from '../src/lib/player-eligibility.ts'
 import { LINEUP_POSITIONS } from '../src/lib/types.ts'
@@ -38,7 +38,7 @@ function main() {
       errors.push(`Bucket ${bucket.id} has only ${bucket.playerIds.length} players`)
     }
     const starters = resolved.filter((p) => p && isStarterEligible(p)).length
-    const relievers = resolved.filter((p) => p && isReliefEligible(p)).length
+    const relievers = resolved.filter((p) => p && isDedicatedReliefEligible(p)).length
     if (starters < MIN_BUCKET_SP) {
       errors.push(
         `Bucket ${bucket.id} has only ${starters} starter-profile pitchers (need ${MIN_BUCKET_SP})`,
@@ -46,7 +46,7 @@ function main() {
     }
     if (relievers < MIN_BUCKET_RP) {
       errors.push(
-        `Bucket ${bucket.id} has only ${relievers} reliever-profile pitchers (need ${MIN_BUCKET_RP})`,
+        `Bucket ${bucket.id} has only ${relievers} dedicated reliever-profile pitchers (need ${MIN_BUCKET_RP})`,
       )
     }
     const personIds = resolved.map((p) => p?.personId).filter(Boolean)

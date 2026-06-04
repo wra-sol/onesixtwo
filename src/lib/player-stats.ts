@@ -69,6 +69,16 @@ export function seasonHitterCounts(stats: HitterStats): {
   rbi: number
   sb: number
 } {
+  if (stats.pa != null) {
+    const pa = Math.max(stats.pa, 1)
+    const factor = 600 / pa
+    return {
+      hr: Math.round(stats.hr * factor),
+      rbi: Math.round(stats.rbi * factor),
+      sb: Math.round(stats.sb * factor),
+    }
+  }
+
   const g = Math.max(stats.g ?? 162, 1)
   const factor = 162 / g
   return {
@@ -344,7 +354,8 @@ export function formatPlayerTotals(
 
   const stats = hitterStatsFor(player)
   const errors = seasonHitterErrors(stats)
-  const counting = `${formatCount(stats.hr)} HR · ${formatCount(stats.rbi)} RBI · ${formatCount(stats.sb)} SB`
+  const counts = seasonHitterCounts(stats)
+  const counting = `${formatCount(counts.hr)} HR · ${formatCount(counts.rbi)} RBI · ${formatCount(counts.sb)} SB`
   return errors == null ? counting : `${counting} · ${formatCount(errors)} E`
 }
 

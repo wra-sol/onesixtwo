@@ -61,6 +61,17 @@ export function isReliefEligible(player: Player): boolean {
   return reliefProfileFromStats(gs, g, reliefGames)
 }
 
+/** Relief-dominant profile — used for bucket RP quotas (excludes starter-heavy swing usage). */
+export function isDedicatedReliefEligible(player: Player): boolean {
+  if (!playerHasPitchingProfile(player)) return false
+  const stats = pitcherStatsForEligibility(player)
+  if (!stats) return false
+  const gs = stats.gs ?? 0
+  const g = stats.g ?? gs
+  const reliefGames = stats.reliefGames ?? Math.max(0, g - gs)
+  return reliefGames >= 20 && reliefGames > gs
+}
+
 export function isStarterEligible(player: Player): boolean {
   if (!playerHasPitchingProfile(player)) return false
   const stats = pitcherStatsForEligibility(player)

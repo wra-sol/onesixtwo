@@ -332,6 +332,7 @@ function mergePositions(
 }
 
 function buildHitterStats(agg: Aggregated): HitterStats {
+  const pa = agg.ab + agg.bb
   return {
     avg: formatAvg(agg.h, agg.ab),
     obp: formatObp(agg.h, agg.bb, agg.ab),
@@ -340,6 +341,7 @@ function buildHitterStats(agg: Aggregated): HitterStats {
     rbi: agg.rbi,
     sb: agg.sb,
     ops: formatOps(agg.h, agg.ab, agg.bb, agg.doubles, agg.triples, agg.hr),
+    pa: pa > 0 ? pa : undefined,
     g: agg.g > 0 ? agg.g : 162,
     errors: agg.fieldingErrors,
     fieldingGames: agg.fieldingGames > 0 ? agg.fieldingGames : undefined,
@@ -672,7 +674,20 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
     } else if (isPurePitcher || (ip >= 80 && !battingQualified)) {
       agg.role = 'pitcher'
       const era = ip > 0 ? (agg.er * 9) / ip : 5
-      agg.valueScore = agg.w * 4 + agg.so * 0.08 + Math.max(0, 6 - era) * 15
+      const reliefGames = Math.max(0, agg.g - agg.gs)
+      if (reliefGames >= 20 && reliefGames > agg.gs) {
+        const svPer70 =
+          reliefGames > 0
+            ? (agg.sv / reliefGames) * STANDARD_RP_APPEARANCES
+            : 0
+        agg.valueScore =
+          agg.sv * 4 +
+          svPer70 * 0.6 +
+          agg.so * 0.06 +
+          Math.max(0, 6 - era) * 12
+      } else {
+        agg.valueScore = agg.w * 4 + agg.so * 0.08 + Math.max(0, 6 - era) * 15
+      }
       if (!agg.positions.includes('SP')) agg.positions = ['SP', ...agg.positions]
     } else if (battingQualified) {
       agg.role = 'hitter'

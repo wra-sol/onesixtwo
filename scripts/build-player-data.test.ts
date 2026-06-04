@@ -92,7 +92,7 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
     }
   })
 
-  it('includes at least two starter-profile and two reliever-profile pitchers', () => {
+  it('includes at least two starter-profile and two dedicated reliever-profile pitchers', () => {
     const { players } = buildBucket('yankees', '1990s')
     const starters = players.filter(
       (player) => player.role !== 'hitter' && (player.pitchingStats ?? player.stats),
@@ -110,9 +110,26 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
       const gs = stats.gs ?? 0
       const g = stats.g ?? gs
       const relief = stats.reliefGames ?? Math.max(0, g - gs)
-      return relief >= 20 || relief > gs
+      return relief >= 20 && relief > gs
     })
     expect(starters.length).toBeGreaterThanOrEqual(2)
     expect(relievers.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('guarantees the best dedicated relievers from the era, not starter swingmen', () => {
+    const { players } = buildBucket('nationals', '2020s')
+    const relievers = players
+      .filter((player) => {
+        const stats = player.pitchingStats ?? player.stats
+        if (!('gs' in stats)) return false
+        const gs = stats.gs ?? 0
+        const g = stats.g ?? gs
+        const relief = stats.reliefGames ?? Math.max(0, g - gs)
+        return relief >= 20 && relief > gs
+      })
+      .map((player) => player.name)
+    expect(relievers).toContain('Erasmo Ramirez')
+    expect(relievers).toContain('Joe Ross')
+    expect(relievers).not.toContain('Mitchell Parker')
   })
 })

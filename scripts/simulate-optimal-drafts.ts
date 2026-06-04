@@ -5,6 +5,7 @@
  *   npm run simulate:optimal                    # compare all strategies (100 runs each)
  *   STRATEGY=overall npm run simulate:optimal   # single strategy
  *   RUNS=500 STRATEGY=team-score npm run simulate:optimal
+ *   FORMAT=dh-rp RUNS=10000 npm run simulate:optimal
  */
 import {
   applySpin,
@@ -17,28 +18,37 @@ import {
   selectPlayer,
   startGame,
 } from '../src/lib/game.ts'
+import {
+  getActiveLineupPositions,
+  parseRosterFormatId,
+  rosterFormatSlotCount,
+} from '../src/lib/roster-format.ts'
 import { calculateRunPrevention } from '../src/lib/run-prevention.ts'
-import type { GameState, HitterStats, Lineup, LineupPosition, Player, RandomSource } from '../src/lib/types.ts'
-import { LINEUP_POSITIONS } from '../src/lib/types.ts'
+import type {
+  GameState,
+  HitterStats,
+  Lineup,
+  LineupPosition,
+  Player,
+  RandomSource,
+  RosterFormatId,
+} from '../src/lib/types.ts'
 
 const RUNS = Number.parseInt(process.env.RUNS ?? '100', 10)
 const STRATEGY_ARG = process.env.STRATEGY ?? 'compare'
+const FORMAT: RosterFormatId =
+  parseRosterFormatId(process.env.FORMAT ?? 'classic') ?? 'classic'
 
 export type PickStrategy = 'overall' | 'team-score' | 'run-prevention'
 
 const STRATEGIES: PickStrategy[] = ['overall', 'team-score', 'run-prevention']
 
-const FILL_ORDER: LineupPosition[] = [
-  'SP',
-  'C',
-  'SS',
-  'CF',
-  'RF',
-  'LF',
-  '2B',
-  '3B',
-  '1B',
-]
+const FILL_ORDERS: Record<RosterFormatId, LineupPosition[]> = {
+  classic: ['SP', 'C', 'SS', 'CF', 'RF', 'LF', '2B', '3B', '1B'],
+  dh: ['SP', 'C', 'DH', 'SS', 'CF', 'RF', 'LF', '2B', '3B', '1B'],
+  rp: ['SP', 'RP', 'C', 'SS', 'CF', 'RF', 'LF', '2B', '3B', '1B'],
+  'dh-rp': ['SP', 'RP', 'C', 'DH', 'SS', 'CF', 'RF', 'LF', '2B', '3B', '1B'],
+}
 
 type DraftResult = {
   state: GameState
@@ -60,21 +70,33 @@ function mulberry32(seed: number): RandomSource {
   }
 }
 
-function pickablePlayers(players: Player[], lineup: Lineup): Player[] {
-  return players.filter((p) => getEligiblePositionsForPlayer(p, lineup).length > 0)
+function pickablePlayers(
+  players: Player[],
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): Player[] {
+  return players.filter(
+    (p) => getEligiblePositionsForPlayer(p, lineup, formatId).length > 0,
+  )
 }
 
-function pickAssignPosition(player: Player, lineup: Lineup): LineupPosition {
-  const eligible = getEligiblePositionsForPlayer(player, lineup)
-  for (const pos of FILL_ORDER) {
+function pickAssignPosition(
+  player: Player,
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): LineupPosition {
+  const eligible = getEligiblePositionsForPlayer(player, lineup, formatId)
+  for (const pos of FILL_ORDERS[formatId]) {
     if (eligible.includes(pos)) return pos
   }
   return eligible[0]!
 }
 
 /** Mirrors calculateTeamScore bonus logic on a partial or full lineup. */
-function partialTeamScore(lineup: Lineup): number {
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]).filter(Boolean) as Player[]
+function partialTeamScore(lineup: Lineup, formatId: RosterFormatId): number {
+  const players = getActiveLineupPositions(formatId)
+    .map((pos) => lineup[pos])
+    .filter(Boolean) as Player[]
   if (players.length === 0) return 0
 
   const average =
@@ -108,29 +130,35 @@ function hitterErrorsPer162(player: Player): number {
   return (errors / Math.max(games, 1)) * 162
 }
 
-function partialRunPrevention(lineup: Lineup): number {
-  if (LINEUP_POSITIONS.every((pos) => lineup[pos] == null)) return 0
-  return calculateRunPrevention(lineup, 'classic').value
+function partialRunPrevention(lineup: Lineup, formatId: RosterFormatId): number {
+  if (getActiveLineupPositions(formatId).every((pos) => lineup[pos] == null)) return 0
+  return calculateRunPrevention(lineup, formatId).value
 }
 
 function pickChoiceOverall(players: Player[], state: GameState): PickChoice | null {
-  const pickable = pickablePlayers(players, state.lineup)
+  const formatId = state.rosterFormatId
+  const pickable = pickablePlayers(players, state.lineup, formatId)
   if (pickable.length === 0) return null
   const player = [...pickable].sort((a, b) => b.ratings.overall - a.ratings.overall)[0]!
-  return { player, position: pickAssignPosition(player, state.lineup) }
+  return { player, position: pickAssignPosition(player, state.lineup, formatId) }
 }
 
 function pickChoiceTeamScore(players: Player[], state: GameState): PickChoice | null {
-  const pickable = pickablePlayers(players, state.lineup)
+  const formatId = state.rosterFormatId
+  const pickable = pickablePlayers(players, state.lineup, formatId)
   if (pickable.length === 0) return null
 
   let best: PickChoice | null = null
   let bestScore = -1
 
   for (const player of pickable) {
-    for (const position of getEligiblePositionsForPlayer(player, state.lineup)) {
+    for (const position of getEligiblePositionsForPlayer(
+      player,
+      state.lineup,
+      formatId,
+    )) {
       const trial = { ...state.lineup, [position]: player }
-      const score = partialTeamScore(trial)
+      const score = partialTeamScore(trial, formatId)
       if (score > bestScore || (score === bestScore && player.ratings.overall > (best?.player.ratings.overall ?? -1))) {
         bestScore = score
         best = { player, position }
@@ -142,28 +170,36 @@ function pickChoiceTeamScore(players: Player[], state: GameState): PickChoice | 
 }
 
 function pickChoiceRunPrevention(players: Player[], state: GameState): PickChoice | null {
-  const pickable = pickablePlayers(players, state.lineup)
+  const formatId = state.rosterFormatId
+  const pickable = pickablePlayers(players, state.lineup, formatId)
   if (pickable.length === 0) return null
 
-  const pitcherSlotOpen = state.lineup.SP === null
+  const active = getActiveLineupPositions(formatId)
+  const pitcherSlotOpen =
+    (active.includes('SP') && state.lineup.SP === null) ||
+    (active.includes('RP') && state.lineup.RP === null)
 
   let best: PickChoice | null = null
   let bestScore = -1
 
   for (const player of pickable) {
-    for (const position of getEligiblePositionsForPlayer(player, state.lineup)) {
+    for (const position of getEligiblePositionsForPlayer(
+      player,
+      state.lineup,
+      formatId,
+    )) {
       const trial = { ...state.lineup, [position]: player }
       let score: number
 
       if (pitcherSlotOpen && player.role === 'pitcher') {
         score = player.ratings.era * 100 + player.ratings.overall
       } else if (player.role === 'pitcher') {
-        score = partialRunPrevention(trial) * 10 + player.ratings.era
+        score = partialRunPrevention(trial, formatId) * 10 + player.ratings.era
       } else {
         const errorsPer162 = hitterErrorsPer162(player)
         const defenseScore = Math.max(0, 100 - errorsPer162 * 0.65)
         score =
-          partialRunPrevention(trial) * 5 +
+          partialRunPrevention(trial, formatId) * 5 +
           defenseScore +
           player.ratings.overall * 0.15
       }
@@ -195,11 +231,12 @@ function pickChoice(
 
 function simulateDraft(strategy: PickStrategy, seed: number): DraftResult {
   const random = mulberry32(seed)
-  let state = startGame(createInitialGameState())
+  let state = startGame(createInitialGameState(FORMAT))
   let guard = 0
+  const maxSteps = rosterFormatSlotCount(FORMAT) * 25
 
-  while (!isLineupComplete(state.lineup)) {
-    if (++guard > 200) {
+  while (!isLineupComplete(state.lineup, state.rosterFormatId)) {
+    if (++guard > maxSteps) {
       throw new Error(`Draft stuck after ${guard} steps (seed ${seed})`)
     }
 
@@ -222,13 +259,15 @@ function simulateDraft(strategy: PickStrategy, seed: number): DraftResult {
     }
   }
 
-  const result = calculateSeasonResult(state.lineup)!
-  const rp = calculateRunPrevention(state.lineup, 'classic')
+  const result = calculateSeasonResult(state.lineup, {
+    rosterFormatId: FORMAT,
+  })!
+  const rp = calculateRunPrevention(state.lineup, FORMAT)
 
   return {
     state,
     wins: result.wins,
-    teamScore: calculateTeamScore(state.lineup)!,
+    teamScore: calculateTeamScore(state.lineup, FORMAT)!,
     tier: result.tier.label,
     runPrevention: rp.value,
   }
@@ -316,7 +355,9 @@ function main() {
     process.exit(1)
   }
 
-  console.log(`Optimal-draft Monte Carlo — ${RUNS} runs per strategy`)
+  console.log(
+    `Optimal-draft Monte Carlo — ${RUNS} runs per strategy — format=${FORMAT} (${rosterFormatSlotCount(FORMAT)} slots)`,
+  )
 
   const allResults: Partial<Record<PickStrategy, DraftResult[]>> = {}
   const allFailures: string[] = []

@@ -3,6 +3,7 @@ import {
   INITIAL_SEASON_VARIANCE,
   MAX_REROLL_SWING,
   PER_GAME_VARIANCE,
+  getPerfectSeasonGate,
   PERFECT_SEASON_MIN_SCORE,
   PERFECT_SEASON_THRESHOLD,
   SEASON_LENGTH,
@@ -25,6 +26,8 @@ import type {
   SimulatedGame,
   SimulationSeed,
 } from './types'
+
+export { getPerfectSeasonGate } from './calibration'
 
 export type TeamProfile = {
   teamScore: number
@@ -195,7 +198,9 @@ function clampWins(
   profile: TeamProfile,
   expectedWins: number,
   isReroll: boolean,
+  formatId: RosterFormatId,
 ): number {
+  const perfectGate = getPerfectSeasonGate(formatId)
   let clamped = Math.min(SEASON_LENGTH, Math.max(0, wins))
 
   const varianceCap = isReroll
@@ -217,9 +222,9 @@ function clampWins(
   }
 
   if (
-    profile.teamScore >= PERFECT_SEASON_THRESHOLD &&
-    wins >= SEASON_LENGTH - 1 &&
-    expectedWins >= 152
+    profile.teamScore >= perfectGate.minTeamScore &&
+    wins >= perfectGate.minRawWins &&
+    expectedWins >= perfectGate.minExpectedWins
   ) {
     clamped = SEASON_LENGTH
   }
@@ -384,7 +389,7 @@ export function simulateSeason(
   }
 
   let wins = games.filter((g) => g.won).length
-  wins = clampWins(wins, profile, expectedWins, isReroll)
+  wins = clampWins(wins, profile, expectedWins, isReroll, formatId)
   const losses = SEASON_LENGTH - wins
 
   const closeWins = games.filter((g) => g.won && g.close).length

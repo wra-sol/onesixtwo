@@ -4,6 +4,7 @@ import {
   getPlayerEligiblePositions,
   getDisplayPositions,
   isReliefEligible,
+  isDedicatedReliefEligible,
   isStarterEligible,
   playerHasBattingProfile,
   playerHasPitchingProfile,
@@ -121,6 +122,16 @@ describe('isStarterEligible / isReliefEligible', () => {
     })
     expect(isStarterEligible(player)).toBe(true)
     expect(isReliefEligible(player)).toBe(true)
+    expect(isDedicatedReliefEligible(player)).toBe(true)
+  })
+
+  it('excludes starter-heavy workloads from dedicated relief profile', () => {
+    const player = pitcher({
+      positions: ['SP'],
+      stats: { era: '3.00', whip: '1.10', so: 200, wins: 15, gs: 32, g: 55, reliefGames: 23 },
+    })
+    expect(isReliefEligible(player)).toBe(true)
+    expect(isDedicatedReliefEligible(player)).toBe(false)
   })
 })
 
