@@ -10,7 +10,7 @@ import {
   lineupPlayers,
   rosterFormatSlotCount,
 } from './roster-format'
-import { playerHasBattingProfile, playerHasPitchingProfile, isReliefEligible, isStarterEligible } from './player-eligibility'
+import { playerHasBattingProfile, isReliefEligible, isStarterEligible } from './player-eligibility'
 import type {
   Lineup,
   Player,
