@@ -8,8 +8,11 @@ import {
   seasonHitterCounts,
   seasonHitterErrors,
   seasonPitcherCounts,
+  seasonReliefPitcherCounts,
+  seasonStarterPitcherCounts,
   simulatedSeasonRates,
 } from './player-stats'
+import { STANDARD_RP_IP } from './calibration'
 
 function hitterPlayer(stats: HitterStats): Player {
   return {
@@ -139,6 +142,47 @@ describe('seasonPitcherCounts', () => {
   })
 })
 
+describe('seasonReliefPitcherCounts', () => {
+  it('prorates counting stats to standard RP innings', () => {
+    const counts = seasonReliefPitcherCounts({
+      era: '2.50',
+      whip: '1.00',
+      so: 669,
+      wins: 45,
+      gs: 0,
+      g: 1302,
+      reliefGames: 1302,
+      ip: 713,
+    })
+    expect(counts.so).toBe(Math.round(669 * (STANDARD_RP_IP / 713)))
+    expect(counts.wins).toBe(Math.round(45 * (STANDARD_RP_IP / 713)))
+  })
+
+  it('does not inflate gs=0 closers to a 30-start scale', () => {
+    const relief = seasonReliefPitcherCounts({
+      era: '2.50',
+      whip: '1.00',
+      so: 100,
+      wins: 5,
+      gs: 0,
+      g: 65,
+      reliefGames: 65,
+      ip: 120,
+    })
+    const starter = seasonStarterPitcherCounts({
+      era: '2.50',
+      whip: '1.00',
+      so: 100,
+      wins: 5,
+      gs: 0,
+      g: 65,
+      reliefGames: 65,
+      ip: 120,
+    })
+    expect(relief.so).toBeLessThan(starter.so)
+  })
+})
+
 describe('pitcher totals formatting', () => {
   it('displays raw pitcher totals prorated to 30 starts', () => {
     const player = pitcherPlayer({
@@ -150,6 +194,42 @@ describe('pitcher totals formatting', () => {
     })
 
     expect(formatPlayerTotals(player)).toBe('60 K · 15 W')
+  })
+
+  it('uses relief proration for RP-only profiles on cards', () => {
+    const player = pitcherPlayer({
+      era: '2.50',
+      whip: '1.00',
+      so: 100,
+      wins: 5,
+      gs: 0,
+      g: 65,
+      reliefGames: 65,
+      ip: 120,
+    })
+    player.positions = ['RP']
+    const counts = seasonReliefPitcherCounts(player.stats as PitcherStats)
+    expect(formatPlayerTotals(player)).toBe(
+      `${counts.so.toLocaleString('en-US')} K · ${counts.wins.toLocaleString('en-US')} W`,
+    )
+  })
+
+  it('uses relief proration in simulated RP rows', () => {
+    const player = pitcherPlayer({
+      era: '2.50',
+      whip: '1.00',
+      so: 669,
+      wins: 45,
+      gs: 0,
+      g: 1302,
+      reliefGames: 1302,
+      ip: 713,
+    })
+    player.positions = ['RP']
+    const counts = seasonReliefPitcherCounts(player.stats as PitcherStats)
+    expect(formatSimulatedTotals(player, 'RP')).toBe(
+      `${counts.so.toLocaleString('en-US')} K · ${counts.wins.toLocaleString('en-US')} W`,
+    )
   })
 })
 

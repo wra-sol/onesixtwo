@@ -1,6 +1,10 @@
 import { calculateRunPrevention } from './run-prevention'
 import { getBattingRatings, getPitchingRatings } from './player-ratings'
 import {
+  pitchingContributors,
+  pitcherComponentScore,
+} from './pitching-contributors'
+import {
   getActiveLineupPositions,
   lineupEntries,
   lineupPlayers,
@@ -45,44 +49,6 @@ function battingContributors(lineup: Lineup, formatId: RosterFormatId): Player[]
   return out
 }
 
-function pitchingContributors(lineup: Lineup, formatId: RosterFormatId): {
-  starters: Player[]
-  relievers: Player[]
-  all: Player[]
-} {
-  const entries = lineupEntries(lineup, formatId)
-  const starters: Player[] = []
-  const relievers: Player[] = []
-  const seen = new Set<string>()
-
-  for (const { position, player } of entries) {
-    if (!playerHasPitchingProfile(player)) continue
-    if (position === 'SP') {
-      starters.push(player)
-      seen.add(player.personId)
-    } else if (position === 'RP') {
-      relievers.push(player)
-      seen.add(player.personId)
-    }
-  }
-
-  const all: Player[] = []
-  const allSeen = new Set<string>()
-  for (const p of [...starters, ...relievers]) {
-    if (allSeen.has(p.personId)) continue
-    allSeen.add(p.personId)
-    all.push(p)
-  }
-
-  for (const { player } of entries) {
-    if (player.role !== 'two-way' || allSeen.has(player.personId)) continue
-    allSeen.add(player.personId)
-    all.push(player)
-  }
-
-  return { starters, relievers, all }
-}
-
 function offenseScoreFromBatters(batters: Player[]): number {
   if (batters.length === 0) return 50
   const ratings = batters.map(getBattingRatings)
@@ -91,17 +57,6 @@ function offenseScoreFromBatters(batters: Player[]): number {
       avg(ratings.map((r) => r.power)) * 0.25 +
       avg(ratings.map((r) => r.contact)) * 0.2 +
       avg(ratings.map((r) => r.runProduction)) * 0.15,
-  )
-}
-
-function pitcherComponentScore(players: Player[]): number {
-  if (players.length === 0) return 50
-  const ratings = players.map(getPitchingRatings)
-  return Math.round(
-    avg(ratings.map((r) => r.era)) * 0.35 +
-      avg(ratings.map((r) => r.whip)) * 0.25 +
-      avg(ratings.map((r) => r.strikeouts)) * 0.25 +
-      avg(ratings.map((r) => r.workload)) * 0.15,
   )
 }
 

@@ -303,6 +303,7 @@ function buildHitterStats(agg: Aggregated): HitterStats {
 function buildPitcherStats(agg: Aggregated): PitcherStats {
   const gs = agg.gs > 0 ? agg.gs : Math.max(agg.g, 1)
   const g = Math.max(agg.g, gs)
+  const ip = agg.ipOuts / 3
   return {
     era: formatEra(agg.er, agg.ipOuts),
     whip: formatWhip(agg.hAllowed, agg.bbAllowed, agg.ipOuts),
@@ -311,6 +312,7 @@ function buildPitcherStats(agg: Aggregated): PitcherStats {
     gs,
     g,
     reliefGames: Math.max(0, g - gs),
+    ip,
   }
 }
 

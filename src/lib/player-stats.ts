@@ -1,4 +1,9 @@
 import { createSeededRandom, hashSeed } from './simulation'
+import {
+  PITCHER_STARTS_PER_SEASON,
+  STANDARD_RP_IP,
+} from './calibration'
+import { isReliefEligible, isStarterEligible } from './player-eligibility'
 import type {
   HitterStats,
   LineupPosition,
@@ -81,16 +86,59 @@ export function seasonHitterErrors(stats: HitterStats): number | null {
   return Math.round((stats.errors / games) * 162)
 }
 
-export function seasonPitcherCounts(stats: PitcherStats): {
+export function seasonStarterPitcherCounts(stats: PitcherStats): {
   so: number
   wins: number
 } {
-  const gs = Math.max(stats.gs ?? 30, 1)
-  const factor = 30 / gs
+  const gs = Math.max(stats.gs ?? PITCHER_STARTS_PER_SEASON, 1)
+  const factor = PITCHER_STARTS_PER_SEASON / gs
   return {
     so: Math.round(stats.so * factor),
     wins: Math.round(stats.wins * factor),
   }
+}
+
+export function seasonReliefPitcherCounts(stats: PitcherStats): {
+  so: number
+  wins: number
+} {
+  const ip = Math.max(stats.ip ?? STANDARD_RP_IP, 1)
+  const factor = STANDARD_RP_IP / ip
+  return {
+    so: Math.round(stats.so * factor),
+    wins: Math.round(stats.wins * factor),
+  }
+}
+
+/** @deprecated Use seasonStarterPitcherCounts or seasonPitcherCountsForSlot. */
+export function seasonPitcherCounts(stats: PitcherStats): {
+  so: number
+  wins: number
+} {
+  return seasonStarterPitcherCounts(stats)
+}
+
+function usesReliefPitcherCounts(
+  player: Player,
+  position?: LineupPosition,
+): boolean {
+  if (position === 'RP') return true
+  if (position === 'SP') return false
+  return isReliefEligible(player) && !isStarterEligible(player)
+}
+
+export function seasonPitcherCountsForSlot(
+  stats: PitcherStats,
+  player: Player,
+  position?: LineupPosition,
+): {
+  so: number
+  wins: number
+} {
+  if (usesReliefPitcherCounts(player, position)) {
+    return seasonReliefPitcherCounts(stats)
+  }
+  return seasonStarterPitcherCounts(stats)
 }
 
 export type SimulatedHitterRates = {
@@ -233,11 +281,19 @@ export function formatPlayerTotals(
   position?: LineupPosition,
 ): string {
   if (position && usesPitchingLine(player, position)) {
-    const counts = seasonPitcherCounts(pitcherStatsFor(player))
+    const counts = seasonPitcherCountsForSlot(
+      pitcherStatsFor(player),
+      player,
+      position,
+    )
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
   if (player.role === 'pitcher') {
-    const counts = seasonPitcherCounts(pitcherStatsFor(player))
+    const counts = seasonPitcherCountsForSlot(
+      pitcherStatsFor(player),
+      player,
+      position,
+    )
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
@@ -267,7 +323,11 @@ export function formatSimulatedTotals(
   profile?: 'batting' | 'pitching',
 ): string {
   if (position && usesPitchingLine(player, position, profile)) {
-    const counts = seasonPitcherCounts(pitcherStatsFor(player))
+    const counts = seasonPitcherCountsForSlot(
+      pitcherStatsFor(player),
+      player,
+      position,
+    )
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 

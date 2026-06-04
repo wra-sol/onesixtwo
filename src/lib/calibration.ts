@@ -34,6 +34,23 @@ export const VOLATILITY_MODIFIER = 0.08
 /** Games per simulated season. */
 export const SEASON_LENGTH = 162
 
+/** Starter counting-stat baseline for end-of-season display (30 starts). */
+export const PITCHER_STARTS_PER_SEASON = 30
+
+/** Relief appearance baseline paired with ip-per-appearance for STANDARD_RP_IP. */
+export const STANDARD_RP_APPEARANCES = 70
+
+/**
+ * Relief counting-stat baseline IP for end-of-season display.
+ * Derived from Lahman gs=0 relief cards: median(ip / reliefGames) × STANDARD_RP_APPEARANCES ≈ 38.
+ * Re-run `npm run analyze:ratings` to recalibrate.
+ */
+export const STANDARD_RP_IP = 38
+
+/** SP/RP blend when the roster format includes a relief slot. */
+export const PITCHING_STARTER_WEIGHT = 0.72
+export const PITCHING_RELIEF_WEIGHT = 0.28
+
 /** Segment boundaries for future granular notes (games 1-54, 55-108, 109-162). */
 export const SEASON_SEGMENTS = {
   early: { start: 0, end: 54 },

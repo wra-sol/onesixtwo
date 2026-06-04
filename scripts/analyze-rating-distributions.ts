@@ -2,6 +2,11 @@
  * Prints percentile distributions for rating calibration.
  * Run: npm run analyze:ratings
  */
+import {
+  PITCHER_STARTS_PER_SEASON,
+  STANDARD_RP_APPEARANCES,
+  STANDARD_RP_IP,
+} from '../src/lib/calibration.ts'
 import { buildLahmanBucketIndex, lahmanDataAvailable } from './lib/lahman.ts'
 import {
   isPlayableCardMetrics,
@@ -110,6 +115,30 @@ function main() {
   const lineupErrors = lineupErrorSamples(hitters.filter((m) => m.fieldingGames > 0))
   summarize('lineup.errorsPer162 (top-8 OPS proxy)', lineupErrors, 1)
   summarizeLowerBetter('lineup.errorsPer162 penalty tiers', lineupErrors, 1)
+
+  const reliefIpPerAppearance: number[] = []
+  for (const list of buildLahmanBucketIndex().values()) {
+    for (const agg of list) {
+      const m = metricsFromAgg(agg)
+      if (!m || !isPlayableCardMetrics(m) || m.role === 'hitter') continue
+      const gs = agg.gs ?? 0
+      const g = Math.max(agg.g, gs)
+      const reliefGames = Math.max(0, g - gs)
+      const reliefEligible = reliefGames >= 20 || reliefGames > gs
+      if (!reliefEligible || gs !== 0 || m.ip < 40) continue
+      reliefIpPerAppearance.push(m.ip / Math.max(reliefGames, 1))
+    }
+  }
+  const derivedStandardRpIp = Math.round(
+    percentile(reliefIpPerAppearance, 50) * STANDARD_RP_APPEARANCES,
+  )
+  summarize('relief.ipPerAppearance (gs=0)', reliefIpPerAppearance, 2)
+  console.log(
+    `\nDerived STANDARD_RP_IP = median(ip/reliefG) × ${STANDARD_RP_APPEARANCES} = ${derivedStandardRpIp}`,
+  )
+  console.log(
+    `Configured STANDARD_RP_IP = ${STANDARD_RP_IP} (PITCHER_STARTS_PER_SEASON = ${PITCHER_STARTS_PER_SEASON})`,
+  )
 }
 
 main()

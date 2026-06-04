@@ -105,6 +105,8 @@ export type PitcherStats = {
   g?: number
   /** Relief appearances (g - gs) when known. */
   reliefGames?: number
+  /** Innings pitched in source window for relief proration. */
+  ip?: number
 }
 
 export type PlayerRatings = {

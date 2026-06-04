@@ -12,8 +12,9 @@ import {
 import { calculateRunPrevention } from './run-prevention'
 import { projectWins } from './game'
 import { lineupPlayers, lineupToSeed as buildLineupSeed } from './roster-format'
-import { getBattingRatings, getPitchingRatings } from './player-ratings'
-import { playerHasBattingProfile, playerHasPitchingProfile } from './player-eligibility'
+import { getBattingRatings } from './player-ratings'
+import { blendedPitchingRating } from './pitching-contributors'
+import { playerHasBattingProfile } from './player-eligibility'
 import type {
   Lineup,
   LineupPosition,
@@ -99,19 +100,17 @@ export function buildTeamProfile(
 ): TeamProfile {
   const players = lineupPlayers(lineup, formatId)
   const batters = players.filter((p) => playerHasBattingProfile(p))
-  const pitchers = players.filter((p) => playerHasPitchingProfile(p))
 
   const batRatings = batters.map(getBattingRatings)
-  const pitRatings = pitchers.map(getPitchingRatings)
 
   const contact = avg(batRatings.map((r) => r.contact))
   const power = avg(batRatings.map((r) => r.power))
   const speed = avg(batRatings.map((r) => r.speed))
   const runProduction = avg(batRatings.map((r) => r.runProduction))
   const runPrevention = calculateRunPrevention(players).value
-  const control = avg(pitRatings.map((r) => r.whip))
-  const dominance = avg(pitRatings.map((r) => r.strikeouts))
-  const workload = avg(pitRatings.map((r) => r.workload))
+  const control = blendedPitchingRating(lineup, formatId, (r) => r.whip)
+  const dominance = blendedPitchingRating(lineup, formatId, (r) => r.strikeouts)
+  const workload = blendedPitchingRating(lineup, formatId, (r) => r.workload)
 
   const overalls = players.map((p) => p.ratings.overall)
   const starPower = Math.max(...overalls, 0)

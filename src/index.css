@@ -231,28 +231,28 @@
 
   /* Infield — SS/2B at bag depth, corners on foul lines */
   .lineup-slot[data-pos='SS'] {
-    left: 40%;
+    left: 37%;
     top: 35%;
     z-index: 12;
   }
 
   .lineup-slot[data-pos='2B'] {
-    left: 60%;
+    left: 63%;
     top: 35%;
     z-index: 12;
   }
 
   .lineup-slot[data-pos='3B'] {
-    left: 12%;
+    left: 16%;
     top: 50%;
   }
 
   .lineup-slot[data-pos='1B'] {
-    left: 88%;
+    left: 84%;
     top: 50%;
   }
 
-  .lineup-slot[data-pos='P'] {
+  .lineup-slot[data-pos='SP'] {
     left: 50%;
     top: 54%;
     z-index: 14;
