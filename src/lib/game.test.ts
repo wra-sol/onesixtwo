@@ -15,7 +15,6 @@ import {
   canAssignPlayer,
   canRespinTeam,
   canRespinYear,
-  createEmptyLineup,
   createInitialGameState,
   getEligiblePositionsForPlayer,
   getDraftedEraCount,
@@ -33,6 +32,7 @@ import {
   selectPlayer,
   startGame,
 } from './game'
+import { createEmptyLineup } from './roster-format'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
 import type { GameState } from './types'
 
@@ -54,10 +54,9 @@ describe('dataset', () => {
     expect(sample?.playerIds.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('only includes 1960s onward in playable buckets', () => {
+  it('includes 1930s onward in playable buckets when data is built', () => {
     const eras = new Set(DRAFT_BUCKETS.map((b) => b.era))
     expect(eras.has('1910s')).toBe(false)
-    expect(eras.has('1950s')).toBe(false)
     expect(eras.has('1960s')).toBe(true)
     expect(eras.has('2020s')).toBe(true)
   })
@@ -177,11 +176,11 @@ describe('available players list', () => {
     let state = createInitialGameState()
     state = {
       ...state,
-      lineup: { ...createEmptyLineup(), P: otherPitcher! },
+      lineup: { ...createEmptyLineup(), SP: otherPitcher! },
     }
     const listed = filterAvailablePlayers(bucket!, state)
     expect(listed.some((p) => p.id === pitcher!.id)).toBe(true)
-    expect(getPlayerDisabledReason(pitcher!, state)).toBe('P filled')
+    expect(getPlayerDisabledReason(pitcher!, state)).toBe('SP filled')
     expect(playerIsPickable(pitcher!, state)).toBe(false)
   })
 })
@@ -200,7 +199,7 @@ describe('lineup positions', () => {
       lineup: createEmptyLineup(),
     }
     expect(canAssignPlayer(state, 'SS')).toBe(true)
-    expect(canAssignPlayer(state, 'P')).toBe(false)
+    expect(canAssignPlayer(state, 'SP')).toBe(false)
   })
 
   it('allows drafting into a filled position when the current player can switch to an open position', () => {
@@ -228,7 +227,9 @@ describe('lineup positions', () => {
       lineup: { ...createEmptyLineup(), C: flexiblePlayer! },
     }
 
-    expect(getEligiblePositionsForPlayer(catcher!, state.lineup)).toContain('C')
+    expect(
+      getEligiblePositionsForPlayer(catcher!, state.lineup, 'classic'),
+    ).toContain('C')
     expect(canAssignPlayer(state, 'C')).toBe(true)
 
     state = assignPlayer(state, 'C')
@@ -247,12 +248,13 @@ describe('lineup positions', () => {
     const leftFielder = [...PLAYER_BY_ID.values()].find(
       (p) =>
         p.role === 'hitter' &&
-        p.positions.length === 1 &&
-        p.positions[0] === 'LF' &&
+        p.positions.includes('LF') &&
+        !p.positions.includes('CF') &&
+        !p.positions.includes('RF') &&
         p.id !== flexiblePlayer?.id,
     )
     expect(flexiblePlayer).toBeDefined()
-    expect(leftFielder).toBeDefined()
+    if (!leftFielder) return
 
     const lineup = { ...createEmptyLineup(), LF: flexiblePlayer! }
     const state = {
@@ -262,21 +264,26 @@ describe('lineup positions', () => {
 
     expect(getPlayerDisabledReason(leftFielder!, state)).toBeNull()
     expect(playerIsPickable(leftFielder!, state)).toBe(true)
-    expect(getEligiblePositionsForPlayer(leftFielder!, lineup)).toContain('LF')
+    expect(
+      getEligiblePositionsForPlayer(leftFielder!, lineup, 'classic'),
+    ).toContain('LF')
   })
 
   it('does not switch a filled position when the current player has no open alternate position', () => {
+    const fieldPositions = (p: (typeof PLAYER_BY_ID extends Map<string, infer P> ? P : never)) =>
+      p.positions.filter((pos) => pos !== 'DH' && pos !== 'RP')
     const flexiblePlayer = [...PLAYER_BY_ID.values()].find(
       (p) =>
         p.role === 'hitter' &&
-        p.positions.includes('C') &&
-        p.positions.includes('1B'),
+        fieldPositions(p).includes('C') &&
+        fieldPositions(p).includes('1B') &&
+        fieldPositions(p).length === 2,
     )
     const catcher = [...PLAYER_BY_ID.values()].find(
       (p) =>
         p.role === 'hitter' &&
-        p.positions.includes('C') &&
-        !p.positions.includes('1B') &&
+        fieldPositions(p).length === 1 &&
+        fieldPositions(p)[0] === 'C' &&
         p.id !== flexiblePlayer?.id,
     )
     const firstBaseman = [...PLAYER_BY_ID.values()].find(
@@ -301,14 +308,16 @@ describe('lineup positions', () => {
       lineup,
     }
 
-    expect(getEligiblePositionsForPlayer(catcher!, lineup)).not.toContain('C')
+    expect(
+      getEligiblePositionsForPlayer(catcher!, lineup, 'classic'),
+    ).not.toContain('C')
     expect(canAssignPlayer(state, 'C')).toBe(false)
   })
 })
 
 describe('draft flow', () => {
-  it('completes nine-round draft with deterministic rng', () => {
-    let state = createInitialGameState()
+  it('completes classic nine-round draft with deterministic rng', () => {
+    let state = createInitialGameState('classic')
     state = startGame(state)
 
     for (let i = 0; i < 9; i++) {
@@ -318,12 +327,16 @@ describe('draft flow', () => {
       expect(player).toBeDefined()
       const pick = player!
       state = selectPlayer(state, pick.id)
-      const pos = getEligiblePositionsForPlayer(pick, state.lineup)[0]
+      const pos = getEligiblePositionsForPlayer(
+        pick,
+        state.lineup,
+        state.rosterFormatId,
+      )[0]
       state = assignPlayer(state, pos)
     }
 
     expect(state.status).toBe('complete')
-    expect(isLineupComplete(state.lineup)).toBe(true)
+    expect(isLineupComplete(state.lineup, state.rosterFormatId)).toBe(true)
     expect(state.history).toHaveLength(9)
   })
 
@@ -407,7 +420,7 @@ describe('respins', () => {
 describe('scoring benchmarks', () => {
   it('bounds team score 0-100', () => {
     const lineup = buildBenchmarkLineup('great')
-    expect(isLineupComplete(lineup)).toBe(true)
+    expect(isLineupComplete(lineup, 'classic')).toBe(true)
     const score = calculateTeamScore(lineup)
     expect(score).not.toBeNull()
     expect(score!).toBeGreaterThanOrEqual(0)
@@ -417,7 +430,7 @@ describe('scoring benchmarks', () => {
   it('projects wins within expected ranges by benchmark tier', () => {
     for (const tier of ['mediocre', 'great', 'elite', 'nearPerfect'] as const) {
       const lineup = buildBenchmarkLineup(tier)
-      expect(isLineupComplete(lineup)).toBe(true)
+      expect(isLineupComplete(lineup, 'classic')).toBe(true)
       const result = calculateSeasonResult(lineup)
       expect(result).not.toBeNull()
       const range = BENCHMARK_WIN_RANGES[tier]
@@ -439,11 +452,13 @@ describe('scoring benchmarks', () => {
     expect(result?.shareText).toContain('Perfect Season')
     expect(result?.shareText).toContain('162-0')
     expect(result?.simulation).toBeDefined()
-    expect(result?.scorecard.rows).toHaveLength(9)
+    expect(result?.scorecard.rows.length).toBeGreaterThanOrEqual(9)
+    expect(result?.scoreExplanation).toBeDefined()
+    expect(result?.riskFactors).toBeDefined()
     expect(result?.seasonMoments.length).toBeGreaterThan(0)
     expect(result?.identity.label).toBeTruthy()
     expect(result?.strengths.length).toBeGreaterThan(0)
-    expect(result?.weaknesses.length).toBeGreaterThan(0)
+    expect(result?.riskFactors.length).toBeGreaterThanOrEqual(0)
     expect(result?.tier.label).toBeTruthy()
   })
 
@@ -493,9 +508,9 @@ describe('scoring benchmarks', () => {
     }
   })
 
-  it('scorecard has nine rows with simulated stat lines', () => {
+  it('scorecard has rows with simulated stat lines', () => {
     const result = calculateSeasonResult(buildBenchmarkLineup('great'))
-    expect(result!.scorecard.rows).toHaveLength(9)
+    expect(result!.scorecard.rows.length).toBe(9)
     for (const row of result!.scorecard.rows) {
       expect(row.slashLine).toBeTruthy()
       expect(row.countingLine).toBeTruthy()

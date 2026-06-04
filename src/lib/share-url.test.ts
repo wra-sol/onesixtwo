@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildBenchmarkLineup } from './benchmarks'
+import { getActiveLineupPositions } from './roster-format'
 import { calculateSeasonResult } from './game'
 import {
   buildOgPath,
@@ -13,17 +14,22 @@ import {
 describe('share-url', () => {
   const lineup = buildBenchmarkLineup('great')
 
-  it('round-trips encode and decode', () => {
-    const path = buildSharePath(lineup, 2)
+  it('round-trips encode and decode classic', () => {
+    const path = buildSharePath(lineup, 2, 'classic')
     expect(path).toMatch(/^\/share\?p=/)
     expect(path).toContain('&n=2')
+    expect(path).not.toContain('&f=')
 
     const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
     expect(isParsedShare(parsed)).toBe(true)
     if (!isParsedShare(parsed)) return
 
     expect(parsed.reroll).toBe(2)
-    expect(reconstructLineup(parsed)).toEqual(lineup)
+    expect(parsed.rosterFormatId).toBe('classic')
+    const reconstructed = reconstructLineup(parsed)!
+    for (const pos of getActiveLineupPositions(parsed.rosterFormatId)) {
+      expect(reconstructed[pos]?.id).toBe(lineup[pos]?.id)
+    }
   })
 
   it('omits reroll param when zero', () => {
@@ -49,7 +55,7 @@ describe('share-url', () => {
     if (!isParsedShare(parsed)) return
     expect(buildOgPath(parsed)).toMatch(/^\/og\?p=/)
     expect(buildOgPath(parsed)).toContain('&n=1')
-    expect(buildOgPath(parsed)).toContain('&v=2')
+    expect(buildOgPath(parsed)).toContain('&v=5')
   })
 
   it('rejects wrong player count', () => {
@@ -95,6 +101,7 @@ describe('share-url', () => {
 
     const fromUrl = calculateSeasonResult(reconstructLineup(parsed)!, {
       rerollSeed: String(parsed.reroll),
+      rosterFormatId: parsed.rosterFormatId,
     })
     const direct = calculateSeasonResult(lineup, { rerollSeed: '3' })
     expect(fromUrl?.record).toBe(direct?.record)

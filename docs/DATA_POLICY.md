@@ -17,16 +17,24 @@ Refresh Lahman: `npm run fetch:lahman` (requires Rscript).
 - Lahman `franchID` mapping: [`scripts/lib/lahman-franchises.ts`](../scripts/lib/lahman-franchises.ts).
 
 ## Decade policy
-- **Playable** decades: `1960s`–`2020s` (`MODERN_ERAS` in `franchises.ts`).
-- Lahman import still maps all years; the build script only emits modern franchise-decade buckets.
+- **Playable** decades: `1930s`–`2020s` (`PLAYABLE_ERAS` / `MODERN_ERAS` in `franchises.ts`).
+- Lahman import still maps all years; the build script only emits playable franchise-decade buckets.
+- Pre-1960 cards use the same percentile anchors; early-era buckets may have sparser relief/two-way coverage.
 - Stats aggregate all MLB (AL/NL) seasons in that decade for the franchise.
 
 ## Position eligibility
-- Exact positions only: `C`, `1B`, `2B`, `3B`, `SS`, `LF`, `CF`, `RF`, `P`.
-- Derived from Lahman `Appearances` game counts (≥10 games at position).
+- Field positions: `C`, `1B`, `2B`, `3B`, `SS`, `LF`, `CF`, `RF`, `P`.
+- Optional roster slots: `DH` (all batting-qualified cards), `RP` (relief-qualified pitchers).
+- Derived from Lahman `Appearances` (≥10 games at position) plus role rules in [`scripts/lib/lahman.ts`](../scripts/lib/lahman.ts).
+
+## Two-way players
+- One card per person per franchise-decade when `AB ≥ 80` and `IP ≥ 40` in that bucket.
+- Carries `battingStats`, `pitchingStats`, and combined ratings; contributes to offense and pitching from a single roster slot.
+- Example: Shohei Ohtani (`ohtansh01`) on Angels decade cards.
 
 ## Rating calibration
-- Category ratings use percentile anchors from Lahman eligible cards (`1960s`–`2020s`).
+- Category ratings use percentile anchors from Lahman eligible cards (`1930s`–`2020s`).
+- Hitter overall weights OPS/power/contact/run production; **speed is not a penalty** in team scoring.
 - Tier meaning: `50` playable floor, `70` average starter, `80` good, `90` elite, `100` historically exceptional.
 - Pitcher run prevention uses calibrated ERA; team run prevention subtracts a lineup fielding-error penalty from `Fielding.csv`.
 - Analyze distributions: `npm run analyze:ratings` (requires Lahman CSV).

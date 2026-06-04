@@ -3,11 +3,17 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
   Era,
+  HitterStats,
   LineupPosition,
+  PitcherStats,
   Player,
   PlayerRatings,
   TeamId,
 } from '../../src/lib/types.ts'
+import {
+  reliefProfileFromStats,
+  starterProfileFromStats,
+} from '../../src/lib/player-eligibility.ts'
 import { ERAS } from '../../src/data/franchises.ts'
 import { decodeUnicodeEscapes } from '../../src/lib/text.ts'
 import { parseCsv } from './parse-csv.ts'
@@ -47,7 +53,7 @@ export type Aggregated = {
   name: string
   teamId: TeamId
   era: Era
-  role: 'hitter' | 'pitcher'
+  role: 'hitter' | 'pitcher' | 'two-way'
   positions: LineupPosition[]
   ab: number
   h: number
@@ -158,11 +164,7 @@ function hitterRatings(
   ops: number,
 ): PlayerRatings {
   const overall = Math.round(
-    ops * 0.35 +
-      power * 0.25 +
-      contact * 0.2 +
-      speed * 0.1 +
-      runProduction * 0.1,
+    ops * 0.4 + power * 0.25 + contact * 0.2 + runProduction * 0.15,
   )
   return {
     contact,
@@ -213,28 +215,7 @@ function computeOps(agg: Aggregated): number {
   return obp + slg
 }
 
-function ratingsFromAgg(agg: Aggregated): PlayerRatings {
-  if (agg.role === 'pitcher') {
-    const ip = agg.ipOuts / 3
-    const eraVal = ip > 0 ? (agg.er * 9) / ip : 4.5
-    const whipVal = ip > 0 ? (agg.hAllowed + agg.bbAllowed) / ip : 1.35
-    const k9 = ip > 0 ? (agg.so * 9) / ip : 0
-    const gs = Math.max(agg.gs, 1)
-    const ipPer30Gs = (ip / gs) * 30
-
-    const eraScore = scoreFromAnchors(eraVal, PITCHER_ERA_ANCHORS, {
-      lowerIsBetter: true,
-    })
-    const whipScore = scoreFromAnchors(whipVal, PITCHER_WHIP_ANCHORS, {
-      lowerIsBetter: true,
-    })
-    const kScore = scoreFromAnchors(k9, PITCHER_K9_ANCHORS)
-    const workload = scoreFromAnchors(ipPer30Gs, PITCHER_IP_PER_30GS_ANCHORS)
-    const wScore = scoreFromAnchors(agg.w, [{ value: 0, score: 50 }, { value: 200, score: 92 }])
-
-    return pitcherRatings(eraScore, whipScore, kScore, wScore, workload)
-  }
-
+function ratingsFromAggBatting(agg: Aggregated): PlayerRatings {
   const ab = agg.ab || 1
   const g = Math.max(agg.g, 1)
   const avg = agg.h / ab
@@ -251,6 +232,29 @@ function ratingsFromAgg(agg: Aggregated): PlayerRatings {
   return hitterRatings(contact, power, speed, runProduction, opsScore)
 }
 
+function ratingsFromAggPitching(agg: Aggregated): PlayerRatings {
+  const ip = agg.ipOuts / 3
+  const eraVal = ip > 0 ? (agg.er * 9) / ip : 4.5
+  const whipVal = ip > 0 ? (agg.hAllowed + agg.bbAllowed) / ip : 1.35
+  const k9 = ip > 0 ? (agg.so * 9) / ip : 0
+  const gs = Math.max(agg.gs, 1)
+  const ipPer30Gs = (ip / gs) * 30
+
+  const eraScore = scoreFromAnchors(eraVal, PITCHER_ERA_ANCHORS, {
+    lowerIsBetter: true,
+  })
+  const whipScore = scoreFromAnchors(whipVal, PITCHER_WHIP_ANCHORS, {
+    lowerIsBetter: true,
+  })
+  const kScore = scoreFromAnchors(k9, PITCHER_K9_ANCHORS)
+  const workload = scoreFromAnchors(ipPer30Gs, PITCHER_IP_PER_30GS_ANCHORS)
+  const wScore = scoreFromAnchors(agg.w, [
+    { value: 0, score: 50 },
+    { value: 200, score: 92 },
+  ])
+  return pitcherRatings(eraScore, whipScore, kScore, wScore, workload)
+}
+
 function positionsFromAppearance(row: Record<string, string>): LineupPosition[] {
   const map: [keyof typeof row, LineupPosition][] = [
     ['G_c', 'C'],
@@ -261,7 +265,7 @@ function positionsFromAppearance(row: Record<string, string>): LineupPosition[] 
     ['G_lf', 'LF'],
     ['G_cf', 'CF'],
     ['G_rf', 'RF'],
-    ['G_p', 'P'],
+    ['G_p', 'SP'],
   ]
   const out: LineupPosition[] = []
   for (const [key, pos] of map) {
@@ -276,55 +280,158 @@ function mergePositions(
 ): LineupPosition[] {
   const set = new Set([...existing, ...added])
   const order: LineupPosition[] = [
-    'P', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF',
+    'SP', 'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF',
+  ]
+  return order.filter((p) => set.has(p))
+}
+
+function buildHitterStats(agg: Aggregated): HitterStats {
+  return {
+    avg: formatAvg(agg.h, agg.ab),
+    obp: formatObp(agg.h, agg.bb, agg.ab),
+    slg: formatSlg(agg.h, agg.doubles, agg.triples, agg.hr, agg.ab),
+    hr: agg.hr,
+    rbi: agg.rbi,
+    sb: agg.sb,
+    ops: formatOps(agg.h, agg.ab, agg.bb, agg.doubles, agg.triples, agg.hr),
+    g: agg.g > 0 ? agg.g : 162,
+    errors: agg.fieldingErrors,
+    fieldingGames: agg.fieldingGames > 0 ? agg.fieldingGames : undefined,
+  }
+}
+
+function buildPitcherStats(agg: Aggregated): PitcherStats {
+  const gs = agg.gs > 0 ? agg.gs : Math.max(agg.g, 1)
+  const g = Math.max(agg.g, gs)
+  return {
+    era: formatEra(agg.er, agg.ipOuts),
+    whip: formatWhip(agg.hAllowed, agg.bbAllowed, agg.ipOuts),
+    so: agg.so,
+    wins: agg.w,
+    gs,
+    g,
+    reliefGames: Math.max(0, g - gs),
+  }
+}
+
+function finalizePositions(
+  agg: Aggregated,
+  positions: LineupPosition[],
+): LineupPosition[] {
+  const set = new Set(positions)
+  if (agg.role === 'pitcher' || agg.role === 'two-way') {
+    const gs = agg.gs > 0 ? agg.gs : Math.max(agg.g, 1)
+    const g = Math.max(agg.g, gs)
+    const reliefGames = Math.max(0, g - gs)
+    const starter = starterProfileFromStats(gs, g, reliefGames)
+    const reliever = reliefProfileFromStats(gs, g, reliefGames)
+    if (starter) set.add('SP')
+    if (reliever) set.add('RP')
+    if (agg.role === 'pitcher' && !starter && !reliever) {
+      set.add('SP')
+    }
+  }
+  if (agg.role === 'hitter' || agg.role === 'two-way') {
+    set.add('DH')
+  }
+  const order: LineupPosition[] = [
+    'SP',
+    'RP',
+    'C',
+    '1B',
+    '2B',
+    '3B',
+    'SS',
+    'LF',
+    'CF',
+    'RF',
+    'DH',
   ]
   return order.filter((p) => set.has(p))
 }
 
 function aggToPlayer(agg: Aggregated, teamName: string, rank: number): Player {
-  const ratings = ratingsFromAgg(agg)
   const id = `${agg.personId}-${agg.teamId}-${agg.era}`
-  const base = {
+  const positions = finalizePositions(
+    agg,
+    agg.positions.length ? agg.positions : ['RF'],
+  )
+
+  if (agg.role === 'two-way') {
+    const battingRatings = ratingsFromAggBatting(agg)
+    const pitchingRatings = ratingsFromAggPitching(agg)
+    const battingStats = buildHitterStats(agg)
+    const pitchingStats = buildPitcherStats(agg)
+    const primaryRole: 'hitter' | 'pitcher' =
+      battingRatings.overall >= pitchingRatings.overall ? 'hitter' : 'pitcher'
+    const overall = Math.round(
+      battingRatings.overall * 0.55 + pitchingRatings.overall * 0.45,
+    )
+    const ratings: PlayerRatings = {
+      ...battingRatings,
+      era: pitchingRatings.era,
+      whip: pitchingRatings.whip,
+      strikeouts: pitchingRatings.strikeouts,
+      wins: pitchingRatings.wins,
+      workload: pitchingRatings.workload,
+      overall,
+    }
+    return {
+      id,
+      personId: agg.personId,
+      name: agg.name,
+      teamId: agg.teamId,
+      teamName,
+      era: agg.era,
+      role: 'two-way',
+      positions,
+      stats: primaryRole === 'hitter' ? battingStats : pitchingStats,
+      battingStats,
+      pitchingStats,
+      ratings,
+      battingRatings,
+      pitchingRatings,
+      twoWay: {
+        battingValue: battingRatings.overall,
+        pitchingValue: pitchingRatings.overall,
+        primaryRole,
+      },
+      bucketRank: rank,
+    }
+  }
+
+  if (agg.role === 'pitcher') {
+    const ratings = ratingsFromAggPitching(agg)
+    return {
+      id,
+      personId: agg.personId,
+      name: agg.name,
+      teamId: agg.teamId,
+      teamName,
+      era: agg.era,
+      role: 'pitcher',
+      positions,
+      stats: buildPitcherStats(agg),
+      ratings,
+      pitchingRatings: ratings,
+      bucketRank: rank,
+    }
+  }
+
+  const ratings = ratingsFromAggBatting(agg)
+  return {
     id,
     personId: agg.personId,
     name: agg.name,
     teamId: agg.teamId,
     teamName,
     era: agg.era,
-    positions: agg.positions.length ? agg.positions : (['RF'] as LineupPosition[]),
-    ratings,
-    bucketRank: rank,
-  }
-
-  if (agg.role === 'pitcher') {
-    return {
-      ...base,
-      role: 'pitcher',
-      stats: {
-        era: formatEra(agg.er, agg.ipOuts),
-        whip: formatWhip(agg.hAllowed, agg.bbAllowed, agg.ipOuts),
-        so: agg.so,
-        wins: agg.w,
-        gs: agg.gs > 0 ? agg.gs : Math.max(agg.g, 1),
-      },
-    }
-  }
-
-  return {
-    ...base,
     role: 'hitter',
-    stats: {
-      avg: formatAvg(agg.h, agg.ab),
-      obp: formatObp(agg.h, agg.bb, agg.ab),
-      slg: formatSlg(agg.h, agg.doubles, agg.triples, agg.hr, agg.ab),
-      hr: agg.hr,
-      rbi: agg.rbi,
-      sb: agg.sb,
-      ops: formatOps(agg.h, agg.ab, agg.bb, agg.doubles, agg.triples, agg.hr),
-      g: agg.g > 0 ? agg.g : 162,
-      errors: agg.fieldingErrors,
-      fieldingGames: agg.fieldingGames > 0 ? agg.fieldingGames : undefined,
-    },
+    positions,
+    stats: buildHitterStats(agg),
+    ratings,
+    battingRatings: ratings,
+    bucketRank: rank,
   }
 }
 
@@ -469,17 +576,31 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
 
   for (const agg of index.values()) {
     const ip = agg.ipOuts / 3
-    const isPitcher = ip >= 80 && ip >= agg.ab / 3
-    agg.role = isPitcher ? 'pitcher' : 'hitter'
-    if (agg.role === 'pitcher') {
+    const battingQualified = agg.ab >= 80
+    const pitchingQualified = ip >= 40
+    const isPurePitcher = ip >= 80 && ip >= agg.ab / 3
+
+    if (battingQualified && pitchingQualified) {
+      agg.role = 'two-way'
+      const era = ip > 0 ? (agg.er * 9) / ip : 5
+      const obp = (agg.h + agg.bb) / (agg.ab + agg.bb)
+      const slg = (agg.h + agg.doubles + 2 * agg.triples + 3 * agg.hr) / agg.ab
+      const opsNum = obp + slg
+      agg.valueScore =
+        agg.hr * 2.2 +
+        agg.rbi * 0.35 +
+        agg.h * 0.15 +
+        opsNum * 40 +
+        agg.w * 2 +
+        agg.so * 0.05 +
+        Math.max(0, 6 - era) * 10
+    } else if (isPurePitcher || (ip >= 80 && !battingQualified)) {
+      agg.role = 'pitcher'
       const era = ip > 0 ? (agg.er * 9) / ip : 5
       agg.valueScore = agg.w * 4 + agg.so * 0.08 + Math.max(0, 6 - era) * 15
-      if (!agg.positions.includes('P')) agg.positions = ['P', ...agg.positions]
-    } else {
-      if (agg.ab < 80) {
-        agg.valueScore = -1
-        continue
-      }
+      if (!agg.positions.includes('SP')) agg.positions = ['SP', ...agg.positions]
+    } else if (battingQualified) {
+      agg.role = 'hitter'
       const obp = (agg.h + agg.bb) / (agg.ab + agg.bb)
       const slg = (agg.h + agg.doubles + 2 * agg.triples + 3 * agg.hr) / agg.ab
       const opsNum = obp + slg
@@ -489,9 +610,13 @@ export function buildLahmanBucketIndex(): Map<string, Aggregated[]> {
         agg.h * 0.15 +
         agg.sb * 0.4 +
         opsNum * 40
+    } else {
+      agg.valueScore = -1
+      continue
     }
     if (agg.positions.length === 0) {
-      agg.positions = agg.role === 'pitcher' ? ['P'] : ['RF']
+      agg.positions =
+        agg.role === 'pitcher' ? ['SP'] : agg.role === 'two-way' ? ['RF', 'SP'] : ['RF']
     }
   }
 
@@ -538,13 +663,16 @@ export function getLahmanPlayersForBucket(
   teamDisplayName: string,
   limit: number,
   excludePersonIds: Set<string>,
+  predicate?: (player: Player) => boolean,
 ): Player[] {
   const buckets = buildLahmanBucketIndex()
   const list = buckets.get(`${franchiseId}-${era}`) ?? []
   const picked: Player[] = []
   for (const agg of list) {
     if (excludePersonIds.has(agg.personId)) continue
-    picked.push(aggToPlayer(agg, teamDisplayName, picked.length + 1))
+    const player = aggToPlayer(agg, teamDisplayName, picked.length + 1)
+    if (predicate && !predicate(player)) continue
+    picked.push(player)
     if (picked.length >= limit) break
   }
   return picked

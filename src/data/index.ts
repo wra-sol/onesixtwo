@@ -42,7 +42,7 @@ export function validateDataset(): string[] {
     }
   }
   const allPositions = new Set(PLAYERS.flatMap((p) => p.positions))
-  for (const pos of ['C', 'SS', 'CF', 'P'] as const) {
+  for (const pos of ['C', 'SS', 'CF', 'SP'] as const) {
     if (!allPositions.has(pos)) {
       errors.push(`Dataset missing position coverage: ${pos}`)
     }

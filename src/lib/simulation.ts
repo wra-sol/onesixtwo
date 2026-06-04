@@ -11,15 +11,18 @@ import {
 } from './calibration'
 import { calculateRunPrevention } from './run-prevention'
 import { projectWins } from './game'
-import {
-  LINEUP_POSITIONS,
-  type Lineup,
-  type LineupPosition,
-  type SeasonNoteSource,
-  type SeasonSegment,
-  type SeasonSimulation,
-  type SimulatedGame,
-  type SimulationSeed,
+import { lineupPlayers, lineupToSeed as buildLineupSeed } from './roster-format'
+import { getBattingRatings, getPitchingRatings } from './player-ratings'
+import { playerHasBattingProfile, playerHasPitchingProfile } from './player-eligibility'
+import type {
+  Lineup,
+  LineupPosition,
+  RosterFormatId,
+  SeasonNoteSource,
+  SeasonSegment,
+  SeasonSimulation,
+  SimulatedGame,
+  SimulationSeed,
 } from './types'
 
 export type TeamProfile = {
@@ -51,12 +54,11 @@ export function createSeededRandom(seed: number): () => number {
 }
 
 /** Stable seed from lineup personIds and positions. */
-export function lineupToSeed(lineup: Lineup): SimulationSeed {
-  const parts = LINEUP_POSITIONS.map((pos) => {
-    const player = lineup[pos]
-    return player ? `${pos}:${player.personId}` : `${pos}:empty`
-  })
-  return parts.join('|')
+export function lineupToSeed(
+  lineup: Lineup,
+  formatId: RosterFormatId = 'classic',
+): SimulationSeed {
+  return buildLineupSeed(lineup, formatId)
 }
 
 /** Hash a string to a numeric seed. */
@@ -71,12 +73,13 @@ export function hashSeed(input: string): number {
 
 export function resolveSimulationSeed(
   lineup: Lineup,
+  formatId: RosterFormatId,
   rerollSeed?: SimulationSeed,
 ): SimulationSeed {
   if (rerollSeed) {
-    return `${lineupToSeed(lineup)}::reroll:${rerollSeed}`
+    return `${lineupToSeed(lineup, formatId)}::reroll:${rerollSeed}`
   }
-  return lineupToSeed(lineup)
+  return lineupToSeed(lineup, formatId)
 }
 
 function getSegmentForGame(gameIndex: number): SeasonSegment {
@@ -85,32 +88,41 @@ function getSegmentForGame(gameIndex: number): SeasonSegment {
   return 'late'
 }
 
-export function buildTeamProfile(lineup: Lineup, teamScore: number): TeamProfile {
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
-  const hitters = players.filter((p) => p.role === 'hitter')
-  const pitchers = players.filter((p) => p.role === 'pitcher')
+function avg(values: number[]): number {
+  return values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0
+}
 
-  const avg = (values: number[]) =>
-    values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0
+export function buildTeamProfile(
+  lineup: Lineup,
+  teamScore: number,
+  formatId: RosterFormatId,
+): TeamProfile {
+  const players = lineupPlayers(lineup, formatId)
+  const batters = players.filter((p) => playerHasBattingProfile(p))
+  const pitchers = players.filter((p) => playerHasPitchingProfile(p))
 
-  const contact = avg(hitters.map((p) => p.ratings.contact))
-  const power = avg(hitters.map((p) => p.ratings.power))
-  const speed = avg(hitters.map((p) => p.ratings.speed))
-  const runProduction = avg(hitters.map((p) => p.ratings.runProduction))
+  const batRatings = batters.map(getBattingRatings)
+  const pitRatings = pitchers.map(getPitchingRatings)
+
+  const contact = avg(batRatings.map((r) => r.contact))
+  const power = avg(batRatings.map((r) => r.power))
+  const speed = avg(batRatings.map((r) => r.speed))
+  const runProduction = avg(batRatings.map((r) => r.runProduction))
   const runPrevention = calculateRunPrevention(players).value
-  const control = avg(pitchers.map((p) => p.ratings.whip))
-  const dominance = avg(pitchers.map((p) => p.ratings.strikeouts))
-  const workload = avg(pitchers.map((p) => p.ratings.workload))
+  const control = avg(pitRatings.map((r) => r.whip))
+  const dominance = avg(pitRatings.map((r) => r.strikeouts))
+  const workload = avg(pitRatings.map((r) => r.workload))
 
   const overalls = players.map((p) => p.ratings.overall)
-  const starPower = Math.max(...overalls)
+  const starPower = Math.max(...overalls, 0)
   const avgOverall = avg(overalls)
   const variance =
-    overalls.reduce((s, o) => s + (o - avgOverall) ** 2, 0) / overalls.length
+    overalls.reduce((s, o) => s + (o - avgOverall) ** 2, 0) /
+    Math.max(overalls.length, 1)
   const balance = Math.max(0, 100 - Math.sqrt(variance) * 2)
   const volatility = Math.min(1, Math.sqrt(variance) / 30)
 
-  const offenseStrength = (contact + power + speed + runProduction) / 4
+  const offenseStrength = (contact + power + runProduction) / 3
   const pitchingStrength = (runPrevention + control + dominance + workload) / 4
 
   return {
@@ -156,13 +168,19 @@ function gameWinProbability(profile: TeamProfile, random: () => number): number 
   const pitchingMod = (profile.pitchingStrength - 50) / 2000
   const balanceMod = (profile.balance - 50) / 2500
   const volatilitySwing =
-    (random() - 0.5) * PER_GAME_VARIANCE * (1 + profile.volatility * VOLATILITY_MODIFIER * 10)
-  const starBoost = profile.starPower >= 92 ? 0.015 : profile.starPower >= 88 ? 0.008 : 0
+    (random() - 0.5) *
+    PER_GAME_VARIANCE *
+    (1 + profile.volatility * VOLATILITY_MODIFIER * 10)
+  const starBoost =
+    profile.starPower >= 92 ? 0.015 : profile.starPower >= 88 ? 0.008 : 0
   const ceiling = winProbabilityCeiling(profile.teamScore)
 
   return Math.min(
     ceiling,
-    Math.max(0.08, base + offenseMod + pitchingMod + balanceMod + starBoost + volatilitySwing),
+    Math.max(
+      0.08,
+      base + offenseMod + pitchingMod + balanceMod + starBoost + volatilitySwing,
+    ),
   )
 }
 
@@ -327,11 +345,12 @@ function buildNoteSources(
 export function simulateSeason(
   lineup: Lineup,
   teamScore: number,
-  options?: { rerollSeed?: SimulationSeed },
+  options?: { rerollSeed?: SimulationSeed; rosterFormatId?: RosterFormatId },
 ): SeasonSimulation {
-  const seed = resolveSimulationSeed(lineup, options?.rerollSeed)
+  const formatId = options?.rosterFormatId ?? 'classic'
+  const seed = resolveSimulationSeed(lineup, formatId, options?.rerollSeed)
   const random = createSeededRandom(hashSeed(seed))
-  const profile = buildTeamProfile(lineup, teamScore)
+  const profile = buildTeamProfile(lineup, teamScore, formatId)
   const expectedWins = projectWins(teamScore).wins
   const isReroll = Boolean(options?.rerollSeed)
 
@@ -367,7 +386,9 @@ export function simulateSeason(
   const blowoutWins = games.filter((g) => g.won && g.blowout).length
   const blowoutLosses = games.filter((g) => !g.won && g.blowout).length
   const offenseDrivenWins = games.filter((g) => g.won && g.offenseDriven).length
-  const pitchingDrivenWins = games.filter((g) => g.won && g.pitchingDriven).length
+  const pitchingDrivenWins = games.filter(
+    (g) => g.won && g.pitchingDriven,
+  ).length
 
   const { longestWinStreak, longestLosingStreak } = computeStreaks(games)
   const luckDelta = wins - expectedWins

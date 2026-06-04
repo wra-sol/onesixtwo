@@ -1,972 +1,1182 @@
 [
   {
+    "id": "yankees-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "yankees-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "yankees-1950s",
+    "count": 25,
+    "exception": false
+  },
+  {
     "id": "yankees-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "yankees-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "red-sox-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "red-sox-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "red-sox-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "red-sox-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rays-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rays-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rays-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rays-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "blue-jays-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "orioles-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "orioles-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "orioles-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "orioles-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "white-sox-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "white-sox-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "white-sox-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "white-sox-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "guardians-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "tigers-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "tigers-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "tigers-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "tigers-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-1960s",
-    "count": 20,
-    "exception": false
+    "count": 23,
+    "exception": true
   },
   {
     "id": "royals-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "royals-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "twins-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "astros-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "angels-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "athletics-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "athletics-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "athletics-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "athletics-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mariners-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rangers-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "braves-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "braves-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "braves-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "braves-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "marlins-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "marlins-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "marlins-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "marlins-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "mets-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "phillies-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "phillies-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "phillies-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "phillies-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "nationals-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cubs-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cubs-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cubs-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cubs-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "reds-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "reds-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "reds-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "reds-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "brewers-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "pirates-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "pirates-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "pirates-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "pirates-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cardinals-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cardinals-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "cardinals-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "cardinals-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "dodgers-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "dodgers-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "dodgers-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "dodgers-2020s",
-    "count": 20,
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "giants-1930s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "giants-1940s",
+    "count": 25,
+    "exception": false
+  },
+  {
+    "id": "giants-1950s",
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-1960s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "giants-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-1960s",
-    "count": 20,
-    "exception": false
+    "count": 21,
+    "exception": true
   },
   {
     "id": "padres-1970s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-1980s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "padres-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rockies-1990s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rockies-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rockies-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "rockies-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "diamondbacks-2000s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "diamondbacks-2010s",
-    "count": 20,
+    "count": 25,
     "exception": false
   },
   {
     "id": "diamondbacks-2020s",
-    "count": 20,
+    "count": 25,
     "exception": false
   }
 ]

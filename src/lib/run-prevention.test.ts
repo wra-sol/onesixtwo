@@ -48,7 +48,7 @@ function pitcher(eraRating: number): Player {
     teamName: 'Yankees',
     era: '2000s',
     role: 'pitcher',
-    positions: ['P'],
+    positions: ['SP'],
     stats: {
       era: '3.00',
       whip: '1.10',

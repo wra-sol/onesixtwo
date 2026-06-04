@@ -1,16 +1,34 @@
-export const LINEUP_POSITIONS = [
-  'C',
-  '1B',
-  '2B',
-  '3B',
-  'SS',
-  'LF',
-  'CF',
-  'RF',
-  'P',
-] as const
+export type RosterFormatId = 'classic' | 'dh' | 'rp' | 'dh-rp'
 
-export type LineupPosition = (typeof LINEUP_POSITIONS)[number]
+export {
+  BASE_LINEUP_POSITIONS,
+  LINEUP_POSITIONS,
+  ALL_LINEUP_POSITIONS,
+  OPTIONAL_LINEUP_POSITIONS,
+  ROSTER_FORMATS,
+  getRosterFormat,
+  getActiveLineupPositions,
+  rosterFormatSlotCount,
+  createEmptyLineup,
+  lineupEntries,
+  lineupPlayers,
+  parseRosterFormatId,
+} from './roster-format'
+
+export type BaseLineupPosition =
+  | 'C'
+  | '1B'
+  | '2B'
+  | '3B'
+  | 'SS'
+  | 'LF'
+  | 'CF'
+  | 'RF'
+  | 'SP'
+
+export type OptionalLineupPosition = 'DH' | 'RP'
+
+export type LineupPosition = BaseLineupPosition | OptionalLineupPosition
 
 export type Era =
   | '1910s'
@@ -58,7 +76,7 @@ export type TeamId =
   | 'rockies'
   | 'diamondbacks'
 
-export type PlayerRole = 'hitter' | 'pitcher'
+export type PlayerRole = 'hitter' | 'pitcher' | 'two-way'
 
 export type HitterStats = {
   avg: string
@@ -83,6 +101,10 @@ export type PitcherStats = {
   wins: number
   /** Games started in source window for 30-start proration. */
   gs?: number
+  /** Total pitcher appearances in source window. */
+  g?: number
+  /** Relief appearances (g - gs) when known. */
+  reliefGames?: number
 }
 
 export type PlayerRatings = {
@@ -100,6 +122,12 @@ export type PlayerRatings = {
   war?: number
 }
 
+export type TwoWayMeta = {
+  battingValue: number
+  pitchingValue: number
+  primaryRole: 'hitter' | 'pitcher'
+}
+
 export type Player = {
   id: string
   personId: string
@@ -111,6 +139,11 @@ export type Player = {
   positions: LineupPosition[]
   stats: HitterStats | PitcherStats
   ratings: PlayerRatings
+  battingStats?: HitterStats
+  pitchingStats?: PitcherStats
+  battingRatings?: PlayerRatings
+  pitchingRatings?: PlayerRatings
+  twoWay?: TwoWayMeta
   bucketRank?: number
 }
 
@@ -144,6 +177,7 @@ export type DraftHistoryEntry = {
 }
 
 export type GameState = {
+  rosterFormatId: RosterFormatId
   round: number
   currentBucket: DraftBucket | null
   availablePlayers: Player[]
@@ -165,6 +199,18 @@ export type GameState = {
 export type CategoryScore = {
   label: string
   value: number
+}
+
+export type ScoreExplanation = {
+  offenseScore: number
+  pitchingScore: number
+  roleFitScore: number
+  defensePenalty: number
+  starPowerBonus: number
+  twoWayBonus: number
+  speedBonus: number
+  riskFactors: CategoryScore[]
+  notes: string[]
 }
 
 export type SimulationSeed = string
@@ -254,13 +300,19 @@ export type RosterScorecardRow = {
   slashLine: string
   countingLine: string
   statNote?: string
+  twoWay?: boolean
 }
 
 export type RosterScorecard = {
   rows: RosterScorecardRow[]
+  battingRows: RosterScorecardRow[]
+  pitchingRows: RosterScorecardRow[]
   teamGrades: TeamGrade[]
   identity: LineupIdentity
   strengths: CategoryScore[]
+  /** Former weaknesses — neutral risk factors only. */
+  riskFactors: CategoryScore[]
+  /** @deprecated Use riskFactors */
   weaknesses: CategoryScore[]
 }
 
@@ -292,10 +344,14 @@ export type SeasonResult = {
   tier: SeasonTier
   identity: LineupIdentity
   strengths: CategoryScore[]
+  riskFactors: CategoryScore[]
+  /** @deprecated Use riskFactors */
   weaknesses: CategoryScore[]
   seasonMoments: SeasonMoment[]
   simulation: SeasonSimulation
   scorecard: RosterScorecard
+  scoreExplanation: ScoreExplanation
+  rosterFormatId: RosterFormatId
   expectedWins: number
   luckDelta: number
   signatureMoment: string | null

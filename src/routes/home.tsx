@@ -8,7 +8,7 @@ import PlayerChoices from '../components/PlayerChoices'
 import ResultScreen from '../components/ResultScreen'
 import StuckDraft from '../components/StuckDraft'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
-import { MODERN_ERAS } from '../data/franchises'
+import { PLAYABLE_ERAS } from '../data/franchises'
 import { trackEvent } from '../lib/analytics'
 import {
   assignPlayer,
@@ -23,7 +23,8 @@ import {
   selectPlayer,
   startGame,
 } from '../lib/game'
-import type { Era, GameState } from '../lib/types'
+import { rosterFormatSlotCount } from '../lib/roster-format'
+import type { Era, GameState, RosterFormatId } from '../lib/types'
 
 function statusLabel(state: GameState): string {
   switch (state.status) {
@@ -51,7 +52,7 @@ const TEAM_REEL = [...new Set(DRAFT_BUCKETS.map((bucket) => bucket.teamName))].s
   (a, b) => a.localeCompare(b),
 )
 
-const ERA_REEL: Era[] = MODERN_ERAS
+const ERA_REEL: Era[] = PLAYABLE_ERAS
 
 export default function HomeRoute() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState)
@@ -153,8 +154,11 @@ export default function HomeRoute() {
     }
     const rerollSeed =
       simulationReroll > 0 ? String(simulationReroll) : undefined
-    return calculateSeasonResult(gameState.lineup, { rerollSeed })
-  }, [gameState.status, gameState.lineup, simulationReroll])
+    return calculateSeasonResult(gameState.lineup, {
+      rerollSeed,
+      rosterFormatId: gameState.rosterFormatId,
+    })
+  }, [gameState.status, gameState.lineup, gameState.rosterFormatId, simulationReroll])
 
   useEffect(() => {
     if (gameState.status === 'complete' && seasonResult) {
@@ -171,8 +175,8 @@ export default function HomeRoute() {
     }
   }, [gameState.status, seasonResult, simulationReroll])
 
-  const handleStart = useCallback(() => {
-    setGameState((s) => startGame(s))
+  const handleStart = useCallback((formatId: RosterFormatId) => {
+    setGameState(startGame(createInitialGameState(formatId)))
   }, [])
 
   const handleSelect = useCallback((playerId: string) => {
@@ -245,6 +249,7 @@ export default function HomeRoute() {
           <CardContent className="space-y-4 pt-4">
             <DraftPanel
               round={gameState.round}
+              totalRounds={rosterFormatSlotCount(gameState.rosterFormatId)}
               bucket={gameState.currentBucket}
               statusLabel={statusLabel(gameState)}
               isSpinning={gameState.status === 'spinning'}
@@ -285,6 +290,7 @@ export default function HomeRoute() {
       >
         <LineupGrid
           lineup={gameState.lineup}
+          rosterFormatId={gameState.rosterFormatId}
           selectedPlayer={selectedPlayer}
           isAssigning={gameState.status === 'assigning'}
           onAssign={handleAssign}

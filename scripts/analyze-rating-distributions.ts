@@ -44,7 +44,7 @@ function summarizeLowerBetter(name: string, values: number[], digits = 2) {
   )
 }
 
-const TOP_N_PER_BUCKET = 20
+const TOP_N_PER_BUCKET = 25
 
 function collectMetrics(): LahmanAggMetrics[] {
   const buckets = buildLahmanBucketIndex()

@@ -34,7 +34,10 @@ export default function ShareRoute() {
     if (!lineup || !isParsedShare(parsed)) return null
     const rerollSeed =
       parsed.reroll > 0 ? String(parsed.reroll) : undefined
-    return calculateSeasonResult(lineup, { rerollSeed })
+    return calculateSeasonResult(lineup, {
+      rerollSeed,
+      rosterFormatId: parsed.rosterFormatId,
+    })
   }, [lineup, parsed])
 
   useSharePageMeta(result, lineup, isParsedShare(parsed) ? parsed : null, searchParams)
@@ -71,7 +74,9 @@ export default function ShareRoute() {
       <ResultScreen
         result={result}
         lineup={lineup}
-        shareUrl={typeof window !== 'undefined' ? window.location.href : undefined}
+        shareUrl={
+          typeof window !== 'undefined' ? window.location.href : undefined
+        }
         rerollIndex={parsed.reroll}
         readOnly
         onRestart={() => navigate('/')}

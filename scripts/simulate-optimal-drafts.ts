@@ -29,7 +29,7 @@ export type PickStrategy = 'overall' | 'team-score' | 'run-prevention'
 const STRATEGIES: PickStrategy[] = ['overall', 'team-score', 'run-prevention']
 
 const FILL_ORDER: LineupPosition[] = [
-  'P',
+  'SP',
   'C',
   'SS',
   'CF',
@@ -146,7 +146,7 @@ function pickChoiceRunPrevention(players: Player[], state: GameState): PickChoic
   const pickable = pickablePlayers(players, state.lineup)
   if (pickable.length === 0) return null
 
-  const pitcherSlotOpen = state.lineup.P === null
+  const pitcherSlotOpen = state.lineup.SP === null
 
   let best: PickChoice | null = null
   let bestScore = -1
@@ -282,7 +282,7 @@ function printStrategyReport(strategy: PickStrategy, results: DraftResult[]) {
 
   if (best) {
     const seed = results.indexOf(best) + 1
-    const pitcher = best.state.lineup.P!
+    const pitcher = best.state.lineup.SP!
     console.log(
       `Best: seed ${seed} → ${best.wins}-162 (team ${best.teamScore}, RP ${best.runPrevention}) P=${pitcher.name} (ERA ${pitcher.ratings.era})`,
     )

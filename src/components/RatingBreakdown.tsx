@@ -5,15 +5,19 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { calculateRunPrevention } from '../lib/run-prevention'
-import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
+import { lineupPlayers } from '../lib/roster-format'
+import type { Lineup, SeasonResult } from '../lib/types'
 
 type RatingBreakdownProps = {
   result: SeasonResult
   lineup?: Lineup
 }
 
-function runPreventionDefenseNote(lineup: Lineup): string | null {
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
+function runPreventionDefenseNote(
+  lineup: Lineup,
+  rosterFormatId: SeasonResult['rosterFormatId'],
+): string | null {
+  const players = lineupPlayers(lineup, rosterFormatId)
   const breakdown = calculateRunPrevention(players)
   if (breakdown.errorPenalty <= 0) {
     return null
@@ -23,7 +27,9 @@ function runPreventionDefenseNote(lineup: Lineup): string | null {
 
 export default function RatingBreakdown({ result, lineup }: RatingBreakdownProps) {
   const grades = result.scorecard?.teamGrades ?? []
-  const defenseNote = lineup ? runPreventionDefenseNote(lineup) : null
+  const defenseNote = lineup
+    ? runPreventionDefenseNote(lineup, result.rosterFormatId)
+    : null
 
   return (
     <Card size="sm" aria-labelledby="rating-heading">
@@ -53,10 +59,10 @@ export default function RatingBreakdown({ result, lineup }: RatingBreakdownProps
             {result.strengths.map((s) => `${s.label} ${s.value}`).join(' · ')}
           </p>
         )}
-        {result.weaknesses.length > 0 && (
+        {result.riskFactors.length > 0 && (
           <p className="text-xs text-muted-foreground">
-            Vulnerabilities:{' '}
-            {result.weaknesses.map((w) => `${w.label} ${w.value}`).join(' · ')}
+            Risk factors:{' '}
+            {result.riskFactors.map((w) => `${w.label} ${w.value}`).join(' · ')}
           </p>
         )}
         {defenseNote && (

@@ -1,4 +1,4 @@
-import { isModernEra } from '../../src/data/franchises.ts'
+import { isPlayableEra } from '../../src/data/franchises.ts'
 import type { Era, TeamId } from '../../src/lib/types.ts'
 
 export type LahmanAggMetrics = {
@@ -7,7 +7,7 @@ export type LahmanAggMetrics = {
   name: string
   teamId: TeamId
   decade: Era
-  role: 'hitter' | 'pitcher'
+  role: 'hitter' | 'pitcher' | 'two-way'
   ab: number
   g: number
   gs: number
@@ -32,7 +32,7 @@ export type AggregatedLike = {
   name: string
   teamId: TeamId
   era: Era
-  role: 'hitter' | 'pitcher'
+  role: 'hitter' | 'pitcher' | 'two-way'
   ab: number
   h: number
   doubles: number
@@ -97,5 +97,5 @@ export function metricsFromAgg(agg: AggregatedLike): LahmanAggMetrics | null {
 }
 
 export function isPlayableCardMetrics(metrics: LahmanAggMetrics): boolean {
-  return isModernEra(metrics.decade)
+  return isPlayableEra(metrics.decade)
 }

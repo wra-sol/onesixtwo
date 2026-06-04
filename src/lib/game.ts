@@ -9,22 +9,43 @@ import {
   PLAYER_BY_ID,
   PLAYERS,
 } from '../data'
-import { isModernEra } from '../data/franchises'
+import { isPlayableEra } from '../data/franchises'
 import {
-  LINEUP_POSITIONS,
-  type CategoryScore,
-  type DraftBucket,
-  type Era,
-  type DraftHistoryEntry,
-  type GameState,
-  type Lineup,
-  type LineupPosition,
-  type Player,
-  type RandomSource,
-  type SeasonResult,
-  type SeasonResultOptions,
-  type SpinIntent,
-  type TeamId,
+  createEmptyLineup,
+  getActiveLineupPositions,
+  lineupEntries,
+  lineupPlayers,
+  rosterFormatSlotCount,
+} from './roster-format'
+import { getPlayerEligiblePositions } from './player-eligibility'
+import {
+  getPlayerTopCategory,
+  getPlayerWeakestCategory,
+  comparePlayersByCategory,
+  getPlayerCategories,
+  getPlayerCategoryValue,
+  PLAYER_CATEGORY_LABELS,
+} from './player-categories'
+import type { PlayerCategoryLabel } from './player-categories'
+import {
+  buildScoreExplanation,
+  calculateTeamScoreFromLineup,
+} from './team-scoring'
+import { getBattingRatings } from './player-ratings'
+import type {
+  CategoryScore,
+  DraftBucket,
+  Era,
+  DraftHistoryEntry,
+  GameState,
+  Lineup,
+  LineupPosition,
+  Player,
+  RandomSource,
+  RosterFormatId,
+  SeasonResult,
+  SeasonResultOptions,
+  TeamId,
 } from './types'
 import { buildRosterScorecard } from './scorecard'
 import {
@@ -36,21 +57,25 @@ import {
 import { simulateSeason } from './simulation'
 import { calculateRunPrevention } from './run-prevention'
 
+export { createEmptyLineup } from './roster-format'
+export {
+  getPlayerCategories,
+  getPlayerCategoryValue,
+  comparePlayersByCategory,
+  getPlayerTopCategory,
+  getPlayerWeakestCategory,
+  PLAYER_CATEGORY_LABELS,
+}
+export type { PlayerCategoryLabel }
+
 export const defaultRandom: RandomSource = () => Math.random()
 export const MAX_PLAYERS_PER_ERA = 2
 
-export function createEmptyLineup(): Lineup {
-  return LINEUP_POSITIONS.reduce(
-    (lineup, position) => {
-      lineup[position] = null
-      return lineup
-    },
-    {} as Lineup,
-  )
-}
-
-export function createInitialGameState(): GameState {
+export function createInitialGameState(
+  rosterFormatId: RosterFormatId = 'classic',
+): GameState {
   return {
+    rosterFormatId,
     round: 1,
     currentBucket: null,
     availablePlayers: [],
@@ -68,37 +93,13 @@ export function createInitialGameState(): GameState {
   }
 }
 
-export function getPlayerDisabledReason(
-  player: Player,
-  state: GameState,
-): string | null {
-  if (state.draftedPersonIds.includes(player.personId)) {
-    return 'Already drafted'
-  }
-  if (state.draftedTeamIds.includes(player.teamId)) {
-    return `${player.teamName} used`
-  }
-  if (getDraftedEraCount(state, player.era) >= MAX_PLAYERS_PER_ERA) {
-    return `${player.era} maxed`
-  }
-  if (getEligiblePositionsForPlayer(player, state.lineup).length === 0) {
-    const filled = player.positions.filter(
-      (position) => state.lineup[position] !== null,
-    )
-    if (filled.length > 0) {
-      return `${filled.join(', ')} filled`
-    }
-    return 'No open positions'
-  }
-  return null
-}
-
-export function playerIsPickable(player: Player, state: GameState): boolean {
-  return getPlayerDisabledReason(player, state) === null
-}
-
-export function getOpenPositions(lineup: Lineup): LineupPosition[] {
-  return LINEUP_POSITIONS.filter((position) => lineup[position] === null)
+export function getOpenPositions(
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): LineupPosition[] {
+  return getActiveLineupPositions(formatId).filter(
+    (position) => lineup[position] === null,
+  )
 }
 
 export function getDraftedEraCount(state: GameState, era: Era): number {
@@ -113,40 +114,72 @@ export function eraIsDraftable(state: GameState, era: Era): boolean {
   return getDraftedEraCount(state, era) < MAX_PLAYERS_PER_ERA
 }
 
-export function playerCanFillOpenPosition(
-  player: Player,
-  openPositions: LineupPosition[],
-): boolean {
-  return player.positions.some((position) => openPositions.includes(position))
-}
-
 function getSwitchDestinationForPosition(
   lineup: Lineup,
   position: LineupPosition,
+  formatId: RosterFormatId,
 ): LineupPosition | null {
   const player = lineup[position]
-  if (!player) {
-    return null
-  }
-  const open = getOpenPositions(lineup)
-  return player.positions.find((pos) => pos !== position && open.includes(pos)) ?? null
+  if (!player) return null
+  const open = getOpenPositions(lineup, formatId)
+  const eligible = getPlayerEligiblePositions(player, formatId)
+  return (
+    eligible.find((pos) => pos !== position && open.includes(pos)) ?? null
+  )
 }
 
 export function getEligiblePositionsForPlayer(
   player: Player,
   lineup: Lineup,
+  formatId: RosterFormatId,
 ): LineupPosition[] {
-  const open = getOpenPositions(lineup)
-  return player.positions.filter((position) => {
-    if (open.includes(position)) {
-      return true
-    }
-    return getSwitchDestinationForPosition(lineup, position) !== null
+  const open = getOpenPositions(lineup, formatId)
+  const eligible = getPlayerEligiblePositions(player, formatId)
+  return eligible.filter((position) => {
+    if (open.includes(position)) return true
+    return getSwitchDestinationForPosition(lineup, position, formatId) !== null
   })
 }
 
-export function isLineupComplete(lineup: Lineup): boolean {
-  return getOpenPositions(lineup).length === 0
+export function isLineupComplete(
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): boolean {
+  return getOpenPositions(lineup, formatId).length === 0
+}
+
+export function getPlayerDisabledReason(
+  player: Player,
+  state: GameState,
+): string | null {
+  if (state.draftedPersonIds.includes(player.personId)) {
+    return 'Already drafted'
+  }
+  if (state.draftedTeamIds.includes(player.teamId)) {
+    return `${player.teamName} used`
+  }
+  if (getDraftedEraCount(state, player.era) >= MAX_PLAYERS_PER_ERA) {
+    return `${player.era} maxed`
+  }
+  const eligible = getEligiblePositionsForPlayer(
+    player,
+    state.lineup,
+    state.rosterFormatId,
+  )
+  if (eligible.length === 0) {
+    const filled = getPlayerEligiblePositions(player, state.rosterFormatId).filter(
+      (position) => state.lineup[position] !== null,
+    )
+    if (filled.length > 0) {
+      return `${filled.join(', ')} filled`
+    }
+    return 'No open positions'
+  }
+  return null
+}
+
+export function playerIsPickable(player: Player, state: GameState): boolean {
+  return getPlayerDisabledReason(player, state) === null
 }
 
 export function filterAvailablePlayers(
@@ -170,22 +203,12 @@ function bucketHasPickablePlayer(
   )
 }
 
-export function getSpinEligibleBuckets(
-  state: GameState,
-): DraftBucket[] {
+export function getSpinEligibleBuckets(state: GameState): DraftBucket[] {
   return DRAFT_BUCKETS.filter((bucket) => {
-    if (!isModernEra(bucket.era)) {
-      return false
-    }
-    if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) {
-      return false
-    }
-    if (!teamIsDraftable(state, bucket.teamId)) {
-      return false
-    }
-    if (!eraIsDraftable(state, bucket.era)) {
-      return false
-    }
+    if (!isPlayableEra(bucket.era)) return false
+    if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) return false
+    if (!teamIsDraftable(state, bucket.teamId)) return false
+    if (!eraIsDraftable(state, bucket.era)) return false
     return bucketHasPickablePlayer(bucket, state)
   })
 }
@@ -198,28 +221,19 @@ export function pickRandomBucket(
   return pickRandomFromList(eligible, random)
 }
 
-function pickRandomFromList<T>(
-  items: T[],
-  random: RandomSource,
-): T | null {
-  if (items.length === 0) {
-    return null
-  }
+function pickRandomFromList<T>(items: T[], random: RandomSource): T | null {
+  if (items.length === 0) return null
   const index = Math.floor(random() * items.length)
   return items[index] ?? null
 }
 
 export function getTeamRespinCandidates(state: GameState): DraftBucket[] {
   const bucket = state.currentBucket
-  if (!bucket) {
-    return []
-  }
+  if (!bucket) return []
   const active =
     state.status === 'picking' ||
     (state.status === 'spinning' && state.spinIntent === 'team')
-  if (!active) {
-    return []
-  }
+  if (!active) return []
   return getSpinEligibleBuckets(state).filter(
     (b) => b.era === bucket.era && b.teamId !== bucket.teamId,
   )
@@ -227,15 +241,11 @@ export function getTeamRespinCandidates(state: GameState): DraftBucket[] {
 
 export function getYearRespinCandidates(state: GameState): DraftBucket[] {
   const bucket = state.currentBucket
-  if (!bucket) {
-    return []
-  }
+  if (!bucket) return []
   const active =
     state.status === 'picking' ||
     (state.status === 'spinning' && state.spinIntent === 'year')
-  if (!active) {
-    return []
-  }
+  if (!active) return []
   return getSpinEligibleBuckets(state).filter(
     (b) => b.teamId === bucket.teamId && b.era !== bucket.era,
   )
@@ -275,9 +285,7 @@ function applyBucketToPicking(
 }
 
 export function requestTeamRespin(state: GameState): GameState {
-  if (!canRespinTeam(state)) {
-    return state
-  }
+  if (!canRespinTeam(state)) return state
   return {
     ...state,
     status: 'spinning',
@@ -287,9 +295,7 @@ export function requestTeamRespin(state: GameState): GameState {
 }
 
 export function requestYearRespin(state: GameState): GameState {
-  if (!canRespinYear(state)) {
-    return state
-  }
+  if (!canRespinYear(state)) return state
   return {
     ...state,
     status: 'spinning',
@@ -324,22 +330,13 @@ export function resolveSpin(
   state: GameState,
   random: RandomSource = defaultRandom,
 ): GameState {
-  const intent: SpinIntent = state.spinIntent
-  if (intent === 'team') {
-    return applyRespinTeam(state, random)
-  }
-  if (intent === 'year') {
-    return applyRespinYear(state, random)
-  }
+  if (state.spinIntent === 'team') return applyRespinTeam(state, random)
+  if (state.spinIntent === 'year') return applyRespinYear(state, random)
   return applySpin(state, random)
 }
 
 export function startGame(state: GameState): GameState {
-  return {
-    ...state,
-    status: 'spinning',
-    spinIntent: 'round',
-  }
+  return { ...state, status: 'spinning', spinIntent: 'round' }
 }
 
 export function applySpin(
@@ -356,49 +353,45 @@ export function applySpin(
       selectedPlayerId: null,
     }
   }
-  const availablePlayers = filterAvailablePlayers(bucket, state)
   return {
     ...state,
     status: 'picking',
     spinIntent: 'round',
     currentBucket: bucket,
-    availablePlayers,
+    availablePlayers: filterAvailablePlayers(bucket, state),
     selectedPlayerId: null,
   }
 }
 
 export function selectPlayer(state: GameState, playerId: string): GameState {
   const player = state.availablePlayers.find((p) => p.id === playerId)
-  if (!player) {
-    return state
-  }
-  const eligible = getEligiblePositionsForPlayer(player, state.lineup)
-  if (eligible.length === 0) {
-    return state
-  }
-  return {
-    ...state,
-    status: 'assigning',
-    selectedPlayerId: playerId,
-  }
+  if (!player) return state
+  const eligible = getEligiblePositionsForPlayer(
+    player,
+    state.lineup,
+    state.rosterFormatId,
+  )
+  if (eligible.length === 0) return state
+  return { ...state, status: 'assigning', selectedPlayerId: playerId }
 }
 
 export function canAssignPlayer(
   state: GameState,
   position: LineupPosition,
 ): boolean {
-  if (!state.selectedPlayerId) {
-    return false
-  }
+  if (!state.selectedPlayerId) return false
   const player = PLAYER_BY_ID.get(state.selectedPlayerId)
-  if (!player) {
-    return false
-  }
-  if (!player.positions.includes(position)) {
-    return false
-  }
+  if (!player) return false
+  const eligible = getPlayerEligiblePositions(player, state.rosterFormatId)
+  if (!eligible.includes(position)) return false
   if (state.lineup[position] !== null) {
-    return getSwitchDestinationForPosition(state.lineup, position) !== null
+    return (
+      getSwitchDestinationForPosition(
+        state.lineup,
+        position,
+        state.rosterFormatId,
+      ) !== null
+    )
   }
   return true
 }
@@ -407,12 +400,14 @@ export function assignPlayer(
   state: GameState,
   position: LineupPosition,
 ): GameState {
-  if (!canAssignPlayer(state, position)) {
-    return state
-  }
+  if (!canAssignPlayer(state, position)) return state
   const player = PLAYER_BY_ID.get(state.selectedPlayerId!)!
   const displacedPlayer = state.lineup[position]
-  const switchDestination = getSwitchDestinationForPosition(state.lineup, position)
+  const switchDestination = getSwitchDestinationForPosition(
+    state.lineup,
+    position,
+    state.rosterFormatId,
+  )
   const lineup = {
     ...state.lineup,
     ...(displacedPlayer && switchDestination
@@ -432,8 +427,9 @@ export function assignPlayer(
     position,
   }
   const history = [...state.history, historyEntry]
+  const totalSlots = rosterFormatSlotCount(state.rosterFormatId)
 
-  if (isLineupComplete(lineup)) {
+  if (isLineupComplete(lineup, state.rosterFormatId)) {
     return {
       ...state,
       lineup,
@@ -446,11 +442,10 @@ export function assignPlayer(
       currentBucket: null,
       availablePlayers: [],
       status: 'complete',
-      round: 9,
+      round: totalSlots,
     }
   }
 
-  const nextRound = state.round + 1
   return {
     ...state,
     lineup,
@@ -462,120 +457,25 @@ export function assignPlayer(
     selectedPlayerId: null,
     currentBucket: null,
     availablePlayers: [],
-    round: nextRound,
+    round: state.round + 1,
     status: 'spinning',
     spinIntent: 'round',
   }
 }
 
-export function restartGame(): GameState {
-  return createInitialGameState()
+export function restartGame(rosterFormatId?: RosterFormatId): GameState {
+  return createInitialGameState(rosterFormatId ?? 'classic')
 }
 
 export function scorePlayer(player: Player): number {
   return player.ratings.overall
 }
 
-export const PLAYER_CATEGORY_LABELS = [
-  'Contact',
-  'Power',
-  'Speed',
-  'Run Production',
-  'Run Prevention',
-  'Control',
-  'Dominance',
-  'Workload',
-] as const
-
-export type PlayerCategoryLabel = (typeof PLAYER_CATEGORY_LABELS)[number]
-
-export function getPlayerCategories(player: Player): CategoryScore[] {
-  if (player.role === 'pitcher') {
-    return [
-      { label: 'Run Prevention', value: player.ratings.era },
-      { label: 'Control', value: player.ratings.whip },
-      { label: 'Dominance', value: player.ratings.strikeouts },
-      { label: 'Workload', value: player.ratings.workload },
-    ]
-  }
-  return [
-    { label: 'Contact', value: player.ratings.contact },
-    { label: 'Power', value: player.ratings.power },
-    { label: 'Speed', value: player.ratings.speed },
-    { label: 'Run Production', value: player.ratings.runProduction },
-  ]
-}
-
-export function getPlayerCategoryValue(
-  player: Player,
-  label: string,
+export function calculateTeamScore(
+  lineup: Lineup,
+  formatId: RosterFormatId = 'classic',
 ): number | null {
-  const category = getPlayerCategories(player).find((c) => c.label === label)
-  return category?.value ?? null
-}
-
-export function comparePlayersByCategory(
-  a: Player,
-  b: Player,
-  label: string,
-): number {
-  const aValue = getPlayerCategoryValue(a, label)
-  const bValue = getPlayerCategoryValue(b, label)
-  if (aValue === null && bValue === null) {
-    return 0
-  }
-  if (aValue === null) {
-    return 1
-  }
-  if (bValue === null) {
-    return -1
-  }
-  return bValue - aValue
-}
-
-export function getPlayerTopCategory(player: Player): CategoryScore {
-  const categories = getPlayerCategories(player)
-  return categories.reduce(
-    (best, category) => (category.value > best.value ? category : best),
-    categories[0]!,
-  )
-}
-
-export function getPlayerWeakestCategory(player: Player): CategoryScore {
-  const categories = getPlayerCategories(player)
-  return categories.reduce(
-    (worst, category) => (category.value < worst.value ? category : worst),
-    categories[0]!,
-  )
-}
-
-export function calculateTeamScore(lineup: Lineup): number | null {
-  if (!isLineupComplete(lineup)) {
-    return null
-  }
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
-  const average =
-    players.reduce((sum, p) => sum + scorePlayer(p), 0) / players.length
-
-  let bonus = 0
-  if (players.some((p) => p.ratings.overall >= 95)) {
-    bonus += 3
-  }
-
-  const hitters = players.filter((p) => p.role === 'hitter')
-  if (hitters.length > 0) {
-    const avgContact =
-      hitters.reduce((s, p) => s + p.ratings.contact, 0) / hitters.length
-    const avgPower =
-      hitters.reduce((s, p) => s + p.ratings.power, 0) / hitters.length
-    const avgSpeed =
-      hitters.reduce((s, p) => s + p.ratings.speed, 0) / hitters.length
-    if (avgContact >= 70 && avgPower >= 70 && avgSpeed >= 70) {
-      bonus += 2
-    }
-  }
-
-  return Math.min(100, Math.round(average + bonus))
+  return calculateTeamScoreFromLineup(lineup, formatId)
 }
 
 export function projectWins(teamScore: number): { wins: number; losses: number } {
@@ -587,7 +487,6 @@ export function projectWins(teamScore: number): { wins: number; losses: number }
   } else if (teamScore < 90) {
     wins = Math.round(105 + ((teamScore - 75) / 15) * 20)
   } else if (teamScore < 100) {
-    // 90 → 128 wins, 95 → 150, 98 → 158, 99 → 161
     wins = Math.round(128 + ((teamScore - 90) / 10) * 44)
   } else {
     wins = 162
@@ -598,19 +497,20 @@ export function projectWins(teamScore: number): { wins: number; losses: number }
 
 export function calculateSeasonResult(
   lineup: Lineup,
-  options?: SeasonResultOptions,
+  options?: SeasonResultOptions & { rosterFormatId?: RosterFormatId },
 ): SeasonResult | null {
-  const teamScore = calculateTeamScore(lineup)
-  if (teamScore === null) {
-    return null
-  }
+  const formatId = options?.rosterFormatId ?? 'classic'
+  const teamScore = calculateTeamScore(lineup, formatId)
+  if (teamScore === null) return null
 
   const simulation = simulateSeason(lineup, teamScore, {
     rerollSeed: options?.rerollSeed,
+    rosterFormatId: formatId,
   })
   const { wins, losses } = simulation
 
-  const scorecard = buildRosterScorecard(lineup, simulation)
+  const scorecard = buildRosterScorecard(lineup, simulation, formatId)
+  const scoreExplanation = buildScoreExplanation(lineup, formatId)
   const tier = getSeasonTier(wins, losses)
   const seasonMoments = buildSeasonMoments(
     simulation,
@@ -619,23 +519,14 @@ export function calculateSeasonResult(
   )
   const signatureMoment = getSignatureMoment(seasonMoments)
 
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
+  const players = lineupPlayers(lineup, formatId)
+  const batters = players.filter(
+    (p) => p.role === 'hitter' || p.role === 'two-way',
+  )
 
-  const contact =
-    players
-      .filter((p) => p.role === 'hitter')
-      .reduce((s, p) => s + p.ratings.contact, 0) /
-    Math.max(1, players.filter((p) => p.role === 'hitter').length)
-  const power =
-    players
-      .filter((p) => p.role === 'hitter')
-      .reduce((s, p) => s + p.ratings.power, 0) /
-    Math.max(1, players.filter((p) => p.role === 'hitter').length)
-  const speed =
-    players
-      .filter((p) => p.role === 'hitter')
-      .reduce((s, p) => s + p.ratings.speed, 0) /
-    Math.max(1, players.filter((p) => p.role === 'hitter').length)
+  const contact = avgRating(batters, (r) => r.contact)
+  const power = avgRating(batters, (r) => r.power)
+  const speed = avgRating(batters, (r) => r.speed)
   const runPrevention = calculateRunPrevention(players).value
 
   const categories: CategoryScore[] = [
@@ -645,11 +536,8 @@ export function calculateSeasonResult(
     { label: 'Run Prevention', value: runPrevention },
   ]
 
-  const lineupPlayers = LINEUP_POSITIONS.map((pos) => ({
-    position: pos,
-    player: lineup[pos]!,
-  }))
-  const sorted = [...lineupPlayers].sort(
+  const entries = lineupEntries(lineup, formatId)
+  const sorted = [...entries].sort(
     (a, b) =>
       getPlayerTopCategory(b.player).value -
       getPlayerTopCategory(a.player).value,
@@ -658,10 +546,11 @@ export function calculateSeasonResult(
   const weakest = sorted[sorted.length - 1]
   const gamesFromPerfect = 162 - wins
 
+  const activePositions = getActiveLineupPositions(formatId)
   const shareText = formatShareText({
     wins,
     losses,
-    lineupSummary: formatLineupShareSummary(LINEUP_POSITIONS, lineup),
+    lineupSummary: formatLineupShareSummary(activePositions, lineup),
     mvpLine: best
       ? `MVP: ${best.player.name} (${best.position})`
       : null,
@@ -699,18 +588,35 @@ export function calculateSeasonResult(
     tier,
     identity: scorecard.identity,
     strengths: scorecard.strengths,
-    weaknesses: scorecard.weaknesses,
+    riskFactors: scorecard.riskFactors,
+    weaknesses: scorecard.riskFactors,
     seasonMoments,
     simulation,
     scorecard,
+    scoreExplanation,
+    rosterFormatId: formatId,
     expectedWins: simulation.expectedWins,
     luckDelta: simulation.luckDelta,
     signatureMoment,
   }
 }
 
-export function getFilledCount(lineup: Lineup): number {
-  return LINEUP_POSITIONS.filter((p) => lineup[p] !== null).length
+function avgRating(
+  players: Player[],
+  pick: (r: ReturnType<typeof getBattingRatings>) => number,
+): number {
+  if (players.length === 0) return 0
+  return (
+    players.reduce((s, p) => s + pick(getBattingRatings(p)), 0) / players.length
+  )
+}
+
+export function getFilledCount(
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): number {
+  return getActiveLineupPositions(formatId).filter((p) => lineup[p] !== null)
+    .length
 }
 
 export { PLAYERS, DRAFT_BUCKETS }

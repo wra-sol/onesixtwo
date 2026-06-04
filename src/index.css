@@ -180,7 +180,11 @@
   }
 
   .lineup-field {
-    @apply relative mx-auto aspect-[5/6] w-full max-w-80;
+    @apply relative mx-auto aspect-[4/5] w-full max-w-[22rem] min-h-[18rem];
+  }
+
+  .lineup-field--expanded {
+    @apply max-w-[24rem] min-h-[20rem];
   }
 
   .lineup-field-grass {
@@ -194,8 +198,8 @@
   .lineup-field-dirt {
     @apply pointer-events-none absolute rounded-sm border border-primary/20;
     left: 50%;
-    top: 54%;
-    width: 38%;
+    top: 56%;
+    width: 36%;
     aspect-ratio: 1;
     transform: translate(-50%, -50%) rotate(45deg);
     background: rgba(216, 181, 109, 0.25);
@@ -206,53 +210,80 @@
   }
 
   .lineup-slot {
-    @apply absolute z-10 flex w-[clamp(3.75rem,28%,5.25rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-stretch justify-center gap-0.5 rounded-lg border-2 border-border bg-card/95 p-1 text-center transition-[border-color,box-shadow];
+    @apply absolute z-10 flex w-[clamp(3.25rem,26%,4.75rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-stretch justify-center gap-0.5 rounded-lg border-2 border-border bg-card/95 p-1 text-center shadow-sm transition-[border-color,box-shadow,transform];
   }
 
-  .lineup-slot[data-pos="CF"] {
+  /* Outfield */
+  .lineup-slot[data-pos='CF'] {
     left: 50%;
-    top: 11%;
+    top: 9%;
   }
 
-  .lineup-slot[data-pos="LF"] {
-    left: 15%;
-    top: 26%;
+  .lineup-slot[data-pos='LF'] {
+    left: 14%;
+    top: 20%;
   }
 
-  .lineup-slot[data-pos="RF"] {
-    left: 85%;
-    top: 26%;
+  .lineup-slot[data-pos='RF'] {
+    left: 86%;
+    top: 20%;
   }
 
-  .lineup-slot[data-pos="SS"] {
-    left: 30%;
-    top: 38%;
+  /* Infield — SS/2B at bag depth, corners on foul lines */
+  .lineup-slot[data-pos='SS'] {
+    left: 40%;
+    top: 35%;
     z-index: 12;
   }
 
-  .lineup-slot[data-pos="3B"] {
-    left: 14%;
+  .lineup-slot[data-pos='2B'] {
+    left: 60%;
+    top: 35%;
+    z-index: 12;
+  }
+
+  .lineup-slot[data-pos='3B'] {
+    left: 12%;
     top: 50%;
   }
 
-  .lineup-slot[data-pos="2B"] {
-    left: 72%;
-    top: 38%;
-  }
-
-  .lineup-slot[data-pos="1B"] {
-    left: 86%;
+  .lineup-slot[data-pos='1B'] {
+    left: 88%;
     top: 50%;
   }
 
-  .lineup-slot[data-pos="P"] {
+  .lineup-slot[data-pos='P'] {
     left: 50%;
-    top: 50%;
+    top: 54%;
+    z-index: 14;
+    width: clamp(3.5rem, 28%, 5rem);
   }
 
-  .lineup-slot[data-pos="C"] {
+  .lineup-slot[data-pos='C'] {
     left: 50%;
-    top: 72%;
+    top: 76%;
+  }
+
+  /* Optional slots sit in a row at the bottom, below the diamond */
+  .lineup-slot[data-pos='DH'] {
+    left: 32%;
+    top: 95%;
+    border-style: dashed;
+  }
+
+  .lineup-slot[data-pos='RP'] {
+    left: 68%;
+    top: 95%;
+    border-style: dashed;
+    border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  }
+
+  .lineup-slot--optional {
+    @apply bg-card;
+  }
+
+  .lineup-slot--pitcher-role .lineup-slot-pos {
+    @apply text-sky-200;
   }
 
   .lineup-slot--filled {
@@ -347,6 +378,14 @@
       display: flex;
       width: 2.75rem;
       flex-shrink: 0;
+    }
+
+    .lineup-strip--expanded .lineup-strip-pitcher {
+      width: 3.25rem;
+    }
+
+    .lineup-strip--expanded.lineup-strip {
+      gap: 0.35rem;
     }
 
     .lineup-strip-pitcher .lineup-chip {

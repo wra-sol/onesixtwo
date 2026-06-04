@@ -13,9 +13,11 @@ import { trackEvent } from '../lib/analytics'
 import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { buildShareUrl } from '../lib/share-url'
-import { LINEUP_POSITIONS, type Lineup, type SeasonResult } from '../lib/types'
+import { getRosterFormat } from '../lib/roster-format'
+import type { Lineup, SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
-import RosterScorecard from './RosterScorecard'
+import ResultStatTables from './ResultStatTables'
+import ScoreExplanationPanel from './ScoreExplanationPanel'
 import SeasonRecap from './SeasonRecap'
 
 type ResultScreenProps = {
@@ -46,9 +48,11 @@ export default function ResultScreen({
   const [showShareText, setShowShareText] = useState(false)
 
   const shareUrl =
-    shareUrlOverride ?? buildShareUrl(lineup, rerollIndex)
+    shareUrlOverride ??
+    buildShareUrl(lineup, rerollIndex, result.rosterFormatId)
   const shareTitle = `${BRAND.name}: ${result.record}`
   const shareText = `${shareTitle}\n${result.tier.label}\n${shareUrl}`
+  const formatLabel = getRosterFormat(result.rosterFormatId).label
 
   const handleCopy = async () => {
     setShowShareText(false)
@@ -83,7 +87,10 @@ export default function ResultScreen({
   }
 
   return (
-    <Card className="mx-auto max-w-lg text-center" aria-labelledby="result-heading">
+    <Card
+      className="mx-auto max-w-2xl text-center"
+      aria-labelledby="result-heading"
+    >
       <CardHeader>
         <CardTitle
           id="result-heading"
@@ -103,7 +110,7 @@ export default function ResultScreen({
         <p className="text-base">{result.headline}</p>
         <p className="text-sm font-medium text-primary">{result.tier.label}</p>
         <p className="text-xs text-muted-foreground">
-          {result.identity.label}
+          {result.identity.label} · {formatLabel} · Rating {result.teamScore}
         </p>
       </CardHeader>
       <CardContent className="space-y-4 text-left">
@@ -112,33 +119,20 @@ export default function ResultScreen({
             {result.gamesFromPerfect} wins short of {BRAND.perfectRecord}
           </p>
         )}
+        {result.scorecard && (
+          <ResultStatTables scorecard={result.scorecard} />
+        )}
+        {result.scoreExplanation && (
+          <ScoreExplanationPanel
+            result={result}
+            explanation={result.scoreExplanation}
+          />
+        )}
+        <Separator />
         <div aria-live="polite">
           <SeasonRecap result={result} />
         </div>
         <RatingBreakdown result={result} lineup={lineup} />
-        <Separator />
-        {result.scorecard ? (
-          <RosterScorecard scorecard={result.scorecard} />
-        ) : (
-          <div>
-            <h3 className="font-display mb-2 text-base text-primary">
-              Your lineup
-            </h3>
-            <ul className="grid grid-cols-3 gap-1.5 text-xs">
-              {LINEUP_POSITIONS.map((pos) => {
-                const player = lineup[pos]
-                return (
-                  <li key={pos} className="rounded-md bg-muted/50 px-2 py-1.5">
-                    <span className="block text-[0.7rem] font-extrabold text-primary">
-                      {pos}
-                    </span>
-                    <span className="block truncate">{player?.name ?? '—'}</span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        )}
         <details className="group rounded-lg border border-border bg-muted/30 text-left">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-primary marker:content-none [&::-webkit-details-marker]:hidden">
             <span className="inline-flex items-center gap-2">

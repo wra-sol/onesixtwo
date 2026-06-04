@@ -1,6 +1,6 @@
 import { PLAYERS } from '../data'
+import { createEmptyLineup } from './roster-format'
 import {
-  LINEUP_POSITIONS,
   type Lineup,
   type LineupPosition,
   type Player,
@@ -10,7 +10,7 @@ export type BenchmarkLineupId = 'mediocre' | 'great' | 'elite' | 'nearPerfect'
 
 const FILL_ORDER: LineupPosition[] = [
   'C',
-  'P',
+  'SP',
   'SS',
   'CF',
   'RF',
@@ -28,16 +28,6 @@ const TIER_BANDS: Record<
   great: { min: 66, max: 74, preferHigh: true },
   elite: { min: 74, max: 88, preferHigh: true },
   nearPerfect: { min: 82, max: 95, preferHigh: true },
-}
-
-function createEmptyLineup(): Lineup {
-  return LINEUP_POSITIONS.reduce(
-    (acc, pos) => {
-      acc[pos] = null
-      return acc
-    },
-    {} as Lineup,
-  )
 }
 
 function inBand(player: Player, min: number, max: number): boolean {

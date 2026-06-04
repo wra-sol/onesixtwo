@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { BRAND } from '@/lib/brand'
 import {
@@ -7,12 +8,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { ROSTER_FORMATS, type RosterFormatId } from '@/lib/roster-format'
+import { cn } from '@/lib/utils'
 
 type HowToPlayProps = {
-  onStart: () => void
+  onStart: (formatId: RosterFormatId) => void
 }
 
 export default function HowToPlay({ onStart }: HowToPlayProps) {
+  const [formatId, setFormatId] = useState<RosterFormatId>('classic')
+
   return (
     <Card className="mx-auto max-w-xl">
       <CardHeader className="items-center text-center">
@@ -29,9 +34,32 @@ export default function HowToPlay({ onStart }: HowToPlayProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        <fieldset className="space-y-2">
+          <legend className="font-display text-sm font-semibold text-primary">
+            Roster format
+          </legend>
+          <div className="grid grid-cols-2 gap-2">
+            {ROSTER_FORMATS.map((format) => (
+              <button
+                key={format.id}
+                type="button"
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-left text-xs transition-colors',
+                  formatId === format.id
+                    ? 'border-primary bg-primary/10 ring-1 ring-primary'
+                    : 'border-border hover:bg-muted/50',
+                )}
+                aria-pressed={formatId === format.id}
+                onClick={() => setFormatId(format.id)}
+              >
+                <span className="block font-bold">{format.label}</span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
         <ol className="list-decimal space-y-2 pl-5 text-sm">
           <li>
-            Each round, spin to get a random MLB team and decade (1960s–2020s).
+            Each round, spin to get a random MLB team and decade (1930s–2020s).
           </li>
           <li>
             Once per game you can <strong>respin the team</strong> (new franchise,
@@ -42,18 +70,21 @@ export default function HowToPlay({ onStart }: HowToPlayProps) {
             Pick one player from that era and assign them to one open lineup spot.
           </li>
           <li>
-            Fill all 9 positions: <strong>C</strong>, <strong>1B</strong>,{' '}
-            <strong>2B</strong>, <strong>3B</strong>, <strong>SS</strong>,{' '}
-            <strong>LF</strong>, <strong>CF</strong>, <strong>RF</strong>, and{' '}
-            <strong>P</strong>.
+            Fill every slot in your chosen format — classic nine includes{' '}
+            <strong>SP</strong>; optional <strong>DH</strong> and/or{' '}
+            <strong>RP</strong>.
+          </li>
+          <li>
+            Two-way players (e.g. Ohtani) count once but help both offense and
+            pitching.
           </li>
           <li>
             Your team is rated on offense and run prevention — higher stats win
-            more games.
+            more games. Slow teams are not penalized for lack of speed.
           </li>
           <li>Aim for the perfect {BRAND.perfectRecord} season!</li>
         </ol>
-        <Button type="button" size="lg" onClick={onStart}>
+        <Button type="button" size="lg" onClick={() => onStart(formatId)}>
           Start Draft
         </Button>
       </CardContent>

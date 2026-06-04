@@ -4,17 +4,24 @@ import {
   SIMULATED_SEASON_STAT_NOTE,
 } from './player-stats'
 import { calculateRunPrevention } from './run-prevention'
-import { getPlayerCategories, getPlayerTopCategory } from './game'
+import { getPlayerTopCategory } from './player-categories'
 import {
-  LINEUP_POSITIONS,
-  type CategoryScore,
-  type Lineup,
-  type LineupIdentity,
-  type Player,
-  type RosterScorecard,
-  type RosterScorecardRow,
-  type SeasonSimulation,
-  type TeamGrade,
+  getActiveLineupPositions,
+  lineupEntries,
+  lineupPlayers,
+} from './roster-format'
+import { getBattingRatings, getPitchingRatings } from './player-ratings'
+import { playerHasBattingProfile, playerHasPitchingProfile } from './player-eligibility'
+import type {
+  CategoryScore,
+  Lineup,
+  LineupIdentity,
+  Player,
+  RosterFormatId,
+  RosterScorecard,
+  RosterScorecardRow,
+  SeasonSimulation,
+  TeamGrade,
 } from './types'
 
 const GRADE_THRESHOLDS: { min: number; label: string }[] = [
@@ -29,6 +36,17 @@ const GRADE_THRESHOLDS: { min: number; label: string }[] = [
   { min: 0, label: 'C-' },
 ]
 
+const RISK_GRADE_LABELS = new Set([
+  'Run Prevention',
+  'Control',
+  'Dominance',
+  'Power',
+  'Contact',
+  'Run Production',
+  'Workload',
+  'Balance',
+])
+
 export function valueToDisplayGrade(value: number): string {
   for (const { min, label } of GRADE_THRESHOLDS) {
     if (value >= min) return label
@@ -40,35 +58,39 @@ function avg(values: number[]): number {
   return values.length > 0 ? values.reduce((s, v) => s + v, 0) / values.length : 0
 }
 
-export function buildTeamGrades(lineup: Lineup): TeamGrade[] {
-  const players = LINEUP_POSITIONS.map((pos) => lineup[pos]!).filter(Boolean)
-  const hitters = players.filter((p) => p.role === 'hitter')
-  const pitchers = players.filter((p) => p.role === 'pitcher')
+export function buildTeamGrades(
+  lineup: Lineup,
+  formatId: RosterFormatId,
+): TeamGrade[] {
+  const players = lineupPlayers(lineup, formatId)
+  const batters = players.filter((p) => playerHasBattingProfile(p))
+  const pitchers = players.filter((p) => playerHasPitchingProfile(p))
   const overalls = players.map((p) => p.ratings.overall)
   const avgOverall = avg(overalls)
   const variance =
-    overalls.reduce((s, o) => s + (o - avgOverall) ** 2, 0) / overalls.length
+    overalls.reduce((s, o) => s + (o - avgOverall) ** 2, 0) /
+    Math.max(overalls.length, 1)
+
+  const batRatings = batters.map(getBattingRatings)
+  const pitRatings = pitchers.map(getPitchingRatings)
 
   const grades: { label: string; value: number }[] = [
-    { label: 'Contact', value: avg(hitters.map((p) => p.ratings.contact)) },
-    { label: 'Power', value: avg(hitters.map((p) => p.ratings.power)) },
-    { label: 'Speed', value: avg(hitters.map((p) => p.ratings.speed)) },
+    { label: 'Contact', value: avg(batRatings.map((r) => r.contact)) },
+    { label: 'Power', value: avg(batRatings.map((r) => r.power)) },
+    { label: 'Speed', value: avg(batRatings.map((r) => r.speed)) },
     {
       label: 'Run Production',
-      value: avg(hitters.map((p) => p.ratings.runProduction)),
+      value: avg(batRatings.map((r) => r.runProduction)),
     },
     {
       label: 'Run Prevention',
       value: calculateRunPrevention(players).value,
     },
-    { label: 'Control', value: avg(pitchers.map((p) => p.ratings.whip)) },
-    {
-      label: 'Dominance',
-      value: avg(pitchers.map((p) => p.ratings.strikeouts)),
-    },
-    { label: 'Workload', value: avg(pitchers.map((p) => p.ratings.workload)) },
+    { label: 'Control', value: avg(pitRatings.map((r) => r.whip)) },
+    { label: 'Dominance', value: avg(pitRatings.map((r) => r.strikeouts)) },
+    { label: 'Workload', value: avg(pitRatings.map((r) => r.workload)) },
     { label: 'Balance', value: Math.max(0, 100 - Math.sqrt(variance) * 2) },
-    { label: 'Star Power', value: Math.max(...overalls) },
+    { label: 'Star Power', value: Math.max(...overalls, 0) },
   ]
 
   return grades.map((g) => ({
@@ -84,7 +106,13 @@ export function getTopTeamGrades(grades: TeamGrade[], count = 3): TeamGrade[] {
 
 export function getBottomTeamGrades(grades: TeamGrade[], count = 2): TeamGrade[] {
   return [...grades]
-    .filter((g) => g.label !== 'Star Power' && g.label !== 'Balance')
+    .filter(
+      (g) =>
+        g.label !== 'Star Power' &&
+        g.label !== 'Balance' &&
+        g.label !== 'Speed' &&
+        RISK_GRADE_LABELS.has(g.label),
+    )
     .sort((a, b) => a.value - b.value)
     .slice(0, count)
 }
@@ -98,7 +126,7 @@ export function getRosterIdentity(grades: TeamGrade[]): LineupIdentity {
   const balance = byLabel['Balance'] ?? 0
   const starPower = byLabel['Star Power'] ?? 0
 
-  const offenseAvg = (contact + power + speed) / 3
+  const offenseAvg = (contact + power) / 2
 
   if (balance >= 75 && starPower >= 85 && offenseAvg >= 70 && runPrevention >= 70) {
     return {
@@ -151,6 +179,7 @@ export function getRosterIdentity(grades: TeamGrade[]): LineupIdentity {
 }
 
 export function getPlayerContributionLabel(player: Player): string {
+  if (player.role === 'two-way') return 'two-way star'
   if (player.role === 'pitcher') {
     const top = getPlayerTopCategory(player)
     if (top.label === 'Run Prevention') return 'ace run prevention'
@@ -169,12 +198,10 @@ export function getPlayerContributionLabel(player: Player): string {
 
 export function getSignaturePlayer(
   lineup: Lineup,
+  formatId: RosterFormatId,
 ): { name: string; position: import('./types').LineupPosition } | null {
-  const players = LINEUP_POSITIONS.map((pos) => ({
-    position: pos,
-    player: lineup[pos]!,
-  }))
-  const sorted = [...players].sort(
+  const entries = lineupEntries(lineup, formatId)
+  const sorted = [...entries].sort(
     (a, b) =>
       getPlayerTopCategory(b.player).value -
       getPlayerTopCategory(a.player).value,
@@ -183,48 +210,73 @@ export function getSignaturePlayer(
   return best ? { name: best.player.name, position: best.position } : null
 }
 
-export function getRosterVulnerability(
-  grades: TeamGrade[],
-): CategoryScore | null {
-  const bottom = getBottomTeamGrades(grades, 1)[0]
-  return bottom
-    ? { label: bottom.label, value: bottom.value }
-    : null
-}
-
 function gradesToCategoryScores(grades: TeamGrade[]): CategoryScore[] {
   return grades.map((g) => ({ label: g.label, value: g.value }))
+}
+
+function buildRow(
+  position: import('./types').LineupPosition,
+  player: Player,
+  simulation: Pick<SeasonSimulation, 'seed'>,
+  profile?: 'batting' | 'pitching',
+): RosterScorecardRow {
+  return {
+    position,
+    playerId: player.id,
+    playerName: player.name,
+    role: player.role,
+    teamName: player.teamName,
+    era: player.era,
+    slashLine: formatSimulatedSlashLine(
+      player,
+      simulation.seed,
+      position,
+      profile,
+    ),
+    countingLine: formatSimulatedTotals(player, position, profile),
+    statNote: SIMULATED_SEASON_STAT_NOTE,
+    twoWay: player.role === 'two-way',
+  }
 }
 
 export function buildRosterScorecard(
   lineup: Lineup,
   simulation: Pick<SeasonSimulation, 'seed'>,
+  formatId: RosterFormatId = 'classic',
 ): RosterScorecard {
-  const rows: RosterScorecardRow[] = LINEUP_POSITIONS.map((position) => {
-    const player = lineup[position]!
-    return {
-      position,
-      playerId: player.id,
-      playerName: player.name,
-      role: player.role,
-      teamName: player.teamName,
-      era: player.era,
-      slashLine: formatSimulatedSlashLine(
-        player,
-        simulation.seed,
-        position,
-      ),
-      countingLine: formatSimulatedTotals(player),
-      statNote: SIMULATED_SEASON_STAT_NOTE,
-    }
-  })
+  const rows: RosterScorecardRow[] = getActiveLineupPositions(formatId).map(
+    (position) => buildRow(position, lineup[position]!, simulation),
+  )
 
-  const teamGrades = buildTeamGrades(lineup)
+  const battingRows: RosterScorecardRow[] = []
+  const pitchingRows: RosterScorecardRow[] = []
+  const seenBat = new Set<string>()
+  const seenPit = new Set<string>()
+
+  for (const { position, player } of lineupEntries(lineup, formatId)) {
+    if (playerHasBattingProfile(player) && !seenBat.has(player.personId)) {
+      seenBat.add(player.personId)
+      battingRows.push(buildRow(position, player, simulation, 'batting'))
+    }
+    if (playerHasPitchingProfile(player) && !seenPit.has(player.personId)) {
+      seenPit.add(player.personId)
+      pitchingRows.push(buildRow(position, player, simulation, 'pitching'))
+    }
+  }
+
+  const teamGrades = buildTeamGrades(lineup, formatId)
   const identity = getRosterIdentity(teamGrades)
   const strengths = gradesToCategoryScores(getTopTeamGrades(teamGrades, 3))
-  const weaknesses = gradesToCategoryScores(getBottomTeamGrades(teamGrades, 2))
+  const riskFactors = gradesToCategoryScores(getBottomTeamGrades(teamGrades, 2))
 
-  return { rows, teamGrades, identity, strengths, weaknesses }
+  return {
+    rows,
+    battingRows,
+    pitchingRows,
+    teamGrades,
+    identity,
+    strengths,
+    riskFactors,
+    weaknesses: riskFactors,
+  }
 }
-
-export { getPlayerCategories }

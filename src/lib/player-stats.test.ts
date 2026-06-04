@@ -47,7 +47,7 @@ function pitcherPlayer(stats: PitcherStats): Player {
     teamName: 'Yankees',
     era: '2000s',
     role: 'pitcher',
-    positions: ['P'],
+    positions: ['SP'],
     stats,
     ratings: {
       contact: 0,
@@ -217,7 +217,7 @@ describe('simulatedSeasonRates', () => {
       gs: 100,
     })
     for (let i = 0; i < 20; i++) {
-      const rates = simulatedSeasonRates(player, `seed-${i}`, 'P') as {
+      const rates = simulatedSeasonRates(player, `seed-${i}`, 'SP') as {
         era: string
         whip: string
       }

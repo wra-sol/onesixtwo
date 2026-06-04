@@ -75,11 +75,11 @@ describe('formatLineupShareSummary', () => {
 
     const lineup = createEmptyLineup()
     lineup.C = catcher!
-    lineup.P = pitcher!
+    lineup.SP = pitcher!
 
     const summary = formatLineupShareSummary(LINEUP_POSITIONS, lineup)
     expect(summary).toContain(`C ${sharePlayerName(catcher!.name)}`)
-    expect(summary).toContain(`P ${sharePlayerName(pitcher!.name)}`)
+    expect(summary).toContain(`SP ${sharePlayerName(pitcher!.name)}`)
     expect(summary).not.toContain('1B')
   })
 })

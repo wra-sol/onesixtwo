@@ -15,7 +15,7 @@ import {
 } from '../lib/player-stats'
 import type { PlayerStatSortLabel } from '../lib/player-stats'
 import type { GameState, LineupPosition, Player } from '../lib/types'
-import { LINEUP_POSITIONS } from '../lib/types'
+import { getActiveLineupPositions } from '../lib/roster-format'
 import { normalizeForSearch } from '../lib/text'
 import PlayerCard from './PlayerCard'
 
@@ -129,7 +129,7 @@ export default function PlayerChoices({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
-            {LINEUP_POSITIONS.map((pos) => (
+            {getActiveLineupPositions(gameState.rosterFormatId).map((pos) => (
               <SelectItem key={pos} value={pos}>
                 {pos}
               </SelectItem>

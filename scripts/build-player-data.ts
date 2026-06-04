@@ -1,5 +1,5 @@
 /**
- * Builds franchise-decade buckets with up to 20 ranked players each.
+ * Builds franchise-decade buckets with up to 25 ranked players each.
  * Run: npm run build:data
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -10,10 +10,14 @@ import {
   MODERN_ERAS,
   eraIndex,
   franchiseDisplayName,
-  isModernEra,
+  isPlayableEra,
 } from '../src/data/franchises.ts'
 import { SEED_PLAYERS_BACKUP } from '../src/data/seed-players.backup.ts'
 import { SEED_HINTS, type SeedHint } from '../src/data/seed-players.ts'
+import {
+  isReliefEligible,
+  isStarterEligible,
+} from '../src/lib/player-eligibility.ts'
 import type { DraftBucket, Era, Player, TeamId } from '../src/lib/types.ts'
 import {
   getLahmanPlayerForBucket,
@@ -25,7 +29,9 @@ import {
   normalizePlayerName,
 } from './lib/person-id.ts'
 
-const TOP_N = 20
+const TOP_N = 25
+const MIN_BUCKET_SP = 2
+const MIN_BUCKET_RP = 2
 const DEFAULT_HINT_PRIORITY = 88
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const outDir = join(__dirname, '../src/data/generated')
@@ -61,7 +67,7 @@ function personIdForHint(hint: SeedHint): string {
 
 function hintScore(hint: SeedHint, franchiseId: TeamId, bucketEra: Era): number {
   if (hint.teamId !== franchiseId) return -1
-  if (!isModernEra(hint.era)) return -1
+  if (!isPlayableEra(hint.era)) return -1
   const dist = Math.abs(eraIndex(hint.era) - eraIndex(bucketEra))
   if (dist > 1) return -1
   const eraBonus = dist === 0 ? 25 : 0
@@ -71,7 +77,7 @@ function hintScore(hint: SeedHint, franchiseId: TeamId, bucketEra: Era): number 
 
 function backupScore(player: Player, franchiseId: TeamId, bucketEra: Era): number {
   if (player.teamId !== franchiseId) return -1
-  if (!isModernEra(player.era)) return -1
+  if (!isPlayableEra(player.era)) return -1
   const dist = Math.abs(eraIndex(player.era) - eraIndex(bucketEra))
   if (dist > 1) return -1
   const eraBonus = dist === 0 ? 25 : 0
@@ -133,6 +139,85 @@ function dedupeRanked(
     out.push(entry)
   }
   return out
+}
+
+function countProfile(
+  ranked: { seed: Player; score: number }[],
+  predicate: (player: Player) => boolean,
+): number {
+  return ranked.filter((entry) => predicate(entry.seed)).length
+}
+
+function injectPitcherProfiles(
+  ranked: { seed: Player; score: number }[],
+  franchiseId: TeamId,
+  era: Era,
+  teamName: string,
+  predicate: (player: Player) => boolean,
+  minimum: number,
+): { seed: Player; score: number }[] {
+  if (!lahmanDataAvailable()) return ranked
+
+  const usedPerson = new Set(ranked.map((entry) => entry.seed.personId))
+  let next = ranked
+
+  while (countProfile(next, predicate) < minimum) {
+    const candidates = getLahmanPlayersForBucket(
+      franchiseId,
+      era,
+      teamName,
+      50,
+      usedPerson,
+      predicate,
+    )
+    if (candidates.length === 0) break
+    const pick = candidates[0]!
+    usedPerson.add(pick.personId)
+    next = [
+      ...next,
+      { seed: pick, score: pick.ratings.overall },
+    ]
+  }
+
+  return next
+}
+
+function trimToTopNWithQuotas(
+  ranked: { seed: Player; score: number }[],
+): { seed: Player; score: number }[] {
+  const sorted = dedupeRanked(ranked).sort((a, b) => b.score - a.score)
+  if (sorted.length <= TOP_N) return sorted
+
+  const requiredIds = new Set<string>()
+  let sp = 0
+  let rp = 0
+  for (const entry of sorted) {
+    if (sp < MIN_BUCKET_SP && isStarterEligible(entry.seed)) {
+      requiredIds.add(entry.seed.personId)
+      sp++
+    }
+  }
+  for (const entry of sorted) {
+    if (rp < MIN_BUCKET_RP && isReliefEligible(entry.seed)) {
+      requiredIds.add(entry.seed.personId)
+      rp++
+    }
+  }
+
+  const out: { seed: Player; score: number }[] = []
+  const seen = new Set<string>()
+  for (const entry of sorted) {
+    if (!requiredIds.has(entry.seed.personId)) continue
+    out.push(entry)
+    seen.add(entry.seed.personId)
+  }
+  for (const entry of sorted) {
+    if (out.length >= TOP_N) break
+    if (seen.has(entry.seed.personId)) continue
+    out.push(entry)
+    seen.add(entry.seed.personId)
+  }
+  return out.sort((a, b) => b.score - a.score)
 }
 
 function finalizeBucketCard(
@@ -211,7 +296,24 @@ export function buildBucket(franchiseId: TeamId, era: Era): { bucket: DraftBucke
     }
   }
 
-  ranked = dedupeRanked(ranked).slice(0, TOP_N)
+  ranked = injectPitcherProfiles(
+    ranked,
+    franchiseId,
+    era,
+    teamName,
+    isStarterEligible,
+    MIN_BUCKET_SP,
+  )
+  ranked = injectPitcherProfiles(
+    ranked,
+    franchiseId,
+    era,
+    teamName,
+    isReliefEligible,
+    MIN_BUCKET_RP,
+  )
+  ranked = trimToTopNWithQuotas(ranked)
+
   const players = ranked.map(({ seed }, i) =>
     finalizeBucketCard(seed, franchiseId, era, i + 1),
   )

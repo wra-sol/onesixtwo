@@ -105,17 +105,40 @@ export type SimulatedPitcherRates = {
   whip: string
 }
 
+function usesPitchingLine(
+  player: Player,
+  position: LineupPosition,
+  profile?: 'batting' | 'pitching',
+): boolean {
+  if (profile === 'batting') return false
+  if (profile === 'pitching') return player.role === 'pitcher' || player.role === 'two-way'
+  if (player.role === 'pitcher') return true
+  if (player.role === 'two-way') {
+    return position === 'SP' || position === 'RP'
+  }
+  return false
+}
+
+function hitterStatsFor(player: Player): HitterStats {
+  return (player.battingStats ?? player.stats) as HitterStats
+}
+
+function pitcherStatsFor(player: Player): PitcherStats {
+  return (player.pitchingStats ?? player.stats) as PitcherStats
+}
+
 export function simulatedSeasonRates(
   player: Player,
   simulationSeed: SimulationSeed,
   position: LineupPosition,
+  profile?: 'batting' | 'pitching',
 ): SimulatedHitterRates | SimulatedPitcherRates {
   const rng = createSeededRandom(
-    hashSeed(`${simulationSeed}|${player.personId}|${position}`),
+    hashSeed(`${simulationSeed}|${player.personId}|${position}|${profile ?? 'slot'}`),
   )
 
-  if (player.role === 'pitcher') {
-    const stats = player.stats as PitcherStats
+  if (usesPitchingLine(player, position, profile)) {
+    const stats = pitcherStatsFor(player)
     const era = clamp(
       parseRate(stats.era) + uniformNoise(rng, 0.35),
       1.5,
@@ -129,7 +152,7 @@ export function simulatedSeasonRates(
     return { era: formatEraRate(era), whip: formatEraRate(whip) }
   }
 
-  const stats = player.stats as HitterStats
+  const stats = hitterStatsFor(player)
   if (stats.obp && stats.slg) {
     const avg = clamp(
       parseRate(stats.avg) + uniformNoise(rng, 0.012),
@@ -176,26 +199,49 @@ function formatHitterSlashFromRates(rates: SimulatedHitterRates): string {
   return `${rates.avg} AVG · ${rates.ops} OPS`
 }
 
-export function formatPlayerSlashLine(player: Player): string {
-  if (player.role === 'pitcher') {
-    const stats = player.stats as PitcherStats
+export function formatPlayerSlashLine(
+  player: Player,
+  position?: LineupPosition,
+): string {
+  if (position && usesPitchingLine(player, position)) {
+    const stats = pitcherStatsFor(player)
     return `${stats.era} ERA · ${stats.whip} WHIP`
   }
+  if (player.role === 'pitcher') {
+    const stats = pitcherStatsFor(player)
+    return `${stats.era} ERA · ${stats.whip} WHIP`
+  }
+  if (player.role === 'two-way' && !position) {
+    const bat = hitterStatsFor(player)
+    const pit = pitcherStatsFor(player)
+    const batLine =
+      bat.obp && bat.slg
+        ? `${bat.avg} / ${bat.obp} / ${bat.slg}`
+        : `${bat.avg} AVG · ${bat.ops} OPS`
+    return `${batLine} · ${pit.era} ERA`
+  }
 
-  const stats = player.stats as HitterStats
+  const stats = hitterStatsFor(player)
   if (stats.obp && stats.slg) {
     return `${stats.avg} / ${stats.obp} / ${stats.slg}`
   }
   return `${stats.avg} AVG · ${stats.ops} OPS`
 }
 
-export function formatPlayerTotals(player: Player): string {
+export function formatPlayerTotals(
+  player: Player,
+  position?: LineupPosition,
+): string {
+  if (position && usesPitchingLine(player, position)) {
+    const counts = seasonPitcherCounts(pitcherStatsFor(player))
+    return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
+  }
   if (player.role === 'pitcher') {
-    const counts = seasonPitcherCounts(player.stats as PitcherStats)
+    const counts = seasonPitcherCounts(pitcherStatsFor(player))
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
-  const stats = player.stats as HitterStats
+  const stats = hitterStatsFor(player)
   const errors = seasonHitterErrors(stats)
   const counting = `${formatCount(stats.hr)} HR · ${formatCount(stats.rbi)} RBI · ${formatCount(stats.sb)} SB`
   return errors == null ? counting : `${counting} · ${formatCount(errors)} E`
@@ -205,22 +251,27 @@ export function formatSimulatedSlashLine(
   player: Player,
   simulationSeed: SimulationSeed,
   position: LineupPosition,
+  profile?: 'batting' | 'pitching',
 ): string {
-  const rates = simulatedSeasonRates(player, simulationSeed, position)
-  if (player.role === 'pitcher') {
+  const rates = simulatedSeasonRates(player, simulationSeed, position, profile)
+  if (usesPitchingLine(player, position, profile)) {
     const p = rates as SimulatedPitcherRates
     return `${p.era} ERA · ${p.whip} WHIP`
   }
   return formatHitterSlashFromRates(rates as SimulatedHitterRates)
 }
 
-export function formatSimulatedTotals(player: Player): string {
-  if (player.role === 'pitcher') {
-    const counts = seasonPitcherCounts(player.stats as PitcherStats)
+export function formatSimulatedTotals(
+  player: Player,
+  position?: LineupPosition,
+  profile?: 'batting' | 'pitching',
+): string {
+  if (position && usesPitchingLine(player, position, profile)) {
+    const counts = seasonPitcherCounts(pitcherStatsFor(player))
     return `${formatCount(counts.so)} K · ${formatCount(counts.wins)} W`
   }
 
-  const stats = player.stats as HitterStats
+  const stats = hitterStatsFor(player)
   const counts = seasonHitterCounts(stats)
   const errors = seasonHitterErrors(stats)
   const counting = `${formatCount(counts.hr)} HR · ${formatCount(counts.rbi)} RBI · ${formatCount(counts.sb)} SB`
@@ -235,8 +286,8 @@ export function getPlayerStatSortValue(
   player: Player,
   label: PlayerStatSortLabel,
 ): number | null {
-  if (player.role === 'hitter') {
-    const stats = player.stats as HitterStats
+  if (player.role === 'hitter' || player.role === 'two-way') {
+    const stats = hitterStatsFor(player)
     switch (label) {
       case 'AVG':
         return parseRate(stats.avg)
@@ -253,7 +304,7 @@ export function getPlayerStatSortValue(
     }
   }
 
-  const stats = player.stats as PitcherStats
+  const stats = pitcherStatsFor(player)
   switch (label) {
     case 'ERA':
       return parseRate(stats.era)

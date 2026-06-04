@@ -16,16 +16,24 @@ export const ERAS: Era[] = [
   '2020s',
 ]
 
-/** First playable decade in 162-0 (1960s expansion / modern alignment era). */
-export const FIRST_PLAYABLE_ERA: Era = '1960s'
+/** First playable decade for draft spins and bucket generation. */
+export const FIRST_PLAYABLE_ERA: Era = '1930s'
 
 /**
- * Playable decades — 1960s onward (spins and bucket generation).
+ * Playable decades — 1930s onward (spins and bucket generation).
+ * @deprecated Prefer PLAYABLE_ERAS; MODERN_ERAS kept for import compatibility.
  */
 export const MODERN_ERAS: Era[] = ERAS.slice(ERAS.indexOf(FIRST_PLAYABLE_ERA))
 
+export const PLAYABLE_ERAS = MODERN_ERAS
+
+export function isPlayableEra(era: Era): boolean {
+  return PLAYABLE_ERAS.includes(era)
+}
+
+/** @deprecated Use isPlayableEra */
 export function isModernEra(era: Era): boolean {
-  return MODERN_ERAS.includes(era)
+  return isPlayableEra(era)
 }
 
 export type FranchiseConfig = {

@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/button'
-import { Progress, ProgressValue } from '@/components/ui/progress'
+import { Progress } from '@/components/ui/progress'
 import type { DraftBucket, Era, SpinIntent } from '../lib/types'
 import SpinReels from './SpinReels'
 
 type DraftPanelProps = {
   round: number
+  /** Active roster slot count (9–11 depending on format). */
+  totalRounds: number
   bucket: DraftBucket | null
   statusLabel: string
   isSpinning?: boolean
@@ -22,6 +24,7 @@ type DraftPanelProps = {
 
 export default function DraftPanel({
   round,
+  totalRounds,
   bucket,
   statusLabel,
   isSpinning = false,
@@ -39,6 +42,11 @@ export default function DraftPanel({
   const showRespins =
     !isSpinning && bucket && (onRespinTeam || onRespinYear)
 
+  const progressPct = Math.min(
+    100,
+    Math.round((round / Math.max(1, totalRounds)) * 100),
+  )
+
   const showSpin = isSpinning || bucket !== null
   const teamName = bucket?.teamName ?? teamPreview
   const era = bucket?.era ?? eraPreview
@@ -51,20 +59,27 @@ export default function DraftPanel({
             id="draft-panel-heading"
             className="font-display text-lg leading-tight text-primary"
           >
-            Round {round} of 9
+            Round {round} of {totalRounds}
           </h2>
           <p className="text-sm text-muted-foreground" aria-live="polite">
             {statusLabel}
           </p>
         </div>
-        <Progress
-          value={(round / 9) * 100}
-          max={100}
-          className="w-20 shrink-0 gap-1"
-          aria-label={`Round ${round} of 9`}
+        <div
+          className="flex w-28 shrink-0 flex-col items-end gap-1"
+          role="group"
+          aria-label={`Draft progress: round ${round} of ${totalRounds}`}
         >
-          <ProgressValue className="text-xs tabular-nums" />
-        </Progress>
+          <span className="text-xs tabular-nums text-muted-foreground">
+            {round}/{totalRounds}
+          </span>
+          <Progress
+            value={progressPct}
+            max={100}
+            className="w-full"
+            aria-hidden
+          />
+        </div>
       </div>
 
       {showSpin && (

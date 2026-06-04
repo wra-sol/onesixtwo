@@ -5,21 +5,29 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import {
+  getActiveLineupPositions,
+  rosterFormatSlotCount,
+} from '../lib/roster-format'
 import { getEligiblePositionsForPlayer, getFilledCount } from '../lib/game'
 import {
   type Lineup,
   type LineupPosition,
   type Player,
+  type RosterFormatId,
 } from '../lib/types'
 
 type LineupGridProps = {
   lineup: Lineup
+  rosterFormatId: RosterFormatId
   selectedPlayer: Player | null
   isAssigning?: boolean
   onAssign: (position: LineupPosition) => void
 }
 
-const FIELD_POSITIONS: LineupPosition[] = [
+/** Desktop diamond render order (visual layering). */
+const DESKTOP_FIELD_ORDER: LineupPosition[] = [
   'LF',
   'CF',
   'RF',
@@ -27,17 +35,23 @@ const FIELD_POSITIONS: LineupPosition[] = [
   '3B',
   '2B',
   '1B',
-  'P',
+  'DH',
+  'SP',
+  'RP',
   'C',
 ]
 
 const MOBILE_STRIP_ROW_1: LineupPosition[] = ['C', '1B', '2B', '3B']
 const MOBILE_STRIP_ROW_2: LineupPosition[] = ['SS', 'LF', 'CF', 'RF']
-const MOBILE_STRIP_PITCHER: LineupPosition = 'P'
+const MOBILE_STRIP_PITCHER: LineupPosition = 'SP'
 
 function lastName(name: string): string {
   const parts = name.trim().split(/\s+/)
   return parts[parts.length - 1] ?? name
+}
+
+function isPitcherRolePosition(position: LineupPosition): boolean {
+  return position === 'SP' || position === 'RP'
 }
 
 function LineupChip({
@@ -54,14 +68,18 @@ function LineupChip({
   onAssign: () => void
 }) {
   const label = filled ? lastName(filled.name) : '·'
-  const chipClass = `lineup-chip${filled ? ' lineup-chip--filled' : ''}${pitcher ? ' lineup-chip--pitcher' : ''}`
+  const chipClass = cn(
+    'lineup-chip',
+    filled && 'lineup-chip--filled',
+    pitcher && 'lineup-chip--pitcher',
+  )
 
   if (canAssign) {
     const actionLabel = filled ? 'Switch' : 'Tap'
     return (
       <button
         type="button"
-        className={`${chipClass} lineup-chip--assignable`}
+        className={cn(chipClass, 'lineup-chip--assignable')}
         data-pos={position}
         onClick={onAssign}
         aria-label={
@@ -86,17 +104,70 @@ function LineupChip({
   )
 }
 
+function DesktopLineupSlot({
+  position,
+  filled,
+  canAssign,
+  onAssign,
+}: {
+  position: LineupPosition
+  filled: Player | null
+  canAssign: boolean
+  onAssign: () => void
+}) {
+  const optional = position === 'DH' || position === 'RP'
+  const pitcherRole = isPitcherRolePosition(position)
+
+  return (
+    <div
+      className={cn(
+        'lineup-slot',
+        filled && 'lineup-slot--filled',
+        canAssign && 'lineup-slot--assignable',
+        optional && 'lineup-slot--optional',
+        pitcherRole && 'lineup-slot--pitcher-role',
+      )}
+      data-pos={position}
+    >
+      <span className="lineup-slot-pos">{position}</span>
+      {filled && !canAssign ? (
+        <div className="lineup-slot-player">
+          <span className="lineup-slot-name">{lastName(filled.name)}</span>
+        </div>
+      ) : canAssign ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className="h-auto w-full px-1 py-0.5 text-[0.65rem] leading-tight"
+          onClick={onAssign}
+        >
+          {filled ? 'Switch' : 'Assign'}
+        </Button>
+      ) : (
+        <span className="lineup-slot-empty">—</span>
+      )}
+    </div>
+  )
+}
+
 function MobileLineupStrip({
   lineup,
+  rosterFormatId,
   eligible,
   selectedPlayer,
   onAssign,
 }: {
   lineup: Lineup
+  rosterFormatId: RosterFormatId
   eligible: LineupPosition[]
   selectedPlayer: Player | null
   onAssign: (position: LineupPosition) => void
 }) {
+  const active = getActiveLineupPositions(rosterFormatId)
+  const optional = active.filter((p) => p === 'DH' || p === 'RP')
+  const expandedPitcherColumn = optional.length > 0
+
   const renderChip = (position: LineupPosition, pitcher = false) => {
     const filled = lineup[position]
     const canAssign =
@@ -114,7 +185,14 @@ function MobileLineupStrip({
   }
 
   return (
-    <div className="lineup-strip" role="group" aria-label="Lineup positions">
+    <div
+      className={cn(
+        'lineup-strip',
+        expandedPitcherColumn && 'lineup-strip--expanded',
+      )}
+      role="group"
+      aria-label="Lineup positions"
+    >
       <div className="lineup-strip-rows">
         <div className="lineup-strip-row">
           {MOBILE_STRIP_ROW_1.map((pos) => renderChip(pos))}
@@ -123,8 +201,9 @@ function MobileLineupStrip({
           {MOBILE_STRIP_ROW_2.map((pos) => renderChip(pos))}
         </div>
       </div>
-      <div className="lineup-strip-pitcher">
+      <div className="lineup-strip-pitcher flex flex-col gap-1">
         {renderChip(MOBILE_STRIP_PITCHER, true)}
+        {optional.map((pos) => renderChip(pos, pos === 'RP'))}
       </div>
     </div>
   )
@@ -132,14 +211,25 @@ function MobileLineupStrip({
 
 export default function LineupGrid({
   lineup,
+  rosterFormatId,
   selectedPlayer,
   isAssigning = false,
   onAssign,
 }: LineupGridProps) {
   const eligible = selectedPlayer
-    ? getEligiblePositionsForPlayer(selectedPlayer, lineup)
+    ? getEligiblePositionsForPlayer(
+        selectedPlayer,
+        lineup,
+        rosterFormatId,
+      )
     : []
-  const filledCount = getFilledCount(lineup)
+  const filledCount = getFilledCount(lineup, rosterFormatId)
+  const totalSlots = rosterFormatSlotCount(rosterFormatId)
+  const activeSet = new Set(getActiveLineupPositions(rosterFormatId))
+  const hasOptionalSlots = activeSet.has('DH') || activeSet.has('RP')
+  const desktopPositions = DESKTOP_FIELD_ORDER.filter((pos) =>
+    activeSet.has(pos),
+  )
 
   return (
     <>
@@ -160,10 +250,11 @@ export default function LineupGrid({
           id="lineup-heading-mobile"
           className="font-display text-xs text-primary"
         >
-          Lineup ({filledCount}/9)
+          Lineup ({filledCount}/{totalSlots})
         </h2>
         <MobileLineupStrip
           lineup={lineup}
+          rosterFormatId={rosterFormatId}
           eligible={eligible}
           selectedPlayer={selectedPlayer}
           onAssign={onAssign}
@@ -176,55 +267,49 @@ export default function LineupGrid({
             id="lineup-heading"
             className="font-display text-base text-primary"
           >
-            Lineup ({filledCount}/9)
+            Lineup ({filledCount}/{totalSlots})
           </CardTitle>
+          {isAssigning && selectedPlayer && (
+            <p className="text-xs text-muted-foreground" role="status">
+              Click a position for{' '}
+              <span className="font-semibold text-primary">
+                {selectedPlayer.name}
+              </span>
+            </p>
+          )}
         </CardHeader>
         <CardContent>
-          <div className="lineup-field">
+          <div
+            className={cn(
+              'lineup-field',
+              hasOptionalSlots && 'lineup-field--expanded',
+            )}
+          >
             <div className="lineup-field-grass" aria-hidden="true" />
             <div className="lineup-field-dirt" aria-hidden="true" />
             <div
               className="lineup-grid"
               role="group"
-              aria-label="Lineup positions"
+              aria-label="Lineup positions on field"
             >
-              {FIELD_POSITIONS.map((position) => {
-                const filled = lineup[position]
-                const canAssign =
-                  selectedPlayer !== null &&
-                  eligible.includes(position)
-
-                return (
-                  <div
-                    key={position}
-                    className={`lineup-slot ${filled ? 'lineup-slot--filled' : ''} ${canAssign ? 'lineup-slot--assignable' : ''}`}
-                    data-pos={position}
-                  >
-                    <span className="lineup-slot-pos">{position}</span>
-                    {filled && !canAssign ? (
-                      <div className="lineup-slot-player">
-                        <span className="lineup-slot-name">
-                          {lastName(filled.name)}
-                        </span>
-                      </div>
-                    ) : selectedPlayer && canAssign ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="xs"
-                        className="h-auto w-full px-1 py-0.5 text-[0.65rem] leading-tight"
-                        onClick={() => onAssign(position)}
-                      >
-                        {filled ? 'Switch' : 'Assign'}
-                      </Button>
-                    ) : (
-                      <span className="lineup-slot-empty">—</span>
-                    )}
-                  </div>
-                )
-              })}
+              {desktopPositions.map((position) => (
+                <DesktopLineupSlot
+                  key={position}
+                  position={position}
+                  filled={lineup[position]}
+                  canAssign={
+                    selectedPlayer !== null && eligible.includes(position)
+                  }
+                  onAssign={() => onAssign(position)}
+                />
+              ))}
             </div>
           </div>
+          {hasOptionalSlots && (
+            <p className="mt-2 text-center text-[0.65rem] text-muted-foreground">
+              DH: designated hitter · RP: reliever (bullpen)
+            </p>
+          )}
         </CardContent>
       </Card>
     </>

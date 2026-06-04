@@ -59,11 +59,46 @@ describe.skipIf(!hasLahman)('buildBucket team-scoped stats', () => {
     )
   })
 
+  it('builds Shohei Ohtani as two-way for Angels 2010s', () => {
+    const { players } = buildBucket('angels', '2010s')
+    const ohtani = players.find((player) => player.personId === 'ohtansh01')
+    expect(ohtani).toBeDefined()
+    expect(ohtani!.role).toBe('two-way')
+    expect(ohtani!.battingStats).toBeDefined()
+    expect(ohtani!.pitchingStats).toBeDefined()
+    expect(ohtani!.positions).toContain('DH')
+    expect(ohtani!.positions).toContain('SP')
+  })
+
   it('does not place Bonds in Pirates 2000s with archived career totals', () => {
     const { players } = buildBucket('pirates', '2000s')
     const bonds = players.find((player) => player.name === 'Barry Bonds')
     if (bonds) {
       expect((bonds.stats as HitterStats).hr).not.toBe(762)
     }
+  })
+
+  it('includes at least two starter-profile and two reliever-profile pitchers', () => {
+    const { players } = buildBucket('yankees', '1990s')
+    const starters = players.filter(
+      (player) => player.role !== 'hitter' && (player.pitchingStats ?? player.stats),
+    ).filter((player) => {
+      const stats = player.pitchingStats ?? player.stats
+      if (!('gs' in stats)) return false
+      const gs = stats.gs ?? 0
+      const g = stats.g ?? gs
+      const relief = stats.reliefGames ?? Math.max(0, g - gs)
+      return gs >= 20 || gs > relief
+    })
+    const relievers = players.filter((player) => {
+      const stats = player.pitchingStats ?? player.stats
+      if (!('gs' in stats)) return false
+      const gs = stats.gs ?? 0
+      const g = stats.g ?? gs
+      const relief = stats.reliefGames ?? Math.max(0, g - gs)
+      return relief >= 20 || relief > gs
+    })
+    expect(starters.length).toBeGreaterThanOrEqual(2)
+    expect(relievers.length).toBeGreaterThanOrEqual(2)
   })
 })
