@@ -82,8 +82,8 @@ describe('leaderboard server helpers', () => {
     expect(typeof parsed).toBe('object')
     if (typeof parsed === 'string') throw new Error(parsed)
 
-    expect(buildLineupKey(parsed.playerIds, 'classic')).toBe(
-      `classic:${parsed.playerIds.join(',')}`,
+    expect(buildLineupKey(parsed.playerIds, 'classic', 'all-time')).toBe(
+      `all-time:classic:${parsed.playerIds.join(',')}`,
     )
   })
 

@@ -1,5 +1,7 @@
 export type RosterFormatId = 'classic' | 'dh' | 'rp' | 'dh-rp'
 
+export type GameModeId = 'all-time' | 'active'
+
 export {
   BASE_LINEUP_POSITIONS,
   LINEUP_POSITIONS,
@@ -185,6 +187,7 @@ export type DraftHistoryEntry = {
 }
 
 export type GameState = {
+  gameModeId: GameModeId
   rosterFormatId: RosterFormatId
   round: number
   currentBucket: DraftBucket | null

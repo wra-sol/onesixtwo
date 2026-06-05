@@ -2,13 +2,7 @@ import {
   formatLineupShareSummary,
   formatShareText,
 } from './brand'
-import {
-  DRAFT_BUCKETS,
-  getPlayersForBucket,
-  MIN_BUCKET_PLAYERS,
-  PLAYER_BY_ID,
-  PLAYERS,
-} from '../data'
+import { getModeDataset } from '../data/modes'
 import { isPlayableEra } from '../data/franchises'
 import {
   createEmptyLineup,
@@ -42,6 +36,7 @@ import type {
   LineupPosition,
   Player,
   RandomSource,
+  GameModeId,
   RosterFormatId,
   SeasonResult,
   SeasonResultOptions,
@@ -71,10 +66,16 @@ export type { PlayerCategoryLabel }
 export const defaultRandom: RandomSource = () => Math.random()
 export const MAX_PLAYERS_PER_ERA = 2
 
+function modeData(gameModeId: GameModeId) {
+  return getModeDataset(gameModeId)
+}
+
 export function createInitialGameState(
   rosterFormatId: RosterFormatId = 'classic',
+  gameModeId: GameModeId = 'all-time',
 ): GameState {
   return {
+    gameModeId,
     rosterFormatId,
     round: 1,
     currentBucket: null,
@@ -186,10 +187,11 @@ export function filterAvailablePlayers(
   bucket: DraftBucket,
   state: GameState,
 ): Player[] {
+  const dataset = modeData(state.gameModeId)
   if (!teamIsDraftable(state, bucket.teamId) || !eraIsDraftable(state, bucket.era)) {
     return []
   }
-  return getPlayersForBucket(bucket).filter(
+  return dataset.getPlayersForBucket(bucket).filter(
     (player) => !state.draftedPersonIds.includes(player.personId),
   )
 }
@@ -204,9 +206,12 @@ function bucketHasPickablePlayer(
 }
 
 export function getSpinEligibleBuckets(state: GameState): DraftBucket[] {
-  return DRAFT_BUCKETS.filter((bucket) => {
+  const dataset = modeData(state.gameModeId)
+  return dataset.draftBuckets.filter((bucket) => {
     if (!isPlayableEra(bucket.era)) return false
-    if (getPlayersForBucket(bucket).length < MIN_BUCKET_PLAYERS) return false
+    if (dataset.getPlayersForBucket(bucket).length < dataset.minBucketPlayers) {
+      return false
+    }
     if (!teamIsDraftable(state, bucket.teamId)) return false
     if (!eraIsDraftable(state, bucket.era)) return false
     return bucketHasPickablePlayer(bucket, state)
@@ -380,7 +385,7 @@ export function canAssignPlayer(
   position: LineupPosition,
 ): boolean {
   if (!state.selectedPlayerId) return false
-  const player = PLAYER_BY_ID.get(state.selectedPlayerId)
+  const player = modeData(state.gameModeId).playerById.get(state.selectedPlayerId)
   if (!player) return false
   const eligible = getPlayerEligiblePositions(player, state.rosterFormatId)
   if (!eligible.includes(position)) return false
@@ -401,7 +406,7 @@ export function assignPlayer(
   position: LineupPosition,
 ): GameState {
   if (!canAssignPlayer(state, position)) return state
-  const player = PLAYER_BY_ID.get(state.selectedPlayerId!)!
+  const player = modeData(state.gameModeId).playerById.get(state.selectedPlayerId!)!
   const displacedPlayer = state.lineup[position]
   const switchDestination = getSwitchDestinationForPosition(
     state.lineup,
@@ -463,8 +468,11 @@ export function assignPlayer(
   }
 }
 
-export function restartGame(rosterFormatId?: RosterFormatId): GameState {
-  return createInitialGameState(rosterFormatId ?? 'classic')
+export function restartGame(
+  rosterFormatId?: RosterFormatId,
+  gameModeId: GameModeId = 'all-time',
+): GameState {
+  return createInitialGameState(rosterFormatId ?? 'classic', gameModeId)
 }
 
 export function scorePlayer(player: Player): number {
@@ -619,4 +627,10 @@ export function getFilledCount(
     .length
 }
 
-export { PLAYERS, DRAFT_BUCKETS }
+export function getPlayersForMode(gameModeId: GameModeId) {
+  return modeData(gameModeId).players
+}
+
+export function getDraftBucketsForMode(gameModeId: GameModeId) {
+  return modeData(gameModeId).draftBuckets
+}

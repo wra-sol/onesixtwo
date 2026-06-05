@@ -3,6 +3,7 @@ import {
   type LeaderboardEntryRow,
   type LeaderboardPeriod,
 } from '../../functions/_lib/leaderboard'
+import type { GameModeId } from './types'
 
 export type { LeaderboardEntryRow, LeaderboardPeriod }
 
@@ -10,6 +11,7 @@ export const LEADERBOARD_MAX_ENTRIES = 30
 
 export type LeaderboardResponse = {
   period: LeaderboardPeriod
+  mode: GameModeId
   entries: LeaderboardEntryRow[]
 }
 
@@ -17,6 +19,7 @@ export type SubmitLeaderboardSuccess = {
   ok: true
   rank: number
   period: 'daily'
+  mode: GameModeId
 }
 
 export type SubmitLeaderboardFailure = {
@@ -58,19 +61,28 @@ export function sharePathToSubmitPayload(sharePath: string): {
   d?: string
   p?: string
   f?: string
+  m?: string
   n?: number
 } {
   const query = sharePath.includes('?')
     ? sharePath.split('?')[1]!
     : sharePath
   const params = new URLSearchParams(query)
-  const payload: { d?: string; p?: string; f?: string; n?: number } = {}
+  const payload: {
+    d?: string
+    p?: string
+    f?: string
+    m?: string
+    n?: number
+  } = {}
   const compact = params.get('d')
   const legacy = params.get('p')
   if (compact) payload.d = compact
   if (legacy) payload.p = legacy
   const format = params.get('f')
   if (format) payload.f = format
+  const mode = params.get('m')
+  if (mode) payload.m = mode
   const reroll = params.get('n')
   if (reroll) payload.n = Number.parseInt(reroll, 10)
   return payload
@@ -79,10 +91,12 @@ export function sharePathToSubmitPayload(sharePath: string): {
 export async function fetchLeaderboard(
   period: LeaderboardPeriod,
   limit = LEADERBOARD_MAX_ENTRIES,
+  mode: GameModeId = 'all-time',
 ): Promise<LeaderboardResponse> {
   const params = new URLSearchParams({
     period,
     limit: String(limit),
+    mode,
   })
   const response = await fetch(`/api/leaderboard?${params.toString()}`)
   if (!response.ok) {

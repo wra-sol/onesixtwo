@@ -15,10 +15,17 @@ import {
   type LeaderboardEntryRow,
   type LeaderboardPeriod,
 } from '@/lib/leaderboard'
+import type { GameModeId } from '@/lib/types'
 
 const PERIODS: LeaderboardPeriod[] = ['daily', 'weekly', 'all']
 
-export default function LeaderboardRoute() {
+type LeaderboardRouteProps = {
+  gameModeId?: GameModeId
+}
+
+export default function LeaderboardRoute({
+  gameModeId = 'all-time',
+}: LeaderboardRouteProps) {
   const [period, setPeriod] = useState<LeaderboardPeriod>('daily')
   const [entries, setEntries] = useState<LeaderboardEntryRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -28,7 +35,7 @@ export default function LeaderboardRoute() {
     setIsLoading(true)
     setError(null)
     try {
-      const response = await fetchLeaderboard(nextPeriod)
+      const response = await fetchLeaderboard(nextPeriod, undefined, gameModeId)
       setEntries(response.entries)
     } catch (err) {
       setEntries([])
@@ -38,22 +45,27 @@ export default function LeaderboardRoute() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [gameModeId])
 
   useEffect(() => {
     void loadEntries(period)
   }, [period, loadEntries])
+
+  const title =
+    gameModeId === 'active' ? 'Active Players Leaderboard' : 'Leaderboard'
+  const draftPath = gameModeId === 'active' ? '/active' : '/'
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <Card className="mx-auto max-w-3xl">
         <CardHeader className="text-center">
           <CardTitle className="font-display text-xl text-primary">
-            Leaderboard
+            {title}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Top runs ranked by wins, then rating. Submit your initials after a
-            draft.
+            {gameModeId === 'active'
+              ? 'Top Active Players runs ranked by wins, then rating.'
+              : 'Top runs ranked by wins, then rating. Submit your initials after a draft.'}
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,7 +114,7 @@ export default function LeaderboardRoute() {
 
           <p className="text-center text-xs text-muted-foreground">
             <Link
-              to="/"
+              to={draftPath}
               className="underline underline-offset-2 hover:text-foreground"
             >
               Draft your lineup

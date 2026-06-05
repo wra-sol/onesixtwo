@@ -4,7 +4,8 @@ import {
   isParsedShare,
   parseShareParams,
 } from '../../src/lib/share-url'
-import type { RosterFormatId } from '../../src/lib/types'
+import { parseGameModeId } from '../../src/data/modes'
+import type { GameModeId, RosterFormatId } from '../../src/lib/types'
 
 export type LeaderboardPeriod = 'daily' | 'weekly' | 'all'
 
@@ -23,6 +24,7 @@ export type SubmitPayload = {
   initials: string
   playerIds: string[]
   rosterFormatId: RosterFormatId
+  gameModeId: GameModeId
   reroll: number
 }
 
@@ -103,11 +105,19 @@ export function periodStartMs(
   }
 }
 
+export function parseLeaderboardMode(
+  raw: string | null,
+): GameModeId | null {
+  if (!raw) return 'all-time'
+  return parseGameModeId(raw)
+}
+
 export function buildLineupKey(
   playerIds: readonly string[],
   rosterFormatId: RosterFormatId,
+  gameModeId: GameModeId = 'all-time',
 ): string {
-  return `${rosterFormatId}:${playerIds.join(',')}`
+  return `${gameModeId}:${rosterFormatId}:${playerIds.join(',')}`
 }
 
 export { buildSharePathFromParsed as buildSharePath }
@@ -130,6 +140,9 @@ export function parseSubmitPayload(
   }
   if (typeof record.f === 'string' && record.f.trim()) {
     params.set('f', record.f.trim())
+  }
+  if (typeof record.m === 'string' && record.m.trim()) {
+    params.set('m', record.m.trim())
   }
 
   if (record.n !== undefined && record.n !== null && record.n !== '') {
@@ -158,6 +171,7 @@ export function parseSubmitPayload(
     initials,
     playerIds: parsed.playerIds,
     rosterFormatId: parsed.rosterFormatId,
+    gameModeId: parsed.gameModeId,
     reroll: parsed.reroll,
   }
 }
@@ -241,18 +255,20 @@ export async function countSubmissionsSince(
 export async function hasLineupInPeriod(
   db: D1Database,
   lineupKey: string,
+  gameModeId: GameModeId,
   sinceMs: number | null,
 ): Promise<boolean> {
   const query =
     sinceMs === null
-      ? `SELECT 1 AS found FROM leaderboard_entries WHERE lineup_key = ? LIMIT 1`
+      ? `SELECT 1 AS found FROM leaderboard_entries
+         WHERE lineup_key = ? AND game_mode_id = ? LIMIT 1`
       : `SELECT 1 AS found FROM leaderboard_entries
-         WHERE lineup_key = ? AND created_at >= ? LIMIT 1`
+         WHERE lineup_key = ? AND game_mode_id = ? AND created_at >= ? LIMIT 1`
 
   const statement =
     sinceMs === null
-      ? db.prepare(query).bind(lineupKey)
-      : db.prepare(query).bind(lineupKey, sinceMs)
+      ? db.prepare(query).bind(lineupKey, gameModeId)
+      : db.prepare(query).bind(lineupKey, gameModeId, sinceMs)
 
   const result = await statement.first<{ found: number }>()
   return Boolean(result)
@@ -262,6 +278,7 @@ export async function fetchLeaderboardEntries(
   db: D1Database,
   period: LeaderboardPeriod,
   limit: number,
+  gameModeId: GameModeId = 'all-time',
   now = Date.now(),
 ): Promise<LeaderboardEntryRow[]> {
   const sinceMs = periodStartMs(period, now)
@@ -270,19 +287,20 @@ export async function fetchLeaderboardEntries(
       ? `SELECT initials, wins, losses, team_score, is_perfect,
                 roster_format_id, share_path, created_at
          FROM leaderboard_entries
+         WHERE game_mode_id = ?
          ORDER BY wins DESC, losses ASC, team_score DESC, created_at ASC
          LIMIT ?`
       : `SELECT initials, wins, losses, team_score, is_perfect,
                 roster_format_id, share_path, created_at
          FROM leaderboard_entries
-         WHERE created_at >= ?
+         WHERE game_mode_id = ? AND created_at >= ?
          ORDER BY wins DESC, losses ASC, team_score DESC, created_at ASC
          LIMIT ?`
 
   const statement =
     sinceMs === null
-      ? db.prepare(query).bind(limit)
-      : db.prepare(query).bind(sinceMs, limit)
+      ? db.prepare(query).bind(gameModeId, limit)
+      : db.prepare(query).bind(gameModeId, sinceMs, limit)
 
   const { results } = await statement.all<DbRow>()
   return (results ?? []).map(mapDbRow)
@@ -298,6 +316,7 @@ export async function insertLeaderboardEntry(
     teamScore: number
     isPerfectSeason: boolean
     rosterFormatId: RosterFormatId
+    gameModeId: GameModeId
     lineupKey: string
     sharePath: string
     submitterIp: string
@@ -308,8 +327,8 @@ export async function insertLeaderboardEntry(
     .prepare(
       `INSERT INTO leaderboard_entries (
          id, initials, wins, losses, team_score, is_perfect,
-         roster_format_id, lineup_key, share_path, submitter_ip, created_at
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         roster_format_id, game_mode_id, lineup_key, share_path, submitter_ip, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .bind(
       input.id,
@@ -319,6 +338,7 @@ export async function insertLeaderboardEntry(
       input.teamScore,
       input.isPerfectSeason ? 1 : 0,
       input.rosterFormatId,
+      input.gameModeId,
       input.lineupKey,
       input.sharePath,
       input.submitterIp,
@@ -333,6 +353,7 @@ export async function computeDailyRank(
     LeaderboardEntryRow,
     'wins' | 'losses' | 'teamScore' | 'createdAt'
   >,
+  gameModeId: GameModeId = 'all-time',
   now = Date.now(),
 ): Promise<number> {
   const sinceMs = startOfUtcDayMs(now)
@@ -340,7 +361,7 @@ export async function computeDailyRank(
     .prepare(
       `SELECT COUNT(*) AS ahead
        FROM leaderboard_entries
-       WHERE created_at >= ?
+       WHERE game_mode_id = ? AND created_at >= ?
          AND (
            wins > ?
            OR (wins = ? AND losses < ?)
@@ -349,6 +370,7 @@ export async function computeDailyRank(
          )`,
     )
     .bind(
+      gameModeId,
       sinceMs,
       entry.wins,
       entry.wins,

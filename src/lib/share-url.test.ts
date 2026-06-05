@@ -55,7 +55,7 @@ describe('share-codec', () => {
 
   it('round-trips compact lineup encoding', () => {
     const ids = getActiveLineupPositions('classic').map((pos) => lineup[pos]!.id)
-    const encoded = encodeShareLineup(ids, 'classic')
+    const encoded = encodeShareLineup(ids, 'classic', 'all-time')
     expect(typeof encoded).toBe('string')
 
     const decoded = decodeShareLineup(encoded as string)
@@ -63,6 +63,32 @@ describe('share-codec', () => {
     if (typeof decoded === 'string') throw new Error(decoded)
     expect(decoded.playerIds).toEqual(ids)
     expect(decoded.rosterFormatId).toBe('classic')
+    expect(decoded.gameModeId).toBe('all-time')
+  })
+
+  it('decodes legacy v1 all-time shares', () => {
+    const ids = getActiveLineupPositions('classic').map((pos) => lineup[pos]!.id)
+    const indices = ids.map((id) => PLAYER_INDEX_BY_ID.get(id)!)
+    const bytes = new Uint8Array(2 + indices.length * 2)
+    bytes[0] = 1
+    bytes[1] = 0
+    for (let i = 0; i < indices.length; i++) {
+      const index = indices[i]!
+      bytes[2 + i * 2] = (index >> 8) & 0xff
+      bytes[2 + i * 2 + 1] = index & 0xff
+    }
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    const legacy = btoa(binary)
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/g, '')
+
+    const decoded = decodeShareLineup(legacy)
+    expect(typeof decoded).toBe('object')
+    if (typeof decoded === 'string') throw new Error(decoded)
+    expect(decoded.gameModeId).toBe('all-time')
+    expect(decoded.playerIds).toEqual(ids)
   })
 
   it('uses stable player indices', () => {

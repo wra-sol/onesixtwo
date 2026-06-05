@@ -16,6 +16,13 @@ export default function SiteFooter() {
         </Link>
         <span aria-hidden="true">·</span>
         <Link
+          to="/active"
+          className="underline underline-offset-2 hover:text-foreground"
+        >
+          Active Players
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link
           to="/privacy"
           className="underline underline-offset-2 hover:text-foreground"
         >

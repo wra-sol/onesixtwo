@@ -7,6 +7,7 @@
     "dev": "vite",
     "fetch:lahman": "tsx scripts/fetch-lahman-data.ts",
     "build:data": "tsx scripts/build-player-data.ts",
+    "build:active-data": "tsx scripts/build-active-player-data.ts",
     "validate:data": "tsx scripts/validate-player-data.ts",
     "analyze:ratings": "tsx scripts/analyze-rating-distributions.ts",
     "simulate:optimal": "tsx scripts/simulate-optimal-drafts.ts",

@@ -1,0 +1,240 @@
+{
+  "id": 592450,
+  "fullName": "Aaron Judge",
+  "link": "/api/v1/people/592450",
+  "firstName": "Aaron",
+  "lastName": "Judge",
+  "primaryNumber": "99",
+  "birthDate": "1992-04-26",
+  "currentAge": 34,
+  "birthCity": "Linden",
+  "birthStateProvince": "CA",
+  "birthCountry": "USA",
+  "height": "6' 7\"",
+  "weight": 282,
+  "active": true,
+  "primaryPosition": {
+    "code": "9",
+    "name": "Outfielder",
+    "type": "Outfielder",
+    "abbreviation": "RF"
+  },
+  "useName": "Aaron",
+  "useLastName": "Judge",
+  "middleName": "James",
+  "boxscoreName": "Judge",
+  "nickName": "Baj",
+  "gender": "M",
+  "isPlayer": true,
+  "isVerified": true,
+  "draftYear": 2013,
+  "stats": [
+    {
+      "type": {
+        "displayName": "season"
+      },
+      "group": {
+        "displayName": "fielding"
+      },
+      "exemptions": [],
+      "splits": [
+        {
+          "season": "2025",
+          "stat": {
+            "age": 33,
+            "gamesPlayed": 95,
+            "gamesStarted": 95,
+            "assists": 1,
+            "putOuts": 201,
+            "errors": 1,
+            "chances": 203,
+            "fielding": ".995",
+            "position": {
+              "code": "9",
+              "name": "Outfielder",
+              "type": "Outfielder",
+              "abbreviation": "RF"
+            },
+            "rangeFactorPerGame": "2.13",
+            "rangeFactorPer9Inn": "2.21",
+            "innings": "822.1",
+            "games": 95,
+            "doublePlays": 0,
+            "triplePlays": 0,
+            "throwingErrors": 0
+          },
+          "team": {
+            "id": 147,
+            "name": "New York Yankees",
+            "link": "/api/v1/teams/147"
+          },
+          "player": {
+            "id": 592450,
+            "fullName": "Aaron Judge",
+            "link": "/api/v1/people/592450"
+          },
+          "league": {
+            "id": 103,
+            "name": "American League",
+            "link": "/api/v1/league/103"
+          },
+          "sport": {
+            "id": 1,
+            "link": "/api/v1/sports/1",
+            "abbreviation": "MLB"
+          },
+          "gameType": "R",
+          "position": {
+            "code": "9",
+            "name": "Outfielder",
+            "type": "Outfielder",
+            "abbreviation": "RF"
+          }
+        },
+        {
+          "season": "2025",
+          "stat": {
+            "age": 33,
+            "gamesPlayed": 56,
+            "gamesStarted": 56,
+            "assists": 0,
+            "putOuts": 0,
+            "errors": 0,
+            "chances": 0,
+            "fielding": ".000",
+            "position": {
+              "code": "10",
+              "name": "Designated Hitter",
+              "type": "Hitter",
+              "abbreviation": "DH"
+            },
+            "rangeFactorPerGame": "0.00",
+            "rangeFactorPer9Inn": "-.--",
+            "innings": "0.0",
+            "games": 56,
+            "doublePlays": 0,
+            "triplePlays": 0,
+            "throwingErrors": 0
+          },
+          "team": {
+            "id": 147,
+            "name": "New York Yankees",
+            "link": "/api/v1/teams/147"
+          },
+          "player": {
+            "id": 592450,
+            "fullName": "Aaron Judge",
+            "link": "/api/v1/people/592450"
+          },
+          "league": {
+            "id": 103,
+            "name": "American League",
+            "link": "/api/v1/league/103"
+          },
+          "sport": {
+            "id": 1,
+            "link": "/api/v1/sports/1",
+            "abbreviation": "MLB"
+          },
+          "gameType": "R",
+          "position": {
+            "code": "10",
+            "name": "Designated Hitter",
+            "type": "Hitter",
+            "abbreviation": "DH"
+          }
+        }
+      ]
+    },
+    {
+      "type": {
+        "displayName": "season"
+      },
+      "group": {
+        "displayName": "hitting"
+      },
+      "exemptions": [],
+      "splits": [
+        {
+          "season": "2025",
+          "stat": {
+            "age": 33,
+            "gamesPlayed": 152,
+            "groundOuts": 84,
+            "airOuts": 125,
+            "runs": 137,
+            "doubles": 30,
+            "triples": 2,
+            "homeRuns": 53,
+            "strikeOuts": 160,
+            "baseOnBalls": 124,
+            "intentionalWalks": 36,
+            "hits": 179,
+            "hitByPitch": 7,
+            "avg": ".331",
+            "atBats": 541,
+            "obp": ".457",
+            "slg": ".688",
+            "ops": "1.145",
+            "caughtStealing": 5,
+            "stolenBases": 12,
+            "stolenBasePercentage": ".706",
+            "caughtStealingPercentage": ".294",
+            "groundIntoDoublePlay": 16,
+            "numberOfPitches": 2631,
+            "plateAppearances": 679,
+            "totalBases": 372,
+            "rbi": 114,
+            "leftOnBase": 205,
+            "sacBunts": 0,
+            "sacFlies": 7,
+            "babip": ".376",
+            "groundOutsToAirouts": "0.67",
+            "catchersInterference": 0,
+            "atBatsPerHomeRun": "10.21"
+          },
+          "team": {
+            "id": 147,
+            "name": "New York Yankees",
+            "link": "/api/v1/teams/147"
+          },
+          "player": {
+            "id": 592450,
+            "fullName": "Aaron Judge",
+            "link": "/api/v1/people/592450"
+          },
+          "league": {
+            "id": 103,
+            "name": "American League",
+            "link": "/api/v1/league/103"
+          },
+          "sport": {
+            "id": 1,
+            "link": "/api/v1/sports/1",
+            "abbreviation": "MLB"
+          },
+          "gameType": "R"
+        }
+      ]
+    }
+  ],
+  "mlbDebutDate": "2016-08-13",
+  "batSide": {
+    "code": "R",
+    "description": "Right"
+  },
+  "pitchHand": {
+    "code": "R",
+    "description": "Right"
+  },
+  "nameFirstLast": "Aaron Judge",
+  "nameSlug": "aaron-judge-592450",
+  "firstLastName": "Aaron Judge",
+  "lastFirstName": "Judge, Aaron",
+  "lastInitName": "Judge, A",
+  "initLastName": "A Judge",
+  "fullFMLName": "Aaron James Judge",
+  "fullLFMName": "Judge, Aaron James",
+  "strikeZoneTop": 3.523,
+  "strikeZoneBottom": 1.778
+}

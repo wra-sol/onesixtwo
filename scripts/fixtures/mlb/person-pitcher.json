@@ -1,0 +1,214 @@
+{
+  "id": 690990,
+  "fullName": "Cade Horton",
+  "link": "/api/v1/people/690990",
+  "firstName": "Cade",
+  "lastName": "Horton",
+  "primaryNumber": "22",
+  "birthDate": "2001-08-20",
+  "currentAge": 24,
+  "birthCity": "Oklahoma City",
+  "birthStateProvince": "OK",
+  "birthCountry": "USA",
+  "height": "6' 1\"",
+  "weight": 211,
+  "active": true,
+  "primaryPosition": {
+    "code": "1",
+    "name": "Pitcher",
+    "type": "Pitcher",
+    "abbreviation": "P"
+  },
+  "useName": "Cade",
+  "useLastName": "Horton",
+  "middleName": "Michael",
+  "boxscoreName": "Horton",
+  "gender": "M",
+  "isPlayer": true,
+  "isVerified": true,
+  "draftYear": 2022,
+  "stats": [
+    {
+      "type": {
+        "displayName": "season"
+      },
+      "group": {
+        "displayName": "fielding"
+      },
+      "exemptions": [],
+      "splits": [
+        {
+          "season": "2025",
+          "stat": {
+            "age": 23,
+            "gamesPlayed": 23,
+            "gamesStarted": 22,
+            "assists": 6,
+            "putOuts": 7,
+            "errors": 1,
+            "chances": 14,
+            "fielding": ".929",
+            "position": {
+              "code": "1",
+              "name": "Pitcher",
+              "type": "Pitcher",
+              "abbreviation": "P"
+            },
+            "rangeFactorPerGame": "0.57",
+            "rangeFactorPer9Inn": "0.99",
+            "innings": "118.0",
+            "games": 23,
+            "doublePlays": 1,
+            "triplePlays": 0,
+            "throwingErrors": 1
+          },
+          "team": {
+            "id": 112,
+            "name": "Chicago Cubs",
+            "link": "/api/v1/teams/112"
+          },
+          "player": {
+            "id": 690990,
+            "fullName": "Cade Horton",
+            "link": "/api/v1/people/690990"
+          },
+          "league": {
+            "id": 104,
+            "name": "National League",
+            "link": "/api/v1/league/104"
+          },
+          "sport": {
+            "id": 1,
+            "link": "/api/v1/sports/1",
+            "abbreviation": "MLB"
+          },
+          "gameType": "R",
+          "position": {
+            "code": "1",
+            "name": "Pitcher",
+            "type": "Pitcher",
+            "abbreviation": "P"
+          }
+        }
+      ]
+    },
+    {
+      "type": {
+        "displayName": "season"
+      },
+      "group": {
+        "displayName": "pitching"
+      },
+      "exemptions": [],
+      "splits": [
+        {
+          "season": "2025",
+          "stat": {
+            "age": 23,
+            "gamesPlayed": 23,
+            "gamesStarted": 22,
+            "groundOuts": 112,
+            "airOuts": 132,
+            "runs": 40,
+            "doubles": 17,
+            "triples": 1,
+            "homeRuns": 10,
+            "strikeOuts": 97,
+            "baseOnBalls": 33,
+            "intentionalWalks": 0,
+            "hits": 95,
+            "hitByPitch": 6,
+            "avg": ".219",
+            "atBats": 433,
+            "obp": ".282",
+            "slg": ".333",
+            "ops": ".615",
+            "caughtStealing": 7,
+            "stolenBases": 8,
+            "stolenBasePercentage": ".533",
+            "caughtStealingPercentage": ".467",
+            "groundIntoDoublePlay": 5,
+            "numberOfPitches": 1788,
+            "era": "2.67",
+            "inningsPitched": "118.0",
+            "wins": 11,
+            "losses": 4,
+            "saves": 0,
+            "saveOpportunities": 0,
+            "holds": 0,
+            "blownSaves": 0,
+            "earnedRuns": 35,
+            "whip": "1.08",
+            "battersFaced": 476,
+            "outs": 354,
+            "gamesPitched": 23,
+            "completeGames": 0,
+            "shutouts": 0,
+            "strikes": 1177,
+            "strikePercentage": ".660",
+            "hitBatsmen": 6,
+            "balks": 0,
+            "wildPitches": 1,
+            "pickoffs": 2,
+            "totalBases": 144,
+            "groundOutsToAirouts": "0.85",
+            "winPercentage": ".733",
+            "pitchesPerInning": "15.15",
+            "gamesFinished": 0,
+            "strikeoutWalkRatio": "2.94",
+            "strikeoutsPer9Inn": "7.40",
+            "walksPer9Inn": "2.52",
+            "hitsPer9Inn": "7.25",
+            "runsScoredPer9": "3.05",
+            "homeRunsPer9": "0.76",
+            "inheritedRunners": 0,
+            "inheritedRunnersScored": 0,
+            "catchersInterference": 1,
+            "sacBunts": 0,
+            "sacFlies": 3
+          },
+          "team": {
+            "id": 112,
+            "name": "Chicago Cubs",
+            "link": "/api/v1/teams/112"
+          },
+          "player": {
+            "id": 690990,
+            "fullName": "Cade Horton",
+            "link": "/api/v1/people/690990"
+          },
+          "league": {
+            "id": 104,
+            "name": "National League",
+            "link": "/api/v1/league/104"
+          },
+          "sport": {
+            "id": 1,
+            "link": "/api/v1/sports/1",
+            "abbreviation": "MLB"
+          },
+          "gameType": "R"
+        }
+      ]
+    }
+  ],
+  "mlbDebutDate": "2025-05-10",
+  "batSide": {
+    "code": "R",
+    "description": "Right"
+  },
+  "pitchHand": {
+    "code": "R",
+    "description": "Right"
+  },
+  "nameFirstLast": "Cade Horton",
+  "nameSlug": "cade-horton-690990",
+  "firstLastName": "Cade Horton",
+  "lastFirstName": "Horton, Cade",
+  "lastInitName": "Horton, C",
+  "initLastName": "C Horton",
+  "fullFMLName": "Cade Michael Horton",
+  "fullLFMName": "Horton, Cade Michael",
+  "strikeZoneTop": 3.253,
+  "strikeZoneBottom": 1.642
+}

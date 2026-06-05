@@ -1,4 +1,4 @@
-import { PLAYER_BY_ID } from '../data'
+import { getModeDataset, parseGameModeId } from '../data/modes'
 import { BRAND } from './brand'
 import {
   decodeShareLineup,
@@ -11,12 +11,14 @@ import {
   rosterFormatSlotCount,
 } from './roster-format'
 import type {
+  GameModeId,
   Lineup,
   LineupPosition,
   RosterFormatId,
 } from './types'
 
 export type ParsedShare = {
+  gameModeId: GameModeId
   rosterFormatId: RosterFormatId
   playerIds: string[]
   reroll: number
@@ -27,6 +29,7 @@ export type ShareValidationError =
   | 'wrong_count'
   | 'invalid_reroll'
   | 'invalid_format'
+  | 'invalid_mode'
   | 'unknown_player'
   | 'duplicate_person'
   | 'invalid_payload'
@@ -36,6 +39,7 @@ const SHARE_VALIDATION_MESSAGES: Record<ShareValidationError, string> = {
   wrong_count: 'This share link has an invalid lineup format.',
   invalid_reroll: 'This share link has an invalid reroll value.',
   invalid_format: 'This share link has an invalid roster format.',
+  invalid_mode: 'This share link has an invalid game mode.',
   unknown_player: 'This share link includes unknown players.',
   duplicate_person: 'This share link has duplicate players.',
   invalid_payload: 'This share link is invalid or outdated.',
@@ -50,6 +54,7 @@ const LEGACY_PLAYER_PARAM = 'p'
 const COMPACT_PARAM = 'd'
 const REROLL_PARAM = 'n'
 const FORMAT_PARAM = 'f'
+const MODE_PARAM = 'm'
 /** Bump when OG image format/layout changes to bust social CDN caches. */
 const OG_IMAGE_VERSION = '5'
 
@@ -89,35 +94,41 @@ function codecErrorToValidation(error: ShareCodecError): ShareValidationError {
 function validateParsedPlayers(
   ids: string[],
   rosterFormatId: RosterFormatId,
+  gameModeId: GameModeId,
   reroll: number,
 ): ParsedShare | ShareValidationError {
   if (ids.length !== rosterFormatSlotCount(rosterFormatId)) {
     return 'wrong_count'
   }
 
+  const playerById = getModeDataset(gameModeId).playerById
   const seenPersonIds = new Set<string>()
   for (const id of ids) {
-    const player = PLAYER_BY_ID.get(id)
+    const player = playerById.get(id)
     if (!player) return 'unknown_player'
     if (seenPersonIds.has(player.personId)) return 'duplicate_person'
     seenPersonIds.add(player.personId)
   }
 
-  return { rosterFormatId, playerIds: ids, reroll }
+  return { gameModeId, rosterFormatId, playerIds: ids, reroll }
 }
 
 function buildShareSearchParams(
   playerIds: string[],
   rosterFormatId: RosterFormatId,
+  gameModeId: GameModeId,
   reroll: number,
 ): URLSearchParams {
-  const encoded = encodeShareLineup(playerIds, rosterFormatId)
+  const encoded = encodeShareLineup(playerIds, rosterFormatId, gameModeId)
   if (typeof encoded !== 'string') {
     throw new Error(`Could not encode share lineup: ${encoded}`)
   }
 
   const params = new URLSearchParams()
   params.set(COMPACT_PARAM, encoded)
+  if (gameModeId !== 'all-time') {
+    params.set(MODE_PARAM, gameModeId)
+  }
   if (reroll > 0) {
     params.set(REROLL_PARAM, String(reroll))
   }
@@ -129,9 +140,10 @@ export function buildSharePath(
   lineup: Lineup,
   reroll = 0,
   formatId: RosterFormatId = 'classic',
+  gameModeId: GameModeId = 'all-time',
 ): string {
   const ids = lineupPlayerIds(lineup, formatId)
-  const params = buildShareSearchParams(ids, formatId, reroll)
+  const params = buildShareSearchParams(ids, formatId, gameModeId, reroll)
   return `/share?${params.toString()}`
 }
 
@@ -139,6 +151,7 @@ export function buildSharePathFromParsed(parsed: ParsedShare): string {
   const params = buildShareSearchParams(
     parsed.playerIds,
     parsed.rosterFormatId,
+    parsed.gameModeId,
     parsed.reroll,
   )
   return `/share?${params.toString()}`
@@ -149,8 +162,9 @@ export function buildShareUrl(
   lineup: Lineup,
   reroll = 0,
   formatId: RosterFormatId = 'classic',
+  gameModeId: GameModeId = 'all-time',
 ): string {
-  return `${BRAND.url}${buildSharePath(lineup, reroll, formatId)}`
+  return `${BRAND.url}${buildSharePath(lineup, reroll, formatId, gameModeId)}`
 }
 
 /** Build `/og?d=...&n=...` path + query for OG image endpoint. */
@@ -158,6 +172,7 @@ export function buildOgPath(parsed: ParsedShare): string {
   const params = buildShareSearchParams(
     parsed.playerIds,
     parsed.rosterFormatId,
+    parsed.gameModeId,
     parsed.reroll,
   )
   params.set('v', OG_IMAGE_VERSION)
@@ -174,15 +189,24 @@ export function parseShareParams(
   const reroll = parseReroll(searchParams.get(REROLL_PARAM))
   if (reroll === null) return 'invalid_reroll'
 
+  const modeRaw = searchParams.get(MODE_PARAM)
+  const explicitMode = modeRaw ? parseGameModeId(modeRaw) : null
+  if (modeRaw && !explicitMode) return 'invalid_mode'
+
   const compact = searchParams.get(COMPACT_PARAM)
   if (compact?.trim()) {
     const decoded = decodeShareLineup(compact)
     if (typeof decoded === 'string') {
       return codecErrorToValidation(decoded)
     }
+    const gameModeId = explicitMode ?? decoded.gameModeId
+    if (explicitMode && explicitMode !== decoded.gameModeId) {
+      return 'invalid_payload'
+    }
     return validateParsedPlayers(
       decoded.playerIds,
       decoded.rosterFormatId,
+      gameModeId,
       reroll,
     )
   }
@@ -197,15 +221,17 @@ export function parseShareParams(
     : 'classic'
   if (!rosterFormatId) return 'invalid_format'
 
-  return validateParsedPlayers(ids, rosterFormatId, reroll)
+  const gameModeId = explicitMode ?? 'all-time'
+  return validateParsedPlayers(ids, rosterFormatId, gameModeId, reroll)
 }
 
 export function reconstructLineup(parsed: ParsedShare): Lineup | null {
+  const playerById = getModeDataset(parsed.gameModeId).playerById
   const lineup = {} as Lineup
   const positions = getActiveLineupPositions(parsed.rosterFormatId)
   for (let i = 0; i < positions.length; i++) {
     const pos = positions[i] as LineupPosition
-    const player = PLAYER_BY_ID.get(parsed.playerIds[i]!)
+    const player = playerById.get(parsed.playerIds[i]!)
     if (!player) return null
     lineup[pos] = player
   }
@@ -223,12 +249,16 @@ export function buildLegacySharePath(
   lineup: Lineup,
   reroll = 0,
   formatId: RosterFormatId = 'classic',
+  gameModeId: GameModeId = 'all-time',
 ): string {
   const ids = lineupPlayerIds(lineup, formatId)
   const params = new URLSearchParams()
   params.set(LEGACY_PLAYER_PARAM, ids.join(','))
   if (formatId !== 'classic') {
     params.set(FORMAT_PARAM, formatId)
+  }
+  if (gameModeId !== 'all-time') {
+    params.set(MODE_PARAM, gameModeId)
   }
   if (reroll > 0) {
     params.set(REROLL_PARAM, String(reroll))

@@ -1,4 +1,3 @@
-import { resolveShareFromUrl } from '../_lib/resolve-share'
 import {
   buildLineupKey,
   buildSharePath,
@@ -7,6 +6,7 @@ import {
   fetchLeaderboardEntries,
   hasLineupInPeriod,
   insertLeaderboardEntry,
+  parseLeaderboardMode,
   parseLeaderboardPeriod,
   parseLimit,
   parseSubmitPayload,
@@ -56,11 +56,17 @@ async function handleGet(context: PagesContext): Promise<Response> {
     return jsonResponse({ error: 'Invalid period.' }, 400)
   }
 
+  const gameModeId = parseLeaderboardMode(url.searchParams.get('mode'))
+  if (!gameModeId) {
+    return jsonResponse({ error: 'Invalid mode.' }, 400)
+  }
+
   const limit = parseLimit(url.searchParams.get('limit'))
-  const entries = await fetchLeaderboardEntries(db, period, limit)
+  const entries = await fetchLeaderboardEntries(db, period, limit, gameModeId)
 
   return jsonResponse({
     period,
+    mode: gameModeId,
     entries,
   })
 }
@@ -90,6 +96,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
   }
 
   const parsed: ParsedShare = {
+    gameModeId: payload.gameModeId,
     playerIds: payload.playerIds,
     rosterFormatId: payload.rosterFormatId,
     reroll: payload.reroll,
@@ -117,9 +124,13 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const lineupKey = buildLineupKey(parsed.playerIds, parsed.rosterFormatId)
+  const lineupKey = buildLineupKey(
+    parsed.playerIds,
+    parsed.rosterFormatId,
+    parsed.gameModeId,
+  )
 
-  if (await hasLineupInPeriod(db, lineupKey, null)) {
+  if (await hasLineupInPeriod(db, lineupKey, parsed.gameModeId, null)) {
     return jsonResponse(
       {
         ok: false,
@@ -139,6 +150,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     teamScore: result.teamScore,
     isPerfectSeason: result.isPerfectSeason,
     rosterFormatId: parsed.rosterFormatId,
+    gameModeId: parsed.gameModeId,
     lineupKey,
     sharePath: buildSharePath(parsed),
     submitterIp,
@@ -147,17 +159,23 @@ async function handlePost(context: PagesContext): Promise<Response> {
 
   await insertLeaderboardEntry(db, entry)
 
-  const rank = await computeDailyRank(db, {
-    wins: entry.wins,
-    losses: entry.losses,
-    teamScore: entry.teamScore,
-    createdAt: entry.createdAt,
-  }, now)
+  const rank = await computeDailyRank(
+    db,
+    {
+      wins: entry.wins,
+      losses: entry.losses,
+      teamScore: entry.teamScore,
+      createdAt: entry.createdAt,
+    },
+    parsed.gameModeId,
+    now,
+  )
 
   return jsonResponse({
     ok: true,
     rank,
     period: 'daily' as const,
+    mode: parsed.gameModeId,
   })
 }
 

@@ -10,17 +10,19 @@ import {
   submitToLeaderboard,
   type SubmitLeaderboardResult,
 } from '@/lib/leaderboard'
-import type { Lineup, RosterFormatId } from '@/lib/types'
+import type { GameModeId, Lineup, RosterFormatId } from '@/lib/types'
 
 type LeaderboardSubmitProps = {
   lineup: Lineup
   rosterFormatId: RosterFormatId
+  gameModeId?: GameModeId
   rerollIndex: number
 }
 
 export default function LeaderboardSubmit({
   lineup,
   rosterFormatId,
+  gameModeId = 'all-time',
   rerollIndex,
 }: LeaderboardSubmitProps) {
   const [initials, setInitials] = useState('')
@@ -48,7 +50,7 @@ export default function LeaderboardSubmit({
     setResult(null)
 
     try {
-      const sharePath = buildSharePath(lineup, 0, rosterFormatId)
+      const sharePath = buildSharePath(lineup, 0, rosterFormatId, gameModeId)
       const response = await submitToLeaderboard({ initials, sharePath })
       if (response.ok) {
         setResult(response)
@@ -86,7 +88,7 @@ export default function LeaderboardSubmit({
           <span className="font-semibold text-primary">#{result.rank}</span> on
           today&apos;s board.{' '}
           <Link
-            to="/leaderboard"
+            to={gameModeId === 'active' ? '/active/leaderboard' : '/leaderboard'}
             className="underline underline-offset-2 hover:text-primary"
           >
             View leaderboard

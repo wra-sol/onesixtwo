@@ -14,7 +14,7 @@ import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { buildShareUrl } from '../lib/share-url'
 import { getRosterFormat } from '../lib/roster-format'
-import type { Lineup, SeasonResult } from '../lib/types'
+import type { GameModeId, Lineup, SeasonResult } from '../lib/types'
 import RatingBreakdown from './RatingBreakdown'
 import ResultStatTables from './ResultStatTables'
 import ScoreExplanationPanel from './ScoreExplanationPanel'
@@ -24,6 +24,7 @@ import LeaderboardSubmit from './LeaderboardSubmit'
 type ResultScreenProps = {
   result: SeasonResult
   lineup: Lineup
+  gameModeId?: GameModeId
   onRestart: () => void
   onSimulateAgain?: () => void
   isSimulating?: boolean
@@ -38,6 +39,7 @@ const canNativeShare =
 export default function ResultScreen({
   result,
   lineup,
+  gameModeId = 'all-time',
   onRestart,
   onSimulateAgain,
   isSimulating = false,
@@ -50,7 +52,7 @@ export default function ResultScreen({
 
   const shareUrl =
     shareUrlOverride ??
-    buildShareUrl(lineup, rerollIndex, result.rosterFormatId)
+    buildShareUrl(lineup, rerollIndex, result.rosterFormatId, gameModeId)
   const shareTitle = `${BRAND.name}: ${result.record}`
   const shareText = `${shareTitle}\n${result.tier.label}\n${shareUrl}`
   const formatLabel = getRosterFormat(result.rosterFormatId).label
@@ -169,6 +171,7 @@ export default function ResultScreen({
           <LeaderboardSubmit
             lineup={lineup}
             rosterFormatId={result.rosterFormatId}
+            gameModeId={gameModeId}
             rerollIndex={rerollIndex}
           />
         )}
