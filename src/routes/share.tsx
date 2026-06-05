@@ -32,10 +32,8 @@ export default function ShareRoute() {
 
   const result = useMemo(() => {
     if (!lineup || !isParsedShare(parsed)) return null
-    const rerollSeed =
-      parsed.reroll > 0 ? String(parsed.reroll) : undefined
     return calculateSeasonResult(lineup, {
-      rerollSeed,
+      rerollSeed: String(parsed.reroll),
       rosterFormatId: parsed.rosterFormatId,
     })
   }, [lineup, parsed])

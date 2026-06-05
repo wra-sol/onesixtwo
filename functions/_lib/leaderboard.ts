@@ -60,6 +60,7 @@ export function parseLeaderboardPeriod(
 }
 
 export const LEADERBOARD_MAX_ENTRIES = 30
+export const ROLLING_DAY_MS = 24 * 60 * 60 * 1000
 
 export function parseLimit(raw: string | null, fallback = LEADERBOARD_MAX_ENTRIES): number {
   if (!raw) return fallback
@@ -72,6 +73,11 @@ export function parseLimit(raw: string | null, fallback = LEADERBOARD_MAX_ENTRIE
 export function startOfUtcDayMs(now = Date.now()): number {
   const date = new Date(now)
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+}
+
+/** Start of the rolling 24-hour leaderboard window. */
+export function startOfRollingDayMs(now = Date.now()): number {
+  return now - ROLLING_DAY_MS
 }
 
 /** UTC Monday 00:00 for the current ISO week. */
@@ -95,7 +101,7 @@ export function periodStartMs(
 ): number | null {
   switch (period) {
     case 'daily':
-      return startOfUtcDayMs(now)
+      return startOfRollingDayMs(now)
     case 'weekly':
       return startOfUtcWeekMs(now)
     case 'all':
@@ -335,7 +341,7 @@ export async function computeDailyRank(
   >,
   now = Date.now(),
 ): Promise<number> {
-  const sinceMs = startOfUtcDayMs(now)
+  const sinceMs = startOfRollingDayMs(now)
   const result = await db
     .prepare(
       `SELECT COUNT(*) AS ahead

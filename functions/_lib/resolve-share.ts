@@ -41,10 +41,8 @@ export function resolveShareFromUrl(
     return { kind: 'lineup_unavailable' }
   }
 
-  const rerollSeed =
-    parsed.reroll > 0 ? String(parsed.reroll) : undefined
   const result = calculateSeasonResult(lineup, {
-    rerollSeed,
+    rerollSeed: String(parsed.reroll),
     rosterFormatId: parsed.rosterFormatId,
   })
   if (!result) {

@@ -71,7 +71,7 @@ export default function LeaderboardSubmit({
       <div className="space-y-1">
         <h3 className="text-sm font-medium text-primary">Leaderboard</h3>
         <p className="text-xs text-muted-foreground">
-          Add your initials to today&apos;s board. First simulation only.
+          Add your initials to the 24-hour board. First simulation only.
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default function LeaderboardSubmit({
         <p className="text-sm">
           Submitted —{' '}
           <span className="font-semibold text-primary">#{result.rank}</span> on
-          today&apos;s board.{' '}
+          the 24-hour board.{' '}
           <Link
             to="/leaderboard"
             className="underline underline-offset-2 hover:text-primary"

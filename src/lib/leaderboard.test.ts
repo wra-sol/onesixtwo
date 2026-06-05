@@ -8,6 +8,7 @@ import {
   parseSubmitPayload,
   periodStartMs,
   rankForEntry,
+  startOfRollingDayMs,
   startOfUtcDayMs,
   startOfUtcWeekMs,
 } from '../../functions/_lib/leaderboard'
@@ -39,6 +40,14 @@ describe('leaderboard server helpers', () => {
     expect(startOfUtcDayMs(now)).toBe(Date.UTC(2026, 5, 4))
     expect(startOfUtcWeekMs(now)).toBe(Date.UTC(2026, 5, 1))
     expect(periodStartMs('all', now)).toBeNull()
+  })
+
+  it('uses a rolling 24-hour daily window', () => {
+    const now = Date.UTC(2026, 5, 4, 15, 30, 0)
+    const yesterday = Date.UTC(2026, 5, 3, 15, 30, 0)
+
+    expect(startOfRollingDayMs(now)).toBe(yesterday)
+    expect(periodStartMs('daily', now)).toBe(yesterday)
   })
 
   it('rejects rerolled submissions', () => {

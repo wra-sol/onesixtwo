@@ -138,7 +138,7 @@ export async function submitToLeaderboard(input: {
 }
 
 export const LEADERBOARD_PERIOD_LABELS: Record<LeaderboardPeriod, string> = {
-  daily: 'Today',
+  daily: 'Last 24 hours',
   weekly: 'This week',
   all: 'All time',
 }

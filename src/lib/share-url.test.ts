@@ -179,6 +179,33 @@ describe('share-url', () => {
     expect(fromUrl?.wins).toBe(direct?.wins)
   })
 
+  it('first-simulation share URL preserves the zero reroll seed', () => {
+    const path = buildSharePath(lineup, 0)
+    const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
+    expect(isParsedShare(parsed)).toBe(true)
+    if (!isParsedShare(parsed)) return
+
+    const fromUrl = calculateSeasonResult(reconstructLineup(parsed)!, {
+      rerollSeed: String(parsed.reroll),
+      rosterFormatId: parsed.rosterFormatId,
+    })
+    const direct = calculateSeasonResult(lineup, { rerollSeed: '0' })
+    expect(fromUrl?.record).toBe(direct?.record)
+    expect(fromUrl?.wins).toBe(direct?.wins)
+  })
+
+  it('resolveShareFromUrl preserves the zero reroll seed', () => {
+    const path = buildSharePath(lineup, 0)
+    const url = new URL(`https://onesixtytwo.win${path}`)
+    const resolved = resolveShareFromUrl(url)
+    expect('kind' in resolved).toBe(false)
+    if ('kind' in resolved) return
+
+    const direct = calculateSeasonResult(lineup, { rerollSeed: '0' })
+    expect(resolved.result.record).toBe(direct?.record)
+    expect(resolved.result.wins).toBe(direct?.wins)
+  })
+
   it('parsed dh-rp URL produces same record as direct calculation', () => {
     const dhRpLineup = extendLineupToFormat(lineup, 'dh-rp')
     const path = buildSharePath(dhRpLineup, 2, 'dh-rp')
