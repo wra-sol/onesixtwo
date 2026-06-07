@@ -134,6 +134,26 @@ export const PITCHER_IP_PER_30GS_ANCHORS: RatingAnchor[] = [
   { value: 377, score: 100 },
 ]
 
+/** Relief usage rate prorated to a 70-appearance season (reliefGames / g × 70). */
+export const PITCHER_RP_AVAILABILITY_PER_70_ANCHORS: RatingAnchor[] = [
+  { value: 25, score: 50 },
+  { value: 35, score: 60 },
+  { value: 45, score: 70 },
+  { value: 55, score: 80 },
+  { value: 62, score: 90 },
+  { value: 70, score: 100 },
+]
+
+/** Relief IP prorated to 70 appearances (ip / reliefGames × 70). */
+export const PITCHER_RP_IP_PER_70_ANCHORS: RatingAnchor[] = [
+  { value: 22, score: 50 },
+  { value: 30, score: 60 },
+  { value: 38, score: 70 },
+  { value: 48, score: 80 },
+  { value: 58, score: 90 },
+  { value: 75, score: 100 },
+]
+
 /** Saves prorated to a 70-relief-appearance season. */
 export const PITCHER_SAVES_PER_70_RP_ANCHORS: RatingAnchor[] = [
   { value: 8, score: 50 },

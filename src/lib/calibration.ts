@@ -84,6 +84,13 @@ export const STANDARD_RP_IP = 38
 export const PITCHING_STARTER_WEIGHT = 0.72
 export const PITCHING_RELIEF_WEIGHT = 0.28
 
+/** Workload cap for a reliever miscast in the SP slot. */
+export const NON_STARTER_SP_WORKLOAD_CAP = 32
+
+/** Relief-only pitching staffs cannot carry a full rotation workload. */
+export const RELIEF_ONLY_STAFF_WORKLOAD_MULTIPLIER = 0.35
+export const RELIEF_ONLY_STAFF_WORKLOAD_CAP = 28
+
 /** Segment boundaries for future granular notes (games 1-54, 55-108, 109-162). */
 export const SEASON_SEGMENTS = {
   early: { start: 0, end: 54 },

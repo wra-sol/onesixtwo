@@ -34,6 +34,7 @@ import {
   per162,
   scoreFromAnchors,
 } from '../../src/lib/rating-anchors.ts'
+import { reliefWorkloadFromStats } from '../../src/lib/pitching-workload.ts'
 import { STANDARD_RP_APPEARANCES } from '../../src/lib/calibration.ts'
 
 function lahmanName(first: string, last: string): string {
@@ -264,7 +265,14 @@ function ratingsFromAggPitching(agg: Aggregated): PlayerRatings {
     lowerIsBetter: true,
   })
   const kScore = scoreFromAnchors(k9, PITCHER_K9_ANCHORS)
-  const workload = scoreFromAnchors(ipPer30Gs, PITCHER_IP_PER_30GS_ANCHORS)
+  const workload = isRelief
+    ? reliefWorkloadFromStats({
+        gs: agg.gs,
+        g: agg.g,
+        reliefGames,
+        ip,
+      })
+    : scoreFromAnchors(ipPer30Gs, PITCHER_IP_PER_30GS_ANCHORS)
   const wScore = scoreFromAnchors(agg.w, [
     { value: 0, score: 50 },
     { value: 200, score: 92 },

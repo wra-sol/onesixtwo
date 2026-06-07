@@ -5,6 +5,7 @@ import {
 } from './player-stats'
 import { calculateRunPrevention } from './run-prevention'
 import { getPlayerTopCategory } from './player-categories'
+import { teamWorkloadScore } from './pitching-workload'
 import {
   getActiveLineupPositions,
   lineupEntries,
@@ -88,7 +89,7 @@ export function buildTeamGrades(
     },
     { label: 'Control', value: avg(pitRatings.map((r) => r.whip)) },
     { label: 'Dominance', value: avg(pitRatings.map((r) => r.strikeouts)) },
-    { label: 'Workload', value: avg(pitRatings.map((r) => r.workload)) },
+    { label: 'Workload', value: teamWorkloadScore(lineup, formatId) },
     { label: 'Balance', value: Math.max(0, 100 - Math.sqrt(variance) * 2) },
     { label: 'Star Power', value: Math.max(...overalls, 0) },
   ]

@@ -5,6 +5,7 @@ import {
   pitcherComponentScore,
   reliefComponentScore,
 } from './pitching-contributors'
+import { isReliefOnlyPitchingStaff, teamWorkloadScore } from './pitching-workload'
 import {
   getActiveLineupPositions,
   lineupEntries,
@@ -68,7 +69,13 @@ function roleFitScore(
   const notes: string[] = []
   let penalty = 0
   const sp = lineup.SP
-  if (sp && !isStarterEligible(sp) && sp.role !== 'two-way') {
+  const spIsReliefOnly =
+    sp &&
+    sp.role !== 'two-way' &&
+    sp.positions.includes('RP') &&
+    !sp.positions.includes('SP') &&
+    !isStarterEligible(sp)
+  if (spIsReliefOnly) {
     penalty += 8
     notes.push('SP slot filled by a non-starter profile (role-fit penalty).')
   }
@@ -158,6 +165,9 @@ export function buildScoreExplanation(
   if (twBonus > 0) {
     notes.push(`Two-way production bonus: +${twBonus}.`)
   }
+  if (isReliefOnlyPitchingStaff(lineup, formatId)) {
+    notes.push('Relief-only pitching staff (major workload penalty).')
+  }
 
   return {
     offenseScore,
@@ -202,7 +212,7 @@ function buildTeamGradesForExplanation(
       label: 'Dominance',
       value: Math.round(avg(pitRatings.map((r) => r.strikeouts))),
     },
-    { label: 'Workload', value: Math.round(avg(pitRatings.map((r) => r.workload))) },
+    { label: 'Workload', value: teamWorkloadScore(lineup, formatId) },
     { label: 'Balance', value: Math.max(0, Math.round(100 - Math.sqrt(variance) * 2)) },
     { label: 'Star Power', value: Math.round(Math.max(...overalls, 0)) },
   ]

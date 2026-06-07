@@ -15,6 +15,7 @@ import { projectWins } from './game'
 import { lineupPlayers, lineupToSeed as buildLineupSeed, getActiveLineupPositions } from './roster-format'
 import { getBattingRatings } from './player-ratings'
 import { blendedPitchingRating } from './pitching-contributors'
+import { teamWorkloadScore } from './pitching-workload'
 import { playerHasBattingProfile } from './player-eligibility'
 import type {
   Lineup,
@@ -113,7 +114,7 @@ export function buildTeamProfile(
   const runPrevention = calculateRunPrevention(lineup, formatId).value
   const control = blendedPitchingRating(lineup, formatId, (r) => r.whip)
   const dominance = blendedPitchingRating(lineup, formatId, (r) => r.strikeouts)
-  const workload = blendedPitchingRating(lineup, formatId, (r) => r.workload)
+  const workload = teamWorkloadScore(lineup, formatId)
   const hasRpSlot = getActiveLineupPositions(formatId).includes('RP')
   const closerValue = hasRpSlot
     ? blendedPitchingRating(lineup, formatId, (r) => r.saves)

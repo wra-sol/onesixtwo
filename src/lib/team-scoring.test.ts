@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyLineup } from './roster-format'
 import { buildScoreExplanation } from './team-scoring'
+import { teamWorkloadScore } from './pitching-workload'
 import type { LineupPosition, PitcherStats, Player } from './types'
 
 function closer(): Player {
@@ -108,6 +109,25 @@ function starterPitcher(): Player {
   }
 }
 
+function lowStartPitcherWithStarterPosition(): Player {
+  return {
+    ...closer(),
+    id: 'low-start-sp',
+    personId: 'low-start-sp',
+    name: 'Low Start SP',
+    positions: ['SP'],
+    stats: {
+      era: '3.20',
+      whip: '1.12',
+      so: 120,
+      wins: 10,
+      gs: 8,
+      g: 45,
+      reliefGames: 37,
+    } satisfies PitcherStats,
+  }
+}
+
 describe('buildScoreExplanation offense', () => {
   it('does not count pitcher SP toward offense score', () => {
     const lineup = createEmptyLineup()
@@ -141,5 +161,27 @@ describe('buildScoreExplanation role fit', () => {
       'SP slot filled by a non-starter profile (role-fit penalty).',
     )
     expect(explanation.roleFitScore).toBeLessThan(100)
+  })
+
+  it('does not role-fit penalize an SP-positioned pitcher with low starter stats', () => {
+    const lineup = createEmptyLineup()
+    lineup.SP = lowStartPitcherWithStarterPosition()
+
+    const explanation = buildScoreExplanation(lineup, 'classic')
+    expect(explanation.notes).not.toContain(
+      'SP slot filled by a non-starter profile (role-fit penalty).',
+    )
+    expect(explanation.roleFitScore).toBe(100)
+  })
+
+  it('notes a relief-only pitching staff and flags low workload', () => {
+    const lineup = createEmptyLineup()
+    lineup.SP = closer()
+
+    const explanation = buildScoreExplanation(lineup, 'classic')
+    expect(explanation.notes).toContain(
+      'Relief-only pitching staff (major workload penalty).',
+    )
+    expect(teamWorkloadScore(lineup, 'classic')).toBeLessThan(35)
   })
 })

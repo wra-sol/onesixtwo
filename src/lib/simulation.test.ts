@@ -99,4 +99,41 @@ describe('buildTeamProfile SP/RP weighting', () => {
     const profile = buildTeamProfile(lineup, 80, 'classic')
     expect(profile.dominance).toBe(75)
   })
+
+  it('crushes workload for a relief-only pitching staff', () => {
+    const lineup = createEmptyLineup()
+    lineup.SP = pitcher(
+      'closer-sp',
+      {
+        era: '2.20',
+        whip: '0.95',
+        so: 80,
+        wins: 4,
+        gs: 0,
+        g: 60,
+        reliefGames: 60,
+        ip: 70,
+      },
+      { era: 95, whip: 95, strikeouts: 95, workload: 90 },
+    )
+    lineup.SP!.positions = ['RP']
+    lineup.RP = pitcher(
+      'closer-rp',
+      {
+        era: '2.20',
+        whip: '0.95',
+        so: 80,
+        wins: 4,
+        gs: 0,
+        g: 60,
+        reliefGames: 60,
+        ip: 70,
+      },
+      { era: 95, whip: 95, strikeouts: 95, workload: 90 },
+    )
+    lineup.RP!.positions = ['RP']
+
+    const profile = buildTeamProfile(lineup, 80, 'rp')
+    expect(profile.workload).toBeLessThan(35)
+  })
 })
