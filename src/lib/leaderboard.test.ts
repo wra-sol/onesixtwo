@@ -82,7 +82,7 @@ describe('leaderboard server helpers', () => {
     expect(payload.reroll).toBe(0)
   })
 
-  it('builds stable lineup keys', () => {
+  it('builds one key per team regardless of share order', () => {
     const lineup = buildBenchmarkLineup('great')
     const sharePath = buildSharePath(lineup, 0, 'classic')
     const parsed = parseShareParams(
@@ -91,8 +91,9 @@ describe('leaderboard server helpers', () => {
     expect(typeof parsed).toBe('object')
     if (typeof parsed === 'string') throw new Error(parsed)
 
+    const reversed = [...parsed.playerIds].reverse()
     expect(buildLineupKey(parsed.playerIds, 'classic')).toBe(
-      `classic:${parsed.playerIds.join(',')}`,
+      buildLineupKey(reversed, 'classic'),
     )
   })
 

@@ -160,7 +160,7 @@ describe('buildScoreExplanation role fit', () => {
     expect(explanation.notes).toContain(
       'SP slot filled by a non-starter profile (role-fit penalty).',
     )
-    expect(explanation.roleFitScore).toBeLessThan(100)
+    expect(explanation.roleFitScore).toBe(84)
   })
 
   it('does not role-fit penalize an SP-positioned pitcher with low starter stats', () => {

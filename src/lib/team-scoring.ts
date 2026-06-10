@@ -76,7 +76,7 @@ function roleFitScore(
     !sp.positions.includes('SP') &&
     !isStarterEligible(sp)
   if (spIsReliefOnly) {
-    penalty += 8
+    penalty += 16
     notes.push('SP slot filled by a non-starter profile (role-fit penalty).')
   }
   const rp = lineup.RP

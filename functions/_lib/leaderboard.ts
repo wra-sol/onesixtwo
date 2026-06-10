@@ -113,7 +113,7 @@ export function buildLineupKey(
   playerIds: readonly string[],
   rosterFormatId: RosterFormatId,
 ): string {
-  return `${rosterFormatId}:${playerIds.join(',')}`
+  return `${rosterFormatId}:${[...playerIds].sort().join(',')}`
 }
 
 export { buildSharePathFromParsed as buildSharePath }
