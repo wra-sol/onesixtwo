@@ -42,7 +42,7 @@ export function resolveShareFromUrl(
   }
 
   const result = calculateSeasonResult(lineup, {
-    rerollSeed: String(parsed.reroll),
+    rerollSeed: parsed.reroll > 0 ? String(parsed.reroll) : undefined,
     rosterFormatId: parsed.rosterFormatId,
   })
   if (!result) {
