@@ -33,7 +33,29 @@ Add repository secrets:
 | `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token with **Cloudflare Pages — Edit** |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → any zone → Overview → Account ID (right column) |
 
-Push to `main`; workflow `.github/workflows/deploy.yml` builds and deploys automatically.
+Push to `main`; workflow `.github/workflows/deploy.yml` builds and deploys production automatically.
+
+### Branch previews
+
+Pushes to any branch **except `main`** run `.github/workflows/deploy-preview.yml`, which deploys a Cloudflare Pages preview at a branch-specific URL (via `wrangler pages deploy --branch <name>`).
+
+**Required once in Cloudflare dashboard** (Pages → **onesixtwo** → Settings → Functions):
+
+1. **D1 bindings** — attach database **onesixtwo-leaderboard** with binding name **DB** for **both Production and Preview** environments. Without Preview binding, `/api/live-leaderboard` returns 500; live snapshot APIs still work but skip D1 cache.
+2. **Environment variables** — do **not** set `USE_LIVE_FIXTURES=true` on Production or Preview. Leave it unset (or `false`) so branch previews serve real MLB player names.
+
+After changing `USE_LIVE_FIXTURES` or deploying snapshot logic updates, stale D1 cache entries are invalidated automatically via the snapshot cache version in `functions/_lib/live-api.ts`. To force a full refresh manually:
+
+```bash
+npx wrangler d1 execute onesixtwo-leaderboard --remote --command "DELETE FROM live_snapshots;"
+```
+
+Preview smoke test:
+
+```bash
+curl -s "https://<branch>.onesixtwo.pages.dev/api/daily-matchup" | head -c 200
+# Expect kind daily-matchup, opponent.teamName, real player names (not "LAD Hitter 1")
+```
 
 ### Option B — Local Wrangler
 
@@ -71,8 +93,10 @@ npm run dev:pages
 Apply local D1 migrations before first leaderboard test:
 
 ```bash
-npx wrangler d1 migrations apply onesixtwo-leaderboard --local
+npm run db:migrate:local
 ```
+
+`npm run dev:pages` uses the **DB** binding from `wrangler.toml` (same as production). Copy `.dev.vars.example` to `.dev.vars` for local secrets.
 
 ## Post-deploy verification
 

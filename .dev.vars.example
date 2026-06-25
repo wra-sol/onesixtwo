@@ -2,4 +2,8 @@
 #
 # USE_LIVE_FIXTURES=false — real MLB player names (recommended for manual QA)
 # USE_LIVE_FIXTURES=true  — placeholder names for offline / rate-limit-safe testing
+#
+# Cloudflare Pages (production + branch previews): do NOT set USE_LIVE_FIXTURES,
+# or set it to false. Bind the DB D1 database in Pages → Settings → Functions
+# for both Production and Preview environments.
 USE_LIVE_FIXTURES=false

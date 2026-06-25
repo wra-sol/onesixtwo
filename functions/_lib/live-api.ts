@@ -32,6 +32,9 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
+/** Bump when snapshot shape or live-vs-fixture semantics change (invalidates D1 cache). */
+const SNAPSHOT_CACHE_VERSION = 'v2'
+
 type SnapshotRequestConfig<T> = {
   keyPrefix: 'daily-matchup' | 'live-draft'
   build: (challengeDate: string, targetDate?: string) => Promise<T>
@@ -46,7 +49,7 @@ async function handleSnapshotRequest<T>(
   const challengeDateParam =
     new URL(context.request.url).searchParams.get('date') ?? challengeDate()
   const targetDateParam = targetDate()
-  const key = `${config.keyPrefix}:${challengeDateParam}`
+  const key = `${config.keyPrefix}:${SNAPSHOT_CACHE_VERSION}:${challengeDateParam}`
 
   const db = context.env.DB
   if (db) {

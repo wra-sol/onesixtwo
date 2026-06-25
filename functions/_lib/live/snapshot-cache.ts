@@ -23,7 +23,9 @@ export async function storeSnapshot(
       .prepare(
         `INSERT INTO live_snapshots (snapshot_key, payload, created_at)
          VALUES (?, ?, ?)
-         ON CONFLICT(snapshot_key) DO NOTHING`,
+         ON CONFLICT(snapshot_key) DO UPDATE SET
+           payload = excluded.payload,
+           created_at = excluded.created_at`,
       )
       .bind(key, payload, Date.now())
       .run()
