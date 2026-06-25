@@ -76,13 +76,24 @@ export function hashSeed(input: string): number {
   return hash >>> 0
 }
 
+/** Treat undefined, empty, and "0" as the first (base) simulation seed. */
+export function normalizeSimulationRerollSeed(
+  rerollSeed?: SimulationSeed,
+): SimulationSeed | undefined {
+  if (rerollSeed == null || rerollSeed === '' || rerollSeed === '0') {
+    return undefined
+  }
+  return rerollSeed
+}
+
 export function resolveSimulationSeed(
   lineup: Lineup,
   formatId: RosterFormatId,
   rerollSeed?: SimulationSeed,
 ): SimulationSeed {
-  if (rerollSeed) {
-    return `${lineupToSeed(lineup, formatId)}::reroll:${rerollSeed}`
+  const normalized = normalizeSimulationRerollSeed(rerollSeed)
+  if (normalized) {
+    return `${lineupToSeed(lineup, formatId)}::reroll:${normalized}`
   }
   return lineupToSeed(lineup, formatId)
 }
@@ -360,11 +371,12 @@ export function simulateSeason(
   options?: { rerollSeed?: SimulationSeed; rosterFormatId?: RosterFormatId },
 ): SeasonSimulation {
   const formatId = options?.rosterFormatId ?? 'classic'
-  const seed = resolveSimulationSeed(lineup, formatId, options?.rerollSeed)
+  const normalizedRerollSeed = normalizeSimulationRerollSeed(options?.rerollSeed)
+  const seed = resolveSimulationSeed(lineup, formatId, normalizedRerollSeed)
   const random = createSeededRandom(hashSeed(seed))
   const profile = buildTeamProfile(lineup, teamScore, formatId)
   const expectedWins = projectWins(teamScore).wins
-  const isReroll = Boolean(options?.rerollSeed)
+  const isReroll = Boolean(normalizedRerollSeed)
 
   const games: SimulatedGame[] = []
 
