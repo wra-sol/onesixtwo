@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,16 +23,12 @@ export default function LeaderboardSubmit({
   rosterFormatId,
   rerollIndex,
 }: LeaderboardSubmitProps) {
-  const [initials, setInitials] = useState('')
+  const [initials, setInitials] = useState(() => readStoredInitials())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [result, setResult] = useState<SubmitLeaderboardResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const canSubmit = rerollIndex === 0
-
-  useEffect(() => {
-    setInitials(readStoredInitials())
-  }, [])
 
   const handleInitialsChange = (value: string) => {
     setInitials(value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))

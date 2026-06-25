@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/triple-slash-reference -- Cloudflare D1 ambient types */
 /// <reference path="./d1.d.ts" />
 import {
   buildSharePathFromParsed,
