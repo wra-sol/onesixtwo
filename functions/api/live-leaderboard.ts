@@ -16,13 +16,14 @@ import {
   parseLiveSubmitPayload,
   resolveSnapshot,
 } from '../_lib/live/leaderboard-orchestration'
-import {
-  createEmptyDailyLineup,
-  DAILY_LINEUP_POSITIONS,
-  type DailyLineup,
-} from '../../shared/live/daily-roster'
+import { createEmptyDailyLineup, type DailyLineupPosition } from '../../shared/live/daily-roster'
 import { buildSimTeam, simulateBestOfThree } from '../../shared/live/pa-sim'
 import { heuristicAiBattingOrder } from '../../shared/live/live-draft'
+import {
+  resolveLeaderboardSimSeed,
+  validateDailyMatchupSubmission,
+  validateLiveDraftSubmission,
+} from '../../shared/live/live-submit-validation'
 import type { LivePlayer } from '../../shared/live/live-types'
 
 type Env = {
@@ -51,19 +52,6 @@ function clientIp(request: Request): string {
     request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ??
     'unknown'
   )
-}
-
-function lineupFromPayload(
-  playersById: Map<string, LivePlayer>,
-  playerIds: string[],
-): DailyLineup {
-  const lineup = createEmptyDailyLineup()
-  playerIds.forEach((id, index) => {
-    const player = playersById.get(id)
-    const pos = DAILY_LINEUP_POSITIONS[index]
-    if (player && pos) lineup[pos] = player
-  })
-  return lineup
 }
 
 async function handleGet(context: PagesContext): Promise<Response> {
@@ -144,11 +132,32 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
-  const userLineup = lineupFromPayload(playersById, payload.playerIds)
-  const battingOrder = payload.battingOrderIds
-    .map((id) => playersById.get(id))
-    .filter((p): p is LivePlayer => Boolean(p))
+  const simSeed = resolveLeaderboardSimSeed(snapshot)
+
+  const validated = (() => {
+    switch (payload.mode) {
+      case 'daily-matchup': {
+        if (!assertDailyMatchupSnapshot(snapshot)) {
+          return { ok: false as const, error: 'Daily Matchup is unavailable today.' }
+        }
+        return validateDailyMatchupSubmission(snapshot, payload)
+      }
+      case 'live-draft': {
+        if (!assertLiveDraftSnapshot(snapshot)) {
+          return { ok: false as const, error: 'Invalid submission payload.' }
+        }
+        return validateLiveDraftSubmission(snapshot, payload)
+      }
+      default: {
+        const _exhaustive: never = payload.mode
+        return _exhaustive
+      }
+    }
+  })()
+
+  if (!validated.ok) {
+    return jsonResponse({ ok: false, error: validated.error }, 400)
+  }
 
   const opponent = (() => {
     switch (payload.mode) {
@@ -167,17 +176,13 @@ async function handlePost(context: PagesContext): Promise<Response> {
         }
       }
       case 'live-draft': {
-        if (!assertLiveDraftSnapshot(snapshot) || !payload.aiPlayerIds) {
-          return null
-        }
-        const lineup = lineupFromPayload(playersById, payload.aiPlayerIds)
         return {
           name: 'AI',
-          lineup,
+          lineup: validated.aiLineup,
           battingOrder: heuristicAiBattingOrder(
-            payload.aiPlayerIds
-              .map((id) => playersById.get(id))
-              .filter((p): p is LivePlayer => Boolean(p)),
+            Object.values(validated.aiLineup).filter(
+              (player): player is LivePlayer => Boolean(player),
+            ),
           ),
         }
       }
@@ -189,23 +194,20 @@ async function handlePost(context: PagesContext): Promise<Response> {
   })()
 
   if (!opponent) {
-    if (payload.mode === 'daily-matchup') {
-      return jsonResponse(
-        { ok: false, error: 'Daily Matchup is unavailable today.' },
-        400,
-      )
-    }
-    return jsonResponse({ ok: false, error: 'Invalid submission payload.' }, 400)
+    return jsonResponse(
+      { ok: false, error: 'Daily Matchup is unavailable today.' },
+      400,
+    )
   }
 
-  const userTeam = buildSimTeam('You', userLineup, battingOrder, true)
+  const userTeam = buildSimTeam('You', validated.userLineup, validated.battingOrder, true)
   const opponentTeam = buildSimTeam(
     opponent.name,
     opponent.lineup,
     opponent.battingOrder,
     false,
   )
-  const series = simulateBestOfThree(userTeam, opponentTeam, payload.simSeed)
+  const series = simulateBestOfThree(userTeam, opponentTeam, simSeed)
 
   const submitterIp = clientIp(context.request)
   const alreadySubmitted = await hasLiveSubmissionForIp(
@@ -215,12 +217,14 @@ async function handlePost(context: PagesContext): Promise<Response> {
     payload.challengeDate,
   )
   if (alreadySubmitted) {
-    return jsonResponse({
-      ok: false,
-      error: 'Your first submission for today is already ranked.',
-      series,
-      ranked: false,
-    }, 409)
+    return jsonResponse(
+      {
+        ok: false,
+        error: 'Your first submission for today is already ranked.',
+        ranked: false,
+      },
+      409,
+    )
   }
 
   const lineupKey = buildLiveLineupKey(
@@ -242,7 +246,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     runDiff: series.userRunDiff,
     wonSeries: series.wonSeries,
     lineupKey,
-    payloadJson: JSON.stringify({ ...payload, initials }),
+    payloadJson: JSON.stringify({ ...payload, initials, simSeed }),
     submitterIp,
     createdAt,
   }

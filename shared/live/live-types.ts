@@ -143,11 +143,19 @@ export type SimulatedSeries = {
   seed: string
 }
 
+export type LiveDraftRoundTeam = {
+  teamId: number
+  teamAbbrev: string
+  teamName: string
+}
+
 export type LiveDraftPick = {
   pickNumber: number
   side: 'user' | 'ai'
   playerId: string
   position: DailyLineupPosition
+  round: number
+  roundTeamId: number
 }
 
 export type LiveDraftState = {
@@ -160,11 +168,18 @@ export type LiveDraftState = {
   userBattingOrder: LivePlayer[]
   aiBattingOrder: LivePlayer[]
   draftedPlayerIds: string[]
-  userTeamIds: number[]
-  aiTeamIds: number[]
   picks: LiveDraftPick[]
-  status: 'drafting' | 'lineup' | 'complete'
+  status: 'drafting' | 'lineup' | 'complete' | 'stuck'
   userPicksFirst: boolean
+  roundStatus: 'spinning' | 'picking'
+  round: number
+  currentTeam: LiveDraftRoundTeam | null
+  roundPickIds: string[]
+  userRerollUsed: boolean
+  aiRerollUsed: boolean
+  usedRoundTeamIds: number[]
+  roundTeams: LiveDraftRoundTeam[]
+  pendingRerollSide: 'user' | 'ai' | null
 }
 
 export type DailyMatchupDraftState = {

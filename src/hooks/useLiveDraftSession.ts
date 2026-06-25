@@ -34,6 +34,14 @@ export type LiveModeConfig = {
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
   ) => boolean
+  getRoundPool?: (
+    state: LiveDraftSessionState,
+    snapshot: LiveSnapshot,
+  ) => LivePlayer[]
+  onUserReroll?: (
+    state: LiveDraftSessionState,
+    snapshot: LiveSnapshot,
+  ) => LiveDraftSessionState
   buildSeries: (
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
@@ -87,12 +95,13 @@ export function useLiveDraftSession(config: LiveModeConfig) {
   }, [snapshot])
 
   const filteredPlayers = useMemo(() => {
-    if (!snapshot) return []
+    if (!snapshot || !draftState) return []
     const q = normalizeForSearch(search.trim())
-    return snapshot.players
+    const pool = config.getRoundPool?.(draftState, snapshot) ?? snapshot.players
+    return pool
       .filter((p) => !q || normalizeForSearch(p.name).includes(q))
       .sort((a, b) => b.grades.overall - a.grades.overall)
-  }, [snapshot, search])
+  }, [config, draftState, snapshot, search])
 
   const selectedPlayer = selectedPlayerId
     ? playersById.get(selectedPlayerId) ?? null
@@ -157,6 +166,13 @@ export function useLiveDraftSession(config: LiveModeConfig) {
   const aiLineup =
     draftState?.mode === 'live-draft' ? draftState.aiLineup : undefined
 
+  const handleUserReroll = useCallback(() => {
+    if (!draftState || !snapshot || !config.onUserReroll) return
+    setDraftState(config.onUserReroll(draftState, snapshot))
+    setSelectedPlayerId(null)
+  }, [config, draftState, snapshot])
+
+  const isStuck = draftState?.mode === 'live-draft' && draftState.status === 'stuck'
   const isLineupPhase = draftState?.status === 'lineup'
   const isAssigning = selectedPlayer !== null
 
@@ -190,6 +206,8 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     handleAssign,
     handleSimulate,
     handleBattingOrderChange,
+    handleUserReroll,
+    isStuck,
     retry: loadSnapshot,
     opponentName: snapshot ? config.opponentName(snapshot) : 'Opponent',
     getDisabledReason: (player: LivePlayer) =>

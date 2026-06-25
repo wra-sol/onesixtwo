@@ -3,6 +3,7 @@ import {
   createEmptyDailyLineup,
   dailyLineupIsComplete,
   dailyLineupOpenPositions,
+  dailyLineupPlayers,
   defaultBattingOrderFromLineup,
   playerEligibleForDailyPosition,
   type DailyLineup,
@@ -11,13 +12,16 @@ import {
 import type {
   DailyMatchupDraftState,
   LiveDraftPick,
+  LiveDraftRoundTeam,
   LiveDraftState,
   LiveDraftSnapshot,
   LivePlayer,
   OpponentRoster,
 } from './live-types'
 
-const TOTAL_PICKS = 24
+export const LIVE_DRAFT_TOTAL_ROUNDS = 12
+const TOTAL_PICKS = LIVE_DRAFT_TOTAL_ROUNDS * 2
+const AI_REROLL_SCORE_THRESHOLD = 62
 
 export function snakeDraftSide(
   pickNumber: number,
@@ -32,7 +36,7 @@ export function snakeDraftSide(
   return userFirstThisRound ? 'ai' : 'user'
 }
 
-export function createLiveDraftState(snapshot: LiveDraftSnapshot): LiveDraftState {
+export function startLiveDraft(snapshot: LiveDraftSnapshot): LiveDraftState {
   return {
     mode: 'live-draft',
     challengeDate: snapshot.challengeDate,
@@ -43,12 +47,24 @@ export function createLiveDraftState(snapshot: LiveDraftSnapshot): LiveDraftStat
     userBattingOrder: [],
     aiBattingOrder: [],
     draftedPlayerIds: [],
-    userTeamIds: [],
-    aiTeamIds: [],
     picks: [],
     status: 'drafting',
     userPicksFirst: snapshot.coinFlipUserFirst,
+    roundStatus: 'spinning',
+    round: 1,
+    currentTeam: null,
+    roundPickIds: [],
+    userRerollUsed: false,
+    aiRerollUsed: false,
+    usedRoundTeamIds: [],
+    roundTeams: [],
+    pendingRerollSide: null,
   }
+}
+
+/** @deprecated Use startLiveDraft — kept for tests. */
+export function createLiveDraftState(snapshot: LiveDraftSnapshot): LiveDraftState {
+  return startLiveDraft(snapshot)
 }
 
 export function createDailyMatchupDraftState(
@@ -97,6 +113,124 @@ function bestOpenPosition(
   return eligible[0] ?? null
 }
 
+function sideLineup(state: LiveDraftState, side: 'user' | 'ai'): DailyLineup {
+  return side === 'user' ? state.userLineup : state.aiLineup
+}
+
+function roundStartPick(round: number): number {
+  return (round - 1) * 2 + 1
+}
+
+function spinSeed(state: LiveDraftState, simSeed: string): string {
+  return `${simSeed}|round${state.round}|used${state.usedRoundTeamIds.join('.')}|reroll${state.pendingRerollSide ?? 'none'}|picks${state.roundPickIds.length}`
+}
+
+function teamHasEnoughPickable(
+  players: LivePlayer[],
+  state: LiveDraftState,
+  teamId: number,
+  picksNeeded: number,
+): boolean {
+  const pool = players.filter(
+    (player) => player.teamId === teamId && !state.draftedPlayerIds.includes(player.id),
+  )
+  if (pool.length < picksNeeded) return false
+
+  if (picksNeeded === 1) {
+    const side = snakeDraftSide(state.currentPick, state.userPicksFirst)
+    const lineup = sideLineup(state, side)
+    return pool.some((player) => bestOpenPosition(player, lineup) !== null)
+  }
+
+  const userOk = pool.some(
+    (player) => bestOpenPosition(player, state.userLineup) !== null,
+  )
+  const aiOk = pool.some((player) => bestOpenPosition(player, state.aiLineup) !== null)
+  return userOk && aiOk && pool.length >= 2
+}
+
+export function getSpinEligibleTeams(
+  players: LivePlayer[],
+  state: LiveDraftState,
+  excludeTeamIds: number[] = [],
+): LiveDraftRoundTeam[] {
+  const excluded = new Set([...state.usedRoundTeamIds, ...excludeTeamIds])
+  const teams = new Map<number, LiveDraftRoundTeam>()
+
+  for (const player of players) {
+    if (!teams.has(player.teamId)) {
+      teams.set(player.teamId, {
+        teamId: player.teamId,
+        teamAbbrev: player.teamAbbrev,
+        teamName: player.teamName,
+      })
+    }
+  }
+
+  const picksNeeded = 2 - state.roundPickIds.length
+
+  return [...teams.values()].filter((team) => {
+    if (excluded.has(team.teamId)) return false
+    return teamHasEnoughPickable(players, state, team.teamId, picksNeeded)
+  })
+}
+
+function spinRoundTeam(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+  excludeTeamIds: number[] = [],
+): LiveDraftRoundTeam | null {
+  const eligible = getSpinEligibleTeams(players, state, excludeTeamIds)
+  if (eligible.length === 0) return null
+
+  const random = createSeededRandomFromString(spinSeed(state, simSeed))
+  const index = Math.floor(random() * eligible.length)
+  return eligible[index] ?? null
+}
+
+export function resolveRoundSpin(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  if (state.status !== 'drafting' || state.roundStatus !== 'spinning') {
+    return state
+  }
+
+  const exclude =
+    state.pendingRerollSide && state.currentTeam ? [state.currentTeam.teamId] : []
+  const team = spinRoundTeam(state, players, simSeed, exclude)
+  if (!team) {
+    return { ...state, status: 'stuck', pendingRerollSide: null }
+  }
+
+  return {
+    ...state,
+    currentTeam: team,
+    roundStatus: 'picking',
+    pendingRerollSide: null,
+  }
+}
+
+export function filterRoundPool(
+  players: LivePlayer[],
+  state: LiveDraftState,
+  side: 'user' | 'ai',
+): LivePlayer[] {
+  if (state.status !== 'drafting' || state.roundStatus !== 'picking' || !state.currentTeam) {
+    return []
+  }
+
+  const lineup = sideLineup(state, side)
+  return players.filter(
+    (player) =>
+      player.teamId === state.currentTeam!.teamId &&
+      !state.draftedPlayerIds.includes(player.id) &&
+      bestOpenPosition(player, lineup) !== null,
+  )
+}
+
 export function getDailyMatchupDisabledReason(
   player: LivePlayer,
   state: DailyMatchupDraftState,
@@ -113,9 +247,19 @@ export function getDailyMatchupDisabledReason(
 export function getLiveDraftUserDisabledReason(
   player: LivePlayer,
   state: LiveDraftState,
+  players: LivePlayer[],
 ): string | null {
+  if (state.status !== 'drafting') return 'Draft complete'
+  if (state.roundStatus !== 'picking') return 'Wait for team spin'
+  if (!isUserTurn(state)) return 'Wait for your pick'
+  if (!state.currentTeam) return 'No team selected'
+  if (player.teamId !== state.currentTeam.teamId) {
+    return `Pick from ${state.currentTeam.teamAbbrev} only`
+  }
   if (state.draftedPlayerIds.includes(player.id)) return 'Already drafted'
-  if (state.userTeamIds.includes(player.teamId)) return `${player.teamAbbrev} used`
+  if (!filterRoundPool(players, state, 'user').some((entry) => entry.id === player.id)) {
+    return 'No eligible slot'
+  }
   const position = bestOpenPosition(player, state.userLineup)
   if (!position) return 'No open positions'
   if (!playerEligibleForDailyPosition(player, position)) return 'No eligible slot'
@@ -161,22 +305,17 @@ function scorePlayerForAi(player: LivePlayer, lineup: DailyLineup): number {
   return score
 }
 
-function aiPickPlayer(
+function aiPickFromRoundPool(
   state: LiveDraftState,
   players: LivePlayer[],
-  seed: string,
+  simSeed: string,
 ): LivePlayer | null {
-  const random = createSeededRandomFromString(`${seed}|pick${state.currentPick}`)
-  const available = players.filter(
-    (p) =>
-      !state.draftedPlayerIds.includes(p.id) &&
-      !state.aiTeamIds.includes(p.teamId) &&
-      bestOpenPosition(p, state.aiLineup) !== null,
-  )
+  const random = createSeededRandomFromString(`${simSeed}|pick${state.currentPick}`)
+  const available = filterRoundPool(players, state, 'ai')
   if (available.length === 0) return null
 
   const scored = available
-    .map((p) => ({ player: p, score: scorePlayerForAi(p, state.aiLineup) }))
+    .map((player) => ({ player, score: scorePlayerForAi(player, state.aiLineup) }))
     .filter((entry) => entry.score >= 0)
     .sort((a, b) => b.score - a.score)
 
@@ -191,29 +330,224 @@ function aiPickPlayer(
   return top[index]!.player
 }
 
-function applyAiPick(
+function applySidePick(
   state: LiveDraftState,
   player: LivePlayer,
+  side: 'user' | 'ai',
   pickNumber: number,
+  position: DailyLineupPosition,
 ): LiveDraftState {
-  const position = bestOpenPosition(player, state.aiLineup)
-  if (!position) return state
+  if (!state.currentTeam) return state
 
   const pick: LiveDraftPick = {
     pickNumber,
-    side: 'ai',
+    side,
     playerId: player.id,
     position,
+    round: state.round,
+    roundTeamId: state.currentTeam.teamId,
   }
+
+  const lineupKey = side === 'user' ? 'userLineup' : 'aiLineup'
 
   return {
     ...state,
-    aiLineup: { ...state.aiLineup, [position]: player },
+    [lineupKey]: { ...state[lineupKey], [position]: player },
     draftedPlayerIds: [...state.draftedPlayerIds, player.id],
-    aiTeamIds: [...state.aiTeamIds, player.teamId],
     picks: [...state.picks, pick],
+    roundPickIds: [...state.roundPickIds, player.id],
     currentPick: pickNumber + 1,
   }
+}
+
+function voidOpponentRoundPick(
+  state: LiveDraftState,
+  rerollingSide: 'user' | 'ai',
+): LiveDraftState {
+  if (state.roundPickIds.length === 0) return state
+
+  const startPick = roundStartPick(state.round)
+  const roundPicks = state.picks.filter(
+    (pick) => pick.pickNumber >= startPick && pick.pickNumber < startPick + 2,
+  )
+  const opponentPick = roundPicks.find((pick) => pick.side !== rerollingSide)
+  if (!opponentPick) return state
+
+  const lineupKey = opponentPick.side === 'user' ? 'userLineup' : 'aiLineup'
+  const lineup = { ...state[lineupKey], [opponentPick.position]: null }
+
+  return {
+    ...state,
+    [lineupKey]: lineup,
+    draftedPlayerIds: state.draftedPlayerIds.filter((id) => id !== opponentPick.playerId),
+    picks: state.picks.filter((pick) => pick.pickNumber !== opponentPick.pickNumber),
+    roundPickIds: state.roundPickIds.filter((id) => id !== opponentPick.playerId),
+    currentPick: opponentPick.pickNumber,
+  }
+}
+
+function finalizeLineupPhase(state: LiveDraftState): LiveDraftState {
+  return {
+    ...state,
+    status: 'lineup',
+    roundStatus: 'picking',
+    currentTeam: null,
+    userBattingOrder: defaultBattingOrderFromLineup(state.userLineup),
+    aiBattingOrder: defaultBattingOrderFromLineup(state.aiLineup),
+  }
+}
+
+function beginNextRound(state: LiveDraftState): LiveDraftState {
+  const team = state.currentTeam
+  if (!team) return state
+
+  const next: LiveDraftState = {
+    ...state,
+    roundTeams: [...state.roundTeams, team],
+    usedRoundTeamIds: [...state.usedRoundTeamIds, team.teamId],
+    roundPickIds: [],
+    currentTeam: null,
+    round: state.round + 1,
+    roundStatus: 'spinning',
+  }
+
+  if (state.round >= LIVE_DRAFT_TOTAL_ROUNDS) {
+    if (
+      dailyLineupIsComplete(next.userLineup) &&
+      dailyLineupIsComplete(next.aiLineup)
+    ) {
+      return finalizeLineupPhase(next)
+    }
+    return { ...next, status: 'stuck' }
+  }
+
+  return next
+}
+
+function afterPickAdvance(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  if (state.roundPickIds.length < 2) {
+    return state
+  }
+
+  let next = beginNextRound(state)
+  if (next.status === 'lineup' || next.status === 'stuck') {
+    return next
+  }
+
+  return advanceLiveDraftTurns(next, players, simSeed)
+}
+
+export function canReroll(side: 'user' | 'ai', state: LiveDraftState): boolean {
+  if (state.status !== 'drafting' || state.roundStatus !== 'picking') return false
+  if (side === 'user' && state.userRerollUsed) return false
+  if (side === 'ai' && state.aiRerollUsed) return false
+  if (side === 'user' && !isUserTurn(state)) return false
+  return true
+}
+
+function maybeAiReroll(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  if (!canReroll('ai', state) || state.roundPickIds.length === 0) {
+    return state
+  }
+
+  const pool = filterRoundPool(players, state, 'ai')
+  const bestScore = pool.reduce((max, player) => {
+    return Math.max(max, scorePlayerForAi(player, state.aiLineup))
+  }, -1)
+
+  if (bestScore >= AI_REROLL_SCORE_THRESHOLD && pool.length > 0) {
+    return state
+  }
+
+  let next: LiveDraftState = {
+    ...state,
+    aiRerollUsed: true,
+    roundStatus: 'spinning',
+    pendingRerollSide: 'ai',
+  }
+  next = voidOpponentRoundPick(next, 'ai')
+  next = resolveRoundSpin(next, players, simSeed)
+  if (next.status === 'stuck') return next
+  return next
+}
+
+export function requestUserReroll(state: LiveDraftState): LiveDraftState {
+  if (!canReroll('user', state)) return state
+  return {
+    ...state,
+    roundStatus: 'spinning',
+    pendingRerollSide: 'user',
+  }
+}
+
+export function applyUserReroll(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  if (state.pendingRerollSide !== 'user' || state.roundStatus !== 'spinning') {
+    return state
+  }
+
+  let next: LiveDraftState = { ...state, userRerollUsed: true }
+  next = voidOpponentRoundPick(next, 'user')
+  next = resolveRoundSpin(next, players, simSeed)
+  if (next.status === 'stuck') return next
+  return advanceLiveDraftTurns(next, players, simSeed)
+}
+
+export function advanceLiveDraftTurns(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  let next = state
+
+  if (next.status !== 'drafting') {
+    return next
+  }
+
+  if (next.roundStatus === 'spinning') {
+    next = resolveRoundSpin(next, players, simSeed)
+    if (next.status !== 'drafting') {
+      return next
+    }
+  }
+
+  while (next.status === 'drafting' && next.roundStatus === 'picking') {
+    if (snakeDraftSide(next.currentPick, next.userPicksFirst) !== 'ai') {
+      break
+    }
+
+    next = maybeAiReroll(next, players, simSeed)
+    if (next.status !== 'drafting' || next.roundStatus === 'spinning') {
+      next = advanceLiveDraftTurns(next, players, simSeed)
+      break
+    }
+
+    const aiPlayer = aiPickFromRoundPool(next, players, simSeed)
+    if (!aiPlayer) {
+      return { ...next, status: 'stuck' }
+    }
+
+    const position = bestOpenPosition(aiPlayer, next.aiLineup)
+    if (!position) {
+      return { ...next, status: 'stuck' }
+    }
+
+    next = applySidePick(next, aiPlayer, 'ai', next.currentPick, position)
+    next = afterPickAdvance(next, players, simSeed)
+  }
+
+  return next
 }
 
 export function draftLiveUserPlayer(
@@ -223,61 +557,60 @@ export function draftLiveUserPlayer(
   simSeed: string,
   position?: DailyLineupPosition,
 ): LiveDraftState {
-  if (getLiveDraftUserDisabledReason(player, state)) return state
+  if (getLiveDraftUserDisabledReason(player, state, players)) return state
   const slot = position ?? bestOpenPosition(player, state.userLineup)
   if (!slot) return state
 
-  const pick: LiveDraftPick = {
-    pickNumber: state.currentPick,
-    side: 'user',
-    playerId: player.id,
-    position: slot,
-  }
-
-  const next: LiveDraftState = {
-    ...state,
-    userLineup: { ...state.userLineup, [slot]: player },
-    draftedPlayerIds: [...state.draftedPlayerIds, player.id],
-    userTeamIds: [...state.userTeamIds, player.teamId],
-    picks: [...state.picks, pick],
-    currentPick: state.currentPick + 1,
-  }
-
-  return advanceLiveDraftAfterPick(next, players, simSeed)
+  let next = applySidePick(state, player, 'user', state.currentPick, slot)
+  next = afterPickAdvance(next, players, simSeed)
+  return advanceLiveDraftTurns(next, players, simSeed)
 }
 
+/** @deprecated Use advanceLiveDraftTurns. */
 export function advanceLiveDraftAfterPick(
   state: LiveDraftState,
   players: LivePlayer[],
   simSeed?: string,
 ): LiveDraftState {
-  let next = state
-
-  while (
-    next.currentPick <= TOTAL_PICKS &&
-    snakeDraftSide(next.currentPick, next.userPicksFirst) === 'ai'
-  ) {
-    const aiPlayer = aiPickPlayer(next, players, simSeed ?? next.challengeDate)
-    if (!aiPlayer) break
-    next = applyAiPick(next, aiPlayer, next.currentPick)
-  }
-
-  if (dailyLineupIsComplete(next.userLineup) && dailyLineupIsComplete(next.aiLineup)) {
-    return {
-      ...next,
-      status: 'lineup',
-      userBattingOrder: defaultBattingOrderFromLineup(next.userLineup),
-      aiBattingOrder: defaultBattingOrderFromLineup(next.aiLineup),
-    }
-  }
-
-  return next
+  return advanceLiveDraftTurns(state, players, simSeed ?? state.challengeDate)
 }
 
 export function isUserTurn(state: LiveDraftState): boolean {
   if (state.status !== 'drafting') return false
+  if (state.roundStatus !== 'picking') return false
   if (state.currentPick > TOTAL_PICKS) return false
   return snakeDraftSide(state.currentPick, state.userPicksFirst) === 'user'
+}
+
+export function validateLiveDraftRoundTeams(
+  userLineup: DailyLineup,
+  aiLineup: DailyLineup,
+): string | null {
+  const userPlayers = dailyLineupPlayers(userLineup)
+  const aiPlayers = dailyLineupPlayers(aiLineup)
+  const userTeams = userPlayers.map((player) => player.teamId)
+  const aiTeams = aiPlayers.map((player) => player.teamId)
+
+  if (new Set(userTeams).size !== userTeams.length) {
+    return 'Your lineup uses the same MLB team more than once.'
+  }
+  if (new Set(aiTeams).size !== aiTeams.length) {
+    return 'AI lineup uses the same MLB team more than once.'
+  }
+
+  const userTeamSet = new Set(userTeams)
+  const aiTeamSet = new Set(aiTeams)
+  if (userTeamSet.size !== LIVE_DRAFT_TOTAL_ROUNDS || aiTeamSet.size !== LIVE_DRAFT_TOTAL_ROUNDS) {
+    return 'Live Draft lineups must include one player from each of 12 teams.'
+  }
+
+  for (const teamId of userTeamSet) {
+    if (!aiTeamSet.has(teamId)) {
+      return 'User and AI lineups must share the same round teams.'
+    }
+  }
+
+  return null
 }
 
 export function setDailyMatchupBattingOrder(

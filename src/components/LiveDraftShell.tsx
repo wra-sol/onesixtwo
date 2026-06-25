@@ -62,6 +62,8 @@ export default function LiveDraftShell({
     handleAssign,
     handleSimulate,
     handleBattingOrderChange,
+    handleUserReroll,
+    isStuck,
     retry,
     opponentName,
     getDisabledReason,
@@ -85,6 +87,19 @@ export default function LiveDraftShell({
       <p className="py-8 text-center text-muted-foreground">
         Loading {title}…
       </p>
+    )
+  }
+
+  if (isStuck) {
+    return (
+      <div className="space-y-3 py-8 text-center">
+        <p className="text-destructive" role="alert">
+          Draft stuck — no legal team or pick remains.
+        </p>
+        <Button type="button" variant="outline" onClick={() => void retry()}>
+          Start over
+        </Button>
+      </div>
     )
   }
 

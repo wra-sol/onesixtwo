@@ -96,24 +96,6 @@ export async function submitLiveLeaderboard(input: {
   return body
 }
 
-export function lineupPlayerIdsFromDailyLineup(
-  lineup: import('@shared/live/daily-roster').DailyLineup,
-): string[] {
-  const positions = [
-    'C',
-    '1B',
-    '2B',
-    '3B',
-    'SS',
-    'OF1',
-    'OF2',
-    'OF3',
-    'DH',
-    'SP',
-    'RP',
-    'CL',
-  ] as const
-  return positions.map((pos) => lineup[pos]?.id ?? '')
-}
+export { lineupPlayerIdsFromDailyLineup } from '@shared/live/live-lineup-ids'
 
 export { challengeDate, targetDate }

@@ -89,7 +89,7 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   })()
 
   const dailyMatchupPlayDisabled =
-    dailyMatchupPreview.status === 'ready' &&
+    dailyMatchupPreview.status !== 'ready' ||
     !dailyMatchupPreview.snapshot.available
 
   return (
@@ -156,7 +156,11 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
               className="inline-flex h-9 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-muted-foreground"
               role="status"
             >
-              Unavailable today
+              {dailyMatchupPreview.status === 'loading'
+                ? 'Loading today\u2019s opponent\u2026'
+                : dailyMatchupPreview.status === 'error'
+                  ? 'Opponent unavailable'
+                  : 'Unavailable today'}
             </p>
           ) : (
             <Link
