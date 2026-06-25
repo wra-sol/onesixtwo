@@ -23,7 +23,14 @@ function runAiTurns(
   onReveal: (player: LivePlayer | null) => void,
 ): LiveDraftState {
   const before = state.picks.length
-  const next = advanceLiveDraftTurns(state, players, simSeed)
+  let next = state
+  while (
+    next.status === 'drafting' &&
+    (next.roundStatus === 'spinning' ||
+      (next.roundStatus === 'picking' && !isUserTurn(next)))
+  ) {
+    next = advanceLiveDraftTurns(next, players, simSeed)
+  }
   const newPick = next.picks[next.picks.length - 1]
   if (newPick && newPick.side === 'ai' && next.picks.length > before) {
     const player = players.find((p) => p.id === newPick.playerId)

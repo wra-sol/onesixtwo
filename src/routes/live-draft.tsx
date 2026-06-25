@@ -65,11 +65,11 @@ export default function LiveDraftRoute() {
               >
                 <SpinReels
                   teamName={draftState.currentTeam?.teamName ?? 'Spinning…'}
-                  era="2026"
+                  era="2020s"
                   isSpinning={draftState.roundStatus === 'spinning'}
                   spinIntent="round"
                   teamPreview={draftState.currentTeam?.teamName ?? '…'}
-                  eraPreview="2026"
+                  eraPreview="2020s"
                   hideEra
                 />
               </div>

@@ -121,6 +121,19 @@ function roundStartPick(round: number): number {
   return (round - 1) * 2 + 1
 }
 
+function pickNumberForSideInRound(
+  round: number,
+  side: 'user' | 'ai',
+  userPicksFirst: boolean,
+): number {
+  const startPick = roundStartPick(round)
+  const userFirstThisRound = snakeDraftSide(startPick, userPicksFirst) === 'user'
+  if (side === 'user') {
+    return userFirstThisRound ? startPick : startPick + 1
+  }
+  return userFirstThisRound ? startPick + 1 : startPick
+}
+
 function spinSeed(state: LiveDraftState, simSeed: string): string {
   return `${simSeed}|round${state.round}|used${state.usedRoundTeamIds.join('.')}|reroll${state.pendingRerollSide ?? 'none'}|picks${state.roundPickIds.length}`
 }
@@ -139,7 +152,17 @@ function teamHasEnoughPickable(
   if (picksNeeded === 1) {
     const side = snakeDraftSide(state.currentPick, state.userPicksFirst)
     const lineup = sideLineup(state, side)
+    if (dailyLineupIsComplete(lineup)) return true
     return pool.some((player) => bestOpenPosition(player, lineup) !== null)
+  }
+
+  const userComplete = dailyLineupIsComplete(state.userLineup)
+  const aiComplete = dailyLineupIsComplete(state.aiLineup)
+  if (userComplete && !aiComplete) {
+    return pool.some((player) => bestOpenPosition(player, state.aiLineup) !== null)
+  }
+  if (aiComplete && !userComplete) {
+    return pool.some((player) => bestOpenPosition(player, state.userLineup) !== null)
   }
 
   const userOk = pool.some(
@@ -382,7 +405,10 @@ function voidOpponentRoundPick(
     draftedPlayerIds: state.draftedPlayerIds.filter((id) => id !== opponentPick.playerId),
     picks: state.picks.filter((pick) => pick.pickNumber !== opponentPick.pickNumber),
     roundPickIds: state.roundPickIds.filter((id) => id !== opponentPick.playerId),
-    currentPick: opponentPick.pickNumber,
+    currentPick:
+      rerollingSide === 'user'
+        ? state.currentPick
+        : pickNumberForSideInRound(state.round, 'user', state.userPicksFirst),
   }
 }
 
@@ -426,19 +452,13 @@ function beginNextRound(state: LiveDraftState): LiveDraftState {
 
 function afterPickAdvance(
   state: LiveDraftState,
-  players: LivePlayer[],
-  simSeed: string,
 ): LiveDraftState {
-  if (state.roundPickIds.length < 2) {
+  const roundEndPick = roundStartPick(state.round) + 1
+  if (state.currentPick <= roundEndPick) {
     return state
   }
 
-  let next = beginNextRound(state)
-  if (next.status === 'lineup' || next.status === 'stuck') {
-    return next
-  }
-
-  return advanceLiveDraftTurns(next, players, simSeed)
+  return beginNextRound(state)
 }
 
 export function canReroll(side: 'user' | 'ai', state: LiveDraftState): boolean {
@@ -523,13 +543,36 @@ export function advanceLiveDraftTurns(
   }
 
   while (next.status === 'drafting' && next.roundStatus === 'picking') {
-    if (snakeDraftSide(next.currentPick, next.userPicksFirst) !== 'ai') {
+    const side = snakeDraftSide(next.currentPick, next.userPicksFirst)
+
+    if (side === 'user' && dailyLineupIsComplete(next.userLineup)) {
+      next = { ...next, currentPick: next.currentPick + 1 }
+      next = afterPickAdvance(next)
+      if (next.status !== 'drafting' || next.roundStatus === 'spinning') {
+        break
+      }
+      continue
+    }
+
+    if (side === 'ai' && dailyLineupIsComplete(next.aiLineup)) {
+      next = { ...next, currentPick: next.currentPick + 1 }
+      next = afterPickAdvance(next)
+      if (next.status !== 'drafting' || next.roundStatus === 'spinning') {
+        break
+      }
+      continue
+    }
+
+    if (side !== 'ai') {
       break
     }
 
     next = maybeAiReroll(next, players, simSeed)
     if (next.status !== 'drafting' || next.roundStatus === 'spinning') {
       next = advanceLiveDraftTurns(next, players, simSeed)
+      break
+    }
+    if (snakeDraftSide(next.currentPick, next.userPicksFirst) !== 'ai') {
       break
     }
 
@@ -544,7 +587,10 @@ export function advanceLiveDraftTurns(
     }
 
     next = applySidePick(next, aiPlayer, 'ai', next.currentPick, position)
-    next = afterPickAdvance(next, players, simSeed)
+    next = afterPickAdvance(next)
+    if (next.status !== 'drafting' || next.roundStatus === 'spinning') {
+      break
+    }
   }
 
   return next
@@ -554,7 +600,7 @@ export function draftLiveUserPlayer(
   state: LiveDraftState,
   player: LivePlayer,
   players: LivePlayer[],
-  simSeed: string,
+  _simSeed: string,
   position?: DailyLineupPosition,
 ): LiveDraftState {
   if (getLiveDraftUserDisabledReason(player, state, players)) return state
@@ -562,8 +608,8 @@ export function draftLiveUserPlayer(
   if (!slot) return state
 
   let next = applySidePick(state, player, 'user', state.currentPick, slot)
-  next = afterPickAdvance(next, players, simSeed)
-  return advanceLiveDraftTurns(next, players, simSeed)
+  next = afterPickAdvance(next)
+  return next
 }
 
 /** @deprecated Use advanceLiveDraftTurns. */
@@ -579,6 +625,7 @@ export function isUserTurn(state: LiveDraftState): boolean {
   if (state.status !== 'drafting') return false
   if (state.roundStatus !== 'picking') return false
   if (state.currentPick > TOTAL_PICKS) return false
+  if (dailyLineupIsComplete(state.userLineup)) return false
   return snakeDraftSide(state.currentPick, state.userPicksFirst) === 'user'
 }
 

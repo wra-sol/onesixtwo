@@ -14,11 +14,53 @@ import {
   startLiveDraft,
 } from './live-draft'
 import { lineupPlayerIdsFromDailyLineup } from './live-lineup-ids'
-import { DAILY_HITTER_POSITIONS } from './daily-roster'
+import {
+  DAILY_HITTER_POSITIONS,
+  dailyLineupOpenPositions,
+  playerEligibleForDailyPosition,
+  type DailyLineupPosition,
+} from './daily-roster'
 import {
   validateDailyMatchupSubmission,
   validateLiveDraftSubmission,
 } from './live-submit-validation'
+import type { LiveDraftState, LivePlayer } from './live-types'
+
+const USER_PICK_FILL_PRIORITY: DailyLineupPosition[] = [
+  'SP',
+  'CL',
+  'RP',
+  'C',
+  'SS',
+  '1B',
+  '2B',
+  '3B',
+  'OF1',
+  'OF2',
+  'OF3',
+  'DH',
+]
+
+function pickBestUserPlayer(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  const open = dailyLineupOpenPositions(state.userLineup)
+  const pool = filterRoundPool(players, state, 'user')
+  for (const position of USER_PICK_FILL_PRIORITY) {
+    if (!open.includes(position)) continue
+    const player = pool.find((candidate) =>
+      playerEligibleForDailyPosition(candidate, position),
+    )
+    if (player) {
+      return draftLiveUserPlayer(state, player, players, simSeed, position)
+    }
+  }
+  const fallback = pool[0]
+  if (!fallback) return state
+  return draftLiveUserPlayer(state, fallback, players, simSeed)
+}
 
 function buildLegalLiveDraftPayload() {
   const snapshot = buildFixtureLiveDraftSnapshot('2026-06-25')
@@ -35,11 +77,9 @@ function buildLegalLiveDraftPayload() {
       state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
       continue
     }
-    const pick = filterRoundPool(snapshot.players, state, 'user').sort(
-      (a, b) => b.grades.overall - a.grades.overall,
-    )[0]
-    if (!pick) break
-    state = draftLiveUserPlayer(state, pick, snapshot.players, snapshot.simSeed)
+    if (!filterRoundPool(snapshot.players, state, 'user')[0]) break
+    state = pickBestUserPlayer(state, snapshot.players, snapshot.simSeed)
+    state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
   }
 
   expect(state.status).toBe('lineup')

@@ -3,7 +3,12 @@ import {
   buildFixtureDailyMatchupSnapshot,
   buildFixtureLiveDraftSnapshot,
 } from './live-fixtures'
-import { createEmptyDailyLineup } from './daily-roster'
+import {
+  createEmptyDailyLineup,
+  dailyLineupOpenPositions,
+  playerEligibleForDailyPosition,
+  type DailyLineupPosition,
+} from './daily-roster'
 import {
   advanceLiveDraftTurns,
   applyUserReroll,
@@ -12,8 +17,6 @@ import {
   draftDailyMatchupPlayer,
   draftLiveUserPlayer,
   filterRoundPool,
-  getDailyMatchupDisabledReason,
-  getLiveDraftUserDisabledReason,
   isUserTurn,
   requestUserReroll,
   resolveRoundSpin,
@@ -21,6 +24,43 @@ import {
   startLiveDraft,
 } from './live-draft'
 import { buildSimTeam, simulateBestOfThree } from './pa-sim'
+import type { LiveDraftState, LivePlayer } from './live-types'
+
+const USER_PICK_FILL_PRIORITY: DailyLineupPosition[] = [
+  'SP',
+  'CL',
+  'RP',
+  'C',
+  'SS',
+  '1B',
+  '2B',
+  '3B',
+  'OF1',
+  'OF2',
+  'OF3',
+  'DH',
+]
+
+function pickBestUserPlayer(
+  state: LiveDraftState,
+  players: LivePlayer[],
+  simSeed: string,
+): LiveDraftState {
+  const open = dailyLineupOpenPositions(state.userLineup)
+  const pool = filterRoundPool(players, state, 'user')
+  for (const position of USER_PICK_FILL_PRIORITY) {
+    if (!open.includes(position)) continue
+    const player = pool.find((candidate) =>
+      playerEligibleForDailyPosition(candidate, position),
+    )
+    if (player) {
+      return draftLiveUserPlayer(state, player, players, simSeed, position)
+    }
+  }
+  const fallback = pool[0]
+  if (!fallback) return state
+  return draftLiveUserPlayer(state, fallback, players, simSeed)
+}
 
 describe('live-draft', () => {
   it('snake draft alternates sides', () => {
@@ -99,7 +139,8 @@ describe('live-draft', () => {
       }
       const pick = filterRoundPool(snapshot.players, state, 'user')[0]
       if (!pick) break
-      state = draftLiveUserPlayer(state, pick, snapshot.players, snapshot.simSeed)
+      state = pickBestUserPlayer(state, snapshot.players, snapshot.simSeed)
+      state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
     }
 
     if (!(isUserTurn(state) && state.roundPickIds.length === 1)) {
@@ -107,17 +148,24 @@ describe('live-draft', () => {
     }
 
     const beforeTeam = state.currentTeam!.teamId
-    const opponentPickCount = state.picks.filter((pick) => pick.side === 'ai').length
-    expect(opponentPickCount).toBeGreaterThan(0)
+    const opponentPickInRound = state.picks.find(
+      (pick) => pick.side === 'ai' && pick.round === state.round,
+    )
+    expect(opponentPickInRound).toBeDefined()
 
     expect(canReroll('user', state)).toBe(true)
     state = requestUserReroll(state)
     state = applyUserReroll(state, snapshot.players, snapshot.simSeed)
 
     expect(state.userRerollUsed).toBe(true)
-    expect(state.picks.filter((pick) => pick.side === 'ai').length).toBeLessThan(
-      opponentPickCount,
-    )
+    expect(
+      state.picks.some(
+        (pick) =>
+          pick.side === 'ai' &&
+          pick.playerId === opponentPickInRound!.playerId &&
+          pick.round === state.round,
+      ),
+    ).toBe(false)
     expect(state.currentTeam?.teamId).not.toBe(beforeTeam)
   })
 
@@ -139,12 +187,8 @@ describe('live-draft', () => {
       }
       const pick = filterRoundPool(snapshot.players, state, 'user')[0]
       if (!pick) break
-      state = draftLiveUserPlayer(
-        state,
-        pick,
-        snapshot.players,
-        snapshot.simSeed,
-      )
+      state = pickBestUserPlayer(state, snapshot.players, snapshot.simSeed)
+      state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
     }
 
     expect(state.status).toBe('lineup')

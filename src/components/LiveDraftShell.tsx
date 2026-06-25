@@ -62,7 +62,6 @@ export default function LiveDraftShell({
     handleAssign,
     handleSimulate,
     handleBattingOrderChange,
-    handleUserReroll,
     isStuck,
     retry,
     opponentName,
