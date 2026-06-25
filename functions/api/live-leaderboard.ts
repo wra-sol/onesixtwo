@@ -5,20 +5,29 @@ import {
   hasLiveSubmissionForIp,
   insertLiveLeaderboardEntry,
   LIVE_LEADERBOARD_MAX,
-  type LiveSubmitPayload,
 } from '../_lib/live-leaderboard'
 import {
   normalizeInitials,
   SUBMIT_ERROR_MESSAGES,
 } from '../_lib/leaderboard'
-import { createEmptyDailyLineup, type DailyLineupPosition } from '../../src/lib/daily-roster'
-import { buildSimTeam, simulateBestOfThree } from '../../src/lib/pa-sim'
-import { heuristicAiBattingOrder } from '../../src/lib/live-draft'
-import type { DailyLineup } from '../../src/lib/daily-roster'
-import type { LivePlayer } from '../../src/lib/live-types'
+import {
+  assertDailyMatchupSnapshot,
+  assertLiveDraftSnapshot,
+  parseLiveSubmitPayload,
+  resolveSnapshot,
+} from '../_lib/live/leaderboard-orchestration'
+import {
+  createEmptyDailyLineup,
+  type DailyLineup,
+  type DailyLineupPosition,
+} from '../../shared/live/daily-roster'
+import { buildSimTeam, simulateBestOfThree } from '../../shared/live/pa-sim'
+import { heuristicAiBattingOrder } from '../../shared/live/live-draft'
+import type { LivePlayer } from '../../shared/live/live-types'
 
 type Env = {
   DB?: D1Database
+  USE_LIVE_FIXTURES?: string
 }
 
 type PagesContext = {
@@ -57,6 +66,21 @@ function lineupFromPayload(
   })
   return lineup
 }
+
+const LINEUP_POSITIONS: DailyLineupPosition[] = [
+  'C',
+  '1B',
+  '2B',
+  '3B',
+  'SS',
+  'OF1',
+  'OF2',
+  'OF3',
+  'DH',
+  'SP',
+  'RP',
+  'CL',
+]
 
 async function handleGet(context: PagesContext): Promise<Response> {
   const db = context.env.DB
@@ -99,15 +123,13 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  if (!body || typeof body !== 'object') {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json },
-      400,
-    )
+  const parsed = parseLiveSubmitPayload(body)
+  if ('ok' in parsed && parsed.ok === false) {
+    return jsonResponse({ ok: false, error: parsed.error }, 400)
   }
 
-  const record = body as Record<string, unknown>
-  const initials = normalizeInitials(record.initials)
+  const payload = parsed
+  const initials = normalizeInitials(payload.initials)
   if (!initials) {
     return jsonResponse(
       { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_initials },
@@ -115,82 +137,84 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const payload = record as Partial<LiveSubmitPayload>
-  if (
-    payload.mode !== 'daily-matchup' &&
-    payload.mode !== 'live-draft'
-  ) {
-    return jsonResponse({ ok: false, error: 'Invalid mode.' }, 400)
-  }
-
-  if (
-    typeof payload.challengeDate !== 'string' ||
-    typeof payload.simSeed !== 'string' ||
-    !Array.isArray(payload.playerIds) ||
-    !Array.isArray(payload.battingOrderIds)
-  ) {
-    return jsonResponse({ ok: false, error: 'Invalid submission payload.' }, 400)
-  }
-
-  const snapshotResponse = await fetch(
-    new URL(
-      payload.mode === 'daily-matchup'
-        ? `/api/daily-matchup?date=${payload.challengeDate}`
-        : `/api/live-draft?date=${payload.challengeDate}`,
-      context.request.url,
-    ).toString(),
-  )
-  const snapshot = (await snapshotResponse.json()) as {
-    players: LivePlayer[]
-    opponent?: { lineup: Partial<Record<DailyLineupPosition, LivePlayer>>; battingOrder: LivePlayer[]; teamName: string }
-    targetDate?: string
+  let snapshot
+  try {
+    snapshot = await resolveSnapshot(
+      payload.mode,
+      payload.challengeDate,
+      db,
+      context.env,
+    )
+  } catch {
+    return jsonResponse(
+      { ok: false, error: 'Could not load snapshot for validation.' },
+      503,
+    )
   }
 
   const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
-  const positions: DailyLineupPosition[] = [
-    'C',
-    '1B',
-    '2B',
-    '3B',
-    'SS',
-    'OF1',
-    'OF2',
-    'OF3',
-    'DH',
-    'SP',
-    'RP',
-    'CL',
-  ]
-
-  const userLineup = lineupFromPayload(playersById, payload.playerIds, positions)
+  const userLineup = lineupFromPayload(playersById, payload.playerIds, LINEUP_POSITIONS)
   const battingOrder = payload.battingOrderIds
     .map((id) => playersById.get(id))
     .filter((p): p is LivePlayer => Boolean(p))
 
-  let opponentLineup = createEmptyDailyLineup()
-  let opponentBattingOrder: LivePlayer[] = []
-  let opponentName = 'Opponent'
-
-  if (payload.mode === 'daily-matchup' && snapshot.opponent) {
-    opponentName = snapshot.opponent.teamName
-    for (const [pos, player] of Object.entries(snapshot.opponent.lineup)) {
-      if (player) opponentLineup[pos as DailyLineupPosition] = player
+  const opponent = (() => {
+    switch (payload.mode) {
+      case 'daily-matchup': {
+        if (!assertDailyMatchupSnapshot(snapshot)) {
+          return null
+        }
+        const lineup = createEmptyDailyLineup()
+        for (const [pos, player] of Object.entries(snapshot.opponent.lineup)) {
+          if (player) lineup[pos as DailyLineupPosition] = player
+        }
+        return {
+          name: snapshot.opponent.teamName,
+          lineup,
+          battingOrder: snapshot.opponent.battingOrder,
+        }
+      }
+      case 'live-draft': {
+        if (!assertLiveDraftSnapshot(snapshot) || !payload.aiPlayerIds) {
+          return null
+        }
+        const lineup = lineupFromPayload(
+          playersById,
+          payload.aiPlayerIds,
+          LINEUP_POSITIONS,
+        )
+        return {
+          name: 'AI',
+          lineup,
+          battingOrder: heuristicAiBattingOrder(
+            payload.aiPlayerIds
+              .map((id) => playersById.get(id))
+              .filter((p): p is LivePlayer => Boolean(p)),
+          ),
+        }
+      }
+      default: {
+        const _exhaustive: never = payload.mode
+        return _exhaustive
+      }
     }
-    opponentBattingOrder = snapshot.opponent.battingOrder
-  } else if (payload.mode === 'live-draft' && typeof record.aiPlayerIds === 'object') {
-    const aiIds = record.aiPlayerIds as string[]
-    opponentLineup = lineupFromPayload(playersById, aiIds, positions)
-    opponentBattingOrder = heuristicAiBattingOrder(
-      aiIds.map((id) => playersById.get(id)).filter((p): p is LivePlayer => Boolean(p)),
-    )
-    opponentName = 'AI'
+  })()
+
+  if (!opponent) {
+    if (payload.mode === 'daily-matchup') {
+      return jsonResponse(
+        { ok: false, error: 'Daily Matchup is unavailable today.' },
+        400,
+      )
+    }
+    return jsonResponse({ ok: false, error: 'Invalid submission payload.' }, 400)
   }
 
   const userTeam = buildSimTeam('You', userLineup, battingOrder, true)
   const opponentTeam = buildSimTeam(
-    opponentName,
-    opponentLineup,
-    opponentBattingOrder,
+    opponent.name,
+    opponent.lineup,
+    opponent.battingOrder,
     false,
   )
   const series = simulateBestOfThree(userTeam, opponentTeam, payload.simSeed)
@@ -230,7 +254,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     runDiff: series.userRunDiff,
     wonSeries: series.wonSeries,
     lineupKey,
-    payloadJson: JSON.stringify(payload),
+    payloadJson: JSON.stringify({ ...payload, initials }),
     submitterIp,
     createdAt,
   }

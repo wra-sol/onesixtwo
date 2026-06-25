@@ -1,4 +1,4 @@
-import type { LiveLeaderboardEntryRow } from '@/lib/live-api-client'
+import type { LiveLeaderboardEntryRow } from '@shared/live/live-types'
 
 type LiveLeaderboardTableProps = {
   entries: LiveLeaderboardEntryRow[]

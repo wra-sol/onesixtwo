@@ -1,8 +1,8 @@
-export function challengeDateFromClient(now = new Date()): string {
+export function challengeDate(now = new Date()): string {
   return now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 }
 
-export function targetDateFromClient(now = new Date()): string {
+export function targetDate(now = new Date()): string {
   const eastern = new Date(
     now.toLocaleString('en-US', { timeZone: 'America/New_York' }),
   )

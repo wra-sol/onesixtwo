@@ -6,7 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import type { SimulatedSeries } from '@/lib/live-types'
+import type { SimulatedSeries } from '@shared/live/live-types'
 
 type LiveResultScreenProps = {
   series: SimulatedSeries

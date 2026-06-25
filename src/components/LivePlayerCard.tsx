@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
-import { continuousToDisplayGrade, GRADE_LABELS } from '@/lib/live-grades'
-import type { LivePlayer } from '@/lib/live-types'
+import { continuousToDisplayGrade, GRADE_LABELS } from '@shared/live/live-grades'
+import type { LivePlayer } from '@shared/live/live-types'
 
 type LivePlayerCardProps = {
   player: LivePlayer

@@ -6,8 +6,8 @@ import {
   playerEligibleForDailyPosition,
   type DailyLineup,
   type DailyLineupPosition,
-} from '@/lib/daily-roster'
-import type { LivePlayer } from '@/lib/live-types'
+} from '@shared/live/daily-roster'
+import type { LivePlayer } from '@shared/live/live-types'
 import { cn } from '@/lib/utils'
 
 type LiveLineupGridProps = {

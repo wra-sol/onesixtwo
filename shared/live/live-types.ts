@@ -78,6 +78,8 @@ export type DailyMatchupSnapshot = {
   opponentGameScore: { runs: number; hits: number; runDiff: number }
   players: LivePlayer[]
   simSeed: string
+  fallback?: boolean
+  error?: string
 }
 
 export type LiveDraftSnapshot = {
@@ -86,6 +88,8 @@ export type LiveDraftSnapshot = {
   players: LivePlayer[]
   coinFlipUserFirst: boolean
   simSeed: string
+  fallback?: boolean
+  error?: string
 }
 
 export type LiveSnapshot = DailyMatchupSnapshot | LiveDraftSnapshot
@@ -173,4 +177,47 @@ export type DailyMatchupDraftState = {
   draftedPlayerIds: string[]
   draftedTeamIds: number[]
   status: 'drafting' | 'lineup' | 'complete'
+}
+
+export type LiveLeaderboardEntryRow = {
+  initials: string
+  mode: LiveModeId
+  challengeDate: string
+  targetDate?: string
+  seriesWins: number
+  seriesLosses: number
+  userRuns: number
+  opponentRuns: number
+  runDiff: number
+  wonSeries: boolean
+  createdAt: number
+}
+
+export type LiveSubmitPayload = {
+  mode: LiveModeId
+  challengeDate: string
+  targetDate?: string
+  initials: string
+  playerIds: string[]
+  battingOrderIds: string[]
+  aiPlayerIds?: string[]
+  draftTranscript?: string
+  simSeed: string
+}
+
+export function compareLiveLeaderboardRows(
+  a: Pick<
+    LiveLeaderboardEntryRow,
+    'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns' | 'createdAt'
+  >,
+  b: Pick<
+    LiveLeaderboardEntryRow,
+    'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns' | 'createdAt'
+  >,
+): number {
+  if (a.wonSeries !== b.wonSeries) return a.wonSeries ? -1 : 1
+  if (a.seriesWins !== b.seriesWins) return b.seriesWins - a.seriesWins
+  if (a.runDiff !== b.runDiff) return b.runDiff - a.runDiff
+  if (a.userRuns !== b.userRuns) return b.userRuns - a.userRuns
+  return a.createdAt - b.createdAt
 }

@@ -1,50 +1,15 @@
 /* eslint-disable @typescript-eslint/triple-slash-reference -- Cloudflare D1 ambient types */
 /// <reference path="./d1.d.ts" />
-import type { LiveModeId } from '../../src/lib/live-types'
+import type {
+  LiveLeaderboardEntryRow,
+  LiveModeId,
+  LiveSubmitPayload,
+} from '../../shared/live/live-types'
 
-export type LiveLeaderboardEntryRow = {
-  initials: string
-  mode: LiveModeId
-  challengeDate: string
-  targetDate?: string
-  seriesWins: number
-  seriesLosses: number
-  userRuns: number
-  opponentRuns: number
-  runDiff: number
-  wonSeries: boolean
-  createdAt: number
-}
-
-export type LiveSubmitPayload = {
-  mode: LiveModeId
-  challengeDate: string
-  targetDate?: string
-  initials: string
-  playerIds: string[]
-  battingOrderIds: string[]
-  draftTranscript?: string
-  simSeed: string
-}
+export type { LiveLeaderboardEntryRow, LiveSubmitPayload }
+export { compareLiveLeaderboardRows } from '../../shared/live/live-types'
 
 export const LIVE_LEADERBOARD_MAX = 30
-
-export function compareLiveLeaderboardRows(
-  a: Pick<
-    LiveLeaderboardEntryRow,
-    'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns' | 'createdAt'
-  >,
-  b: Pick<
-    LiveLeaderboardEntryRow,
-    'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns' | 'createdAt'
-  >,
-): number {
-  if (a.wonSeries !== b.wonSeries) return a.wonSeries ? -1 : 1
-  if (a.seriesWins !== b.seriesWins) return b.seriesWins - a.seriesWins
-  if (a.runDiff !== b.runDiff) return b.runDiff - a.runDiff
-  if (a.userRuns !== b.userRuns) return b.userRuns - a.userRuns
-  return a.createdAt - b.createdAt
-}
 
 export function buildLiveLineupKey(
   mode: LiveModeId,

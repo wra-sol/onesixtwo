@@ -1,55 +1,68 @@
 import type {
   DailyMatchupSnapshot,
   LiveDraftSnapshot,
+  LiveLeaderboardEntryRow,
   LiveModeId,
   SimulatedSeries,
-} from './live-types'
-import type { LiveLeaderboardEntryRow } from '../../functions/_lib/live-leaderboard'
-import {
-  buildFixtureDailyMatchupSnapshot,
-  buildFixtureLiveDraftSnapshot,
-} from './live-fixtures'
-import { challengeDateFromClient, targetDateFromClient } from './live-dates'
+} from '@shared/live/live-types'
+import { challengeDate, targetDate } from '@shared/live/live-dates'
 
 export type { LiveLeaderboardEntryRow }
 
-export async function fetchDailyMatchupSnapshot(
-  challengeDate?: string,
-): Promise<DailyMatchupSnapshot> {
-  const date = challengeDate ?? challengeDateFromClient()
-  try {
-    const params = challengeDate ? `?date=${challengeDate}` : ''
-    const response = await fetch(`/api/daily-matchup${params}`)
-    if (!response.ok) {
-      throw new Error('Could not load Daily Matchup.')
-    }
-    return (await response.json()) as DailyMatchupSnapshot
-  } catch {
-    return buildFixtureDailyMatchupSnapshot(date, targetDateFromClient())
+export class LiveSnapshotError extends Error {
+  fallback?: boolean
+
+  constructor(message: string, fallback?: boolean) {
+    super(message)
+    this.name = 'LiveSnapshotError'
+    this.fallback = fallback
   }
 }
 
-export async function fetchLiveDraftSnapshot(
-  challengeDate?: string,
-): Promise<LiveDraftSnapshot> {
-  const date = challengeDate ?? challengeDateFromClient()
-  try {
-    const params = challengeDate ? `?date=${challengeDate}` : ''
-    const response = await fetch(`/api/live-draft${params}`)
-    if (!response.ok) {
-      throw new Error('Could not load Live Draft.')
-    }
-    return (await response.json()) as LiveDraftSnapshot
-  } catch {
-    return buildFixtureLiveDraftSnapshot(date)
+async function parseSnapshotResponse<T>(response: Response): Promise<T> {
+  const body = (await response.json()) as T & { fallback?: boolean; error?: string }
+  if (!response.ok) {
+    throw new LiveSnapshotError(
+      typeof body === 'object' && body && 'error' in body && typeof body.error === 'string'
+        ? body.error
+        : 'Could not load live snapshot.',
+    )
   }
+  if (
+    typeof body === 'object' &&
+    body &&
+    'fallback' in body &&
+    body.fallback === true
+  ) {
+    throw new LiveSnapshotError(
+      body.error ?? 'Live mode is temporarily unavailable.',
+      true,
+    )
+  }
+  return body
+}
+
+export async function fetchDailyMatchupSnapshot(
+  challengeDateParam?: string,
+): Promise<DailyMatchupSnapshot> {
+  const params = challengeDateParam ? `?date=${challengeDateParam}` : ''
+  const response = await fetch(`/api/daily-matchup${params}`)
+  return parseSnapshotResponse<DailyMatchupSnapshot>(response)
+}
+
+export async function fetchLiveDraftSnapshot(
+  challengeDateParam?: string,
+): Promise<LiveDraftSnapshot> {
+  const params = challengeDateParam ? `?date=${challengeDateParam}` : ''
+  const response = await fetch(`/api/live-draft${params}`)
+  return parseSnapshotResponse<LiveDraftSnapshot>(response)
 }
 
 export async function fetchLiveLeaderboard(
   mode: LiveModeId,
-  challengeDate: string,
+  challengeDateParam: string,
 ): Promise<{ entries: LiveLeaderboardEntryRow[] }> {
-  const params = new URLSearchParams({ mode, date: challengeDate })
+  const params = new URLSearchParams({ mode, date: challengeDateParam })
   const response = await fetch(`/api/live-leaderboard?${params.toString()}`)
   if (!response.ok) {
     throw new Error('Could not load live leaderboard.')
@@ -84,7 +97,7 @@ export async function submitLiveLeaderboard(input: {
 }
 
 export function lineupPlayerIdsFromDailyLineup(
-  lineup: import('./daily-roster').DailyLineup,
+  lineup: import('@shared/live/daily-roster').DailyLineup,
 ): string[] {
   const positions = [
     'C',
@@ -102,3 +115,5 @@ export function lineupPlayerIdsFromDailyLineup(
   ] as const
   return positions.map((pos) => lineup[pos]?.id ?? '')
 }
+
+export { challengeDate, targetDate }
