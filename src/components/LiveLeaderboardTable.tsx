@@ -17,7 +17,7 @@ export default function LiveLeaderboardTable({
 
   return (
     <div className="overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[32rem] text-left text-sm">
+      <table className="w-full min-w-[42rem] text-left text-sm">
         <thead className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th scope="col" className="px-3 py-2 font-medium">
@@ -34,6 +34,12 @@ export default function LiveLeaderboardTable({
             </th>
             <th scope="col" className="px-3 py-2 font-medium">
               Diff
+            </th>
+            <th scope="col" className="px-3 py-2 font-medium">
+              Team
+            </th>
+            <th scope="col" className="px-3 py-2 font-medium">
+              Run
             </th>
           </tr>
         </thead>
@@ -59,6 +65,25 @@ export default function LiveLeaderboardTable({
               <td className="px-3 py-2 tabular-nums">
                 {entry.runDiff > 0 ? '+' : ''}
                 {entry.runDiff}
+              </td>
+              <td className="max-w-[16rem] px-3 py-2 text-muted-foreground">
+                <span className="line-clamp-2" title={entry.lineupSummary}>
+                  {entry.lineupSummary}
+                </span>
+              </td>
+              <td className="px-3 py-2">
+                {entry.sharePath ? (
+                  <a
+                    href={entry.sharePath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2 hover:text-foreground"
+                  >
+                    View
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </td>
             </tr>
           ))}

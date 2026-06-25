@@ -15,6 +15,8 @@
     "dev:pages": "npm run build && wrangler pages dev dist --compatibility-date=2024-01-01 --d1 DB=onesixtwo-leaderboard",
     "db:migrate:local": "wrangler d1 migrations apply onesixtwo-leaderboard --local",
     "db:migrate:remote": "wrangler d1 migrations apply onesixtwo-leaderboard --remote",
+    "ci": "npm run lint && npm run validate:data && npm test && npm run build",
+    "qa:live": "tsx scripts/qa-live-modes.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

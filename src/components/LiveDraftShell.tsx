@@ -12,6 +12,10 @@ import LivePlayerCard from '@/components/LivePlayerCard'
 import LiveResultScreen from '@/components/LiveResultScreen'
 import LiveLeaderboardSubmit from '@/components/LiveLeaderboardSubmit'
 import {
+  lineupPlayerIdsFromDailyLineup,
+} from '@/lib/live-api-client'
+import type { LiveShareInput } from '@shared/live/live-types'
+import {
   useLiveDraftSession,
   type LiveModeConfig,
 } from '@/hooks/useLiveDraftSession'
@@ -108,11 +112,28 @@ export default function LiveDraftShell({
   }
 
   if (series) {
+    const shareInput: LiveShareInput | undefined =
+      userLineup && snapshot
+        ? {
+            mode: config.mode,
+            challengeDate: snapshot.challengeDate,
+            targetDate:
+              snapshot.kind === 'daily-matchup' ? snapshot.targetDate : undefined,
+            playerIds: lineupPlayerIdsFromDailyLineup(userLineup),
+            battingOrderIds: userBattingOrderIds,
+            aiPlayerIds: aiLineup
+              ? lineupPlayerIdsFromDailyLineup(aiLineup)
+              : undefined,
+            simSeed: snapshot.simSeed,
+          }
+        : undefined
+
     return (
       <div className="min-h-0 flex-1 overflow-y-auto">
         <LiveResultScreen
           series={series}
           opponentName={opponentName}
+          shareInput={shareInput}
           onRestart={() => window.location.reload()}
           submitSlot={
             <LiveLeaderboardSubmit

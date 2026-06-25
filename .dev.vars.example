@@ -1,0 +1,5 @@
+# Copy to .dev.vars for local Wrangler Pages dev (npm run dev:pages).
+#
+# USE_LIVE_FIXTURES=false — real MLB player names (recommended for manual QA)
+# USE_LIVE_FIXTURES=true  — placeholder names for offline / rate-limit-safe testing
+USE_LIVE_FIXTURES=false

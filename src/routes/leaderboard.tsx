@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
@@ -83,22 +83,31 @@ export default function LeaderboardRoute() {
 
   const challengeDateValue = useMemo(() => challengeDate(), [])
   const activeBoard = BOARDS[board]
+  const loadIdRef = useRef(0)
 
   const loadBoard = useCallback(async () => {
+    const loadId = ++loadIdRef.current
     setIsLoading(true)
     setError(null)
     try {
       if (activeBoard.kind === 'classic') {
-        setClassicEntries(await activeBoard.load(period))
+        const entries = await activeBoard.load(period)
+        if (loadId !== loadIdRef.current) return
+        setClassicEntries(entries)
       } else {
-        setLiveEntries(await activeBoard.load(challengeDateValue))
+        const entries = await activeBoard.load(challengeDateValue)
+        if (loadId !== loadIdRef.current) return
+        setLiveEntries(entries)
       }
     } catch (err) {
+      if (loadId !== loadIdRef.current) return
       if (activeBoard.kind === 'classic') setClassicEntries([])
       else setLiveEntries([])
       setError(err instanceof Error ? err.message : 'Could not load leaderboard.')
     } finally {
-      setIsLoading(false)
+      if (loadId === loadIdRef.current) {
+        setIsLoading(false)
+      }
     }
   }, [activeBoard, challengeDateValue, period])
 

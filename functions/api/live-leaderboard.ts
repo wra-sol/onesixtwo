@@ -1,7 +1,7 @@
 import {
   buildLiveLineupKey,
   computeLiveRank,
-  fetchLiveLeaderboardEntries,
+  fetchEnrichedLiveLeaderboardEntries,
   hasLiveSubmissionForIp,
   insertLiveLeaderboardEntry,
   LIVE_LEADERBOARD_MAX,
@@ -98,11 +98,19 @@ async function handleGet(context: PagesContext): Promise<Response> {
     return jsonResponse({ error: 'Missing date.' }, 400)
   }
 
-  const entries = await fetchLiveLeaderboardEntries(
+  let snapshot
+  try {
+    snapshot = await resolveSnapshot(mode, challengeDate, db, context.env)
+  } catch {
+    return jsonResponse({ error: 'Could not load snapshot.' }, 503)
+  }
+
+  const entries = await fetchEnrichedLiveLeaderboardEntries(
     db,
     mode,
     challengeDate,
     LIVE_LEADERBOARD_MAX,
+    snapshot,
   )
   return jsonResponse({ mode, challengeDate, entries })
 }

@@ -191,6 +191,19 @@ export type LiveLeaderboardEntryRow = {
   runDiff: number
   wonSeries: boolean
   createdAt: number
+  sharePath: string
+  lineupSummary: string
+  opponentName?: string
+}
+
+export type LiveShareInput = {
+  mode: LiveModeId
+  challengeDate: string
+  targetDate?: string
+  playerIds: string[]
+  battingOrderIds: string[]
+  aiPlayerIds?: string[]
+  simSeed: string
 }
 
 export type LiveSubmitPayload = {

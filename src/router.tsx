@@ -6,6 +6,7 @@ import DailyMatchupRoute from './routes/daily-matchup'
 import LiveDraftRoute from './routes/live-draft'
 import LeaderboardRoute from './routes/leaderboard'
 import ShareRoute from './routes/share'
+import LiveShareRoute from './routes/live-share'
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +18,7 @@ export const router = createBrowserRouter([
       { path: 'live-draft', element: <LiveDraftRoute /> },
       { path: 'leaderboard', element: <LeaderboardRoute /> },
       { path: 'share', element: <ShareRoute /> },
+      { path: 'live-share', element: <LiveShareRoute /> },
       { path: 'privacy', element: <PrivacyPage /> },
       { path: 'terms', element: <TermsPage /> },
       { path: 'data', element: <DataPage /> },

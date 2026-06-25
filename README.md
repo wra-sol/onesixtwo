@@ -47,10 +47,20 @@ Open the URL shown in the terminal (typically http://localhost:5173).
 ```bash
 npm run fetch:lahman  # optional: refresh Lahman CSV (requires Rscript)
 npm run build:data    # regenerate player/bucket JSON
+npm run ci            # lint, validate:data, test, and build (matches GitHub Actions)
+```
+
+Or run steps individually:
+
+```bash
 npm run validate:data
 npm test
 npm run build
 ```
+
+## CI
+
+Pull requests and pushes to `main` run [`.github/workflows/ci.yml`](.github/workflows/ci.yml): **lint**, **test** (data validation + Vitest), and **build** in parallel. Deploy to Cloudflare Pages (`.github/workflows/deploy.yml`) runs only after CI succeeds on `main`.
 
 ## Deploy (Cloudflare Pages)
 

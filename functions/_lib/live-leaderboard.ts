@@ -5,6 +5,8 @@ import type {
   LiveModeId,
   LiveSubmitPayload,
 } from '../../shared/live/live-types'
+import type { LiveSnapshot } from '../../shared/live/live-types'
+import { enrichLiveLeaderboardRow } from '../../shared/live/live-share-sim'
 
 export type { LiveLeaderboardEntryRow, LiveSubmitPayload }
 export { compareLiveLeaderboardRows } from '../../shared/live/live-types'
@@ -19,37 +21,23 @@ export function buildLiveLineupKey(
   return `${mode}:${challengeDate}:${[...playerIds].sort().join(',')}`
 }
 
-export async function fetchLiveLeaderboardEntries(
-  db: D1Database,
-  mode: LiveModeId,
-  challengeDate: string,
-  limit: number,
-): Promise<LiveLeaderboardEntryRow[]> {
-  const { results } = await db
-    .prepare(
-      `SELECT initials, mode, challenge_date, target_date, series_wins, series_losses,
-              user_runs, opponent_runs, run_diff, won_series, created_at
-       FROM live_leaderboard_entries
-       WHERE mode = ? AND challenge_date = ?
-       ORDER BY won_series DESC, series_wins DESC, run_diff DESC, user_runs DESC, created_at ASC
-       LIMIT ?`,
-    )
-    .bind(mode, challengeDate, limit)
-    .all<{
-      initials: string
-      mode: LiveModeId
-      challenge_date: string
-      target_date: string | null
-      series_wins: number
-      series_losses: number
-      user_runs: number
-      opponent_runs: number
-      run_diff: number
-      won_series: number
-      created_at: number
-    }>()
+type RawLiveLeaderboardRow = {
+  initials: string
+  mode: LiveModeId
+  challenge_date: string
+  target_date: string | null
+  series_wins: number
+  series_losses: number
+  user_runs: number
+  opponent_runs: number
+  run_diff: number
+  won_series: number
+  created_at: number
+  payload_json: string
+}
 
-  return (results ?? []).map((row) => ({
+function mapRawLiveLeaderboardRow(row: RawLiveLeaderboardRow) {
+  return {
     initials: row.initials,
     mode: row.mode,
     challengeDate: row.challenge_date,
@@ -61,7 +49,32 @@ export async function fetchLiveLeaderboardEntries(
     runDiff: row.run_diff,
     wonSeries: row.won_series === 1,
     createdAt: row.created_at,
-  }))
+    payloadJson: row.payload_json,
+  }
+}
+
+export async function fetchEnrichedLiveLeaderboardEntries(
+  db: D1Database,
+  mode: LiveModeId,
+  challengeDate: string,
+  limit: number,
+  snapshot: LiveSnapshot,
+): Promise<LiveLeaderboardEntryRow[]> {
+  const { results } = await db
+    .prepare(
+      `SELECT initials, mode, challenge_date, target_date, series_wins, series_losses,
+              user_runs, opponent_runs, run_diff, won_series, created_at, payload_json
+       FROM live_leaderboard_entries
+       WHERE mode = ? AND challenge_date = ?
+       ORDER BY won_series DESC, series_wins DESC, run_diff DESC, user_runs DESC, created_at ASC
+       LIMIT ?`,
+    )
+    .bind(mode, challengeDate, limit)
+    .all<RawLiveLeaderboardRow>()
+
+  return (results ?? []).map((row) =>
+    enrichLiveLeaderboardRow(mapRawLiveLeaderboardRow(row), snapshot),
+  )
 }
 
 export async function hasLiveSubmissionForIp(

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { BRAND } from '@/lib/brand'
@@ -10,17 +10,87 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import {
+  fetchDailyMatchupSnapshot,
+  LiveSnapshotError,
+} from '@/lib/live-api-client'
+import {
   ROSTER_FORMATS,
   type RosterFormatId,
 } from '@/lib/roster-format'
 import { cn } from '@/lib/utils'
+import { formatDailyMatchupOpponentHeadline } from '@shared/live/daily-matchup-display'
+import type { DailyMatchupSnapshot } from '@shared/live/live-types'
 
 type ModeSelectProps = {
   onStartClassic: (formatId: RosterFormatId) => void
 }
 
+type DailyMatchupPreviewState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; snapshot: DailyMatchupSnapshot }
+
 export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const [formatId, setFormatId] = useState<RosterFormatId>('classic')
+  const [dailyMatchupPreview, setDailyMatchupPreview] =
+    useState<DailyMatchupPreviewState>({ status: 'loading' })
+
+  useEffect(() => {
+    let cancelled = false
+
+    void fetchDailyMatchupSnapshot()
+      .then((snapshot) => {
+        if (!cancelled) {
+          setDailyMatchupPreview({ status: 'ready', snapshot })
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return
+        const message =
+          error instanceof LiveSnapshotError
+            ? error.message
+            : 'Could not load today\u2019s opponent.'
+        setDailyMatchupPreview({ status: 'error', message })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const dailyMatchupDescription = (() => {
+    switch (dailyMatchupPreview.status) {
+      case 'loading':
+        return 'Loading today\u2019s opponent\u2026'
+      case 'error':
+        return dailyMatchupPreview.message
+      case 'ready': {
+        const { snapshot } = dailyMatchupPreview
+        if (snapshot.available && snapshot.opponent) {
+          return (
+            <>
+              <span className="font-medium text-foreground">
+                {formatDailyMatchupOpponentHeadline(snapshot)}
+              </span>
+              <span className="mt-1 block text-muted-foreground">
+                Target {snapshot.targetDate} · Draft from last night&apos;s MLB
+                players and play a best-of-3 series.
+              </span>
+            </>
+          )
+        }
+        return formatDailyMatchupOpponentHeadline(snapshot)
+      }
+      default: {
+        const _exhaustive: never = dailyMatchupPreview
+        return _exhaustive
+      }
+    }
+  })()
+
+  const dailyMatchupPlayDisabled =
+    dailyMatchupPreview.status === 'ready' &&
+    !dailyMatchupPreview.snapshot.available
 
   return (
     <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
@@ -78,18 +148,24 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
           <CardTitle className="font-display text-lg text-primary">
             Daily Matchup
           </CardTitle>
-          <CardDescription>
-            Draft from last night&apos;s MLB players and play a best-of-3 series
-            vs the highest-scoring real team.
-          </CardDescription>
+          <CardDescription>{dailyMatchupDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link
-            to="/daily-matchup"
-            className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-          >
-            Play Daily Matchup
-          </Link>
+          {dailyMatchupPlayDisabled ? (
+            <p
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-muted-foreground"
+              role="status"
+            >
+              Unavailable today
+            </p>
+          ) : (
+            <Link
+              to="/daily-matchup"
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+            >
+              Play Daily Matchup
+            </Link>
+          )}
         </CardContent>
       </Card>
 
