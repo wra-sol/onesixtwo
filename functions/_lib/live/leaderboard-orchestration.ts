@@ -5,14 +5,7 @@ import type {
   LiveSnapshot,
   LiveSubmitPayload,
 } from '../../../shared/live/live-types'
-import { targetDate } from '../../../shared/live/live-dates'
-import {
-  buildFixtureDailyMatchupSnapshot,
-  buildFixtureLiveDraftSnapshot,
-} from '../../../shared/live/live-fixtures'
-import { buildDailyMatchupSnapshot } from './daily-matchup-snapshot'
-import { buildLiveDraftSnapshot } from './live-draft-snapshot'
-import { getStoredSnapshot } from './snapshot-cache'
+import { resolveAndCacheSnapshot } from './resolve-snapshot'
 
 type SnapshotEnv = {
   DB?: D1Database
@@ -25,26 +18,7 @@ export async function resolveSnapshot(
   db: D1Database | undefined,
   env: SnapshotEnv,
 ): Promise<LiveSnapshot> {
-  const key = `${mode}:${challengeDate}`
-
-  if (db) {
-    const stored = await getStoredSnapshot(db, key)
-    if (stored) {
-      return JSON.parse(stored) as LiveSnapshot
-    }
-  }
-
-  if (env.USE_LIVE_FIXTURES === 'true') {
-    if (mode === 'daily-matchup') {
-      return buildFixtureDailyMatchupSnapshot(challengeDate, targetDate())
-    }
-    return buildFixtureLiveDraftSnapshot(challengeDate)
-  }
-
-  if (mode === 'daily-matchup') {
-    return buildDailyMatchupSnapshot(challengeDate, targetDate())
-  }
-  return buildLiveDraftSnapshot(challengeDate)
+  return resolveAndCacheSnapshot(mode, challengeDate, { ...env, DB: db })
 }
 
 export type LiveSubmitValidationError = { ok: false; error: string }

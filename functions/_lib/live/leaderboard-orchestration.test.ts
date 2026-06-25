@@ -93,4 +93,36 @@ describe('resolveSnapshot', () => {
     expect(draft.kind).toBe('live-draft')
     expect(assertLiveDraftSnapshot(draft)).toBe(true)
   })
+
+  it('reads versioned cache keys written by snapshot APIs', async () => {
+    const payload = JSON.stringify({
+      kind: 'daily-matchup',
+      available: true,
+      challengeDate: '2026-06-25',
+    })
+    const store = new Map<string, string>([
+      ['daily-matchup:v2:2026-06-25', payload],
+    ])
+    const db = {
+      prepare: (sql: string) => ({
+        bind: (...args: unknown[]) => ({
+          first: async () => {
+            if (!sql.includes('SELECT')) return null
+            const key = args[0] as string
+            const cached = store.get(key)
+            return cached ? { payload: cached } : null
+          },
+          run: async () => {},
+        }),
+      }),
+    } as unknown as D1Database
+
+    const snapshot = await resolveSnapshot(
+      'daily-matchup',
+      '2026-06-25',
+      db,
+      {},
+    )
+    expect(snapshot).toEqual(JSON.parse(payload))
+  })
 })

@@ -1,7 +1,7 @@
 # Thermo-loop remediation — daily-games
 
 **Status:** Done  
-**Source:** Thermo-loop outer cycle 1 — thermo review + ADR pass  
+**Source:** Thermo-loop outer cycle 3 — cache key regression + remediation  
 **Plan file:** docs/plans/thermo-loop-daily-games.md  
 **Last updated:** 2026-06-25
 
@@ -149,3 +149,22 @@ Note: `daily-matchup-snapshot.ts` is 352 lines (above 200-line split target, und
 | ADR-GAP-003 | Cycle 1 | Closed | TLR-004 |
 
 Verification: `npm run test` (145 passed), `npm run build`, `npm run lint` — all green.
+
+## Thermo re-review (cycle 3 — featured matchup + preview deploy)
+
+**Verdict: Request changes → remediated**
+
+| ID | Severity | Issue | Remedy (cycle 3) |
+|----|----------|-------|------------------|
+| F-001 | Critical | Leaderboard used unversioned cache keys | `buildSnapshotCacheKey` in `snapshot-cache.ts`; shared by API + leaderboard |
+| F-002 | High | Dual snapshot resolver paths | `resolveAndCacheSnapshot` in `resolve-snapshot.ts` |
+| F-003 | High | No cache contract tests | `snapshot-cache.test.ts` + leaderboard cache parity test |
+| F-006 | Medium | Triplicated lineup positions | `live-leaderboard.ts` uses `DAILY_LINEUP_POSITIONS` |
+| F-007 | Medium | `qa:live` not in CI | Post-deploy smoke in `deploy-preview.yml` |
+| F-008 | Medium | Silent D1 failures | `console.warn` on read/write errors |
+
+Deferred (acceptable / follow-up): F-004 monolithic POST, F-005 daily-matchup-snapshot 352 lines, F-009 ModeSelect hook, F-010 display subtitle, F-011 jsonResponse helper, F-012 planning doc size.
+
+**Verdict after remediation: Approve**
+
+Verification: `npm run test` (166 passed), `npm run build`, `npm run lint` — all green.

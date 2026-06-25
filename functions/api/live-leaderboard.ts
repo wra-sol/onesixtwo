@@ -18,8 +18,8 @@ import {
 } from '../_lib/live/leaderboard-orchestration'
 import {
   createEmptyDailyLineup,
+  DAILY_LINEUP_POSITIONS,
   type DailyLineup,
-  type DailyLineupPosition,
 } from '../../shared/live/daily-roster'
 import { buildSimTeam, simulateBestOfThree } from '../../shared/live/pa-sim'
 import { heuristicAiBattingOrder } from '../../shared/live/live-draft'
@@ -56,31 +56,15 @@ function clientIp(request: Request): string {
 function lineupFromPayload(
   playersById: Map<string, LivePlayer>,
   playerIds: string[],
-  positions: DailyLineupPosition[],
 ): DailyLineup {
   const lineup = createEmptyDailyLineup()
   playerIds.forEach((id, index) => {
     const player = playersById.get(id)
-    const pos = positions[index]
+    const pos = DAILY_LINEUP_POSITIONS[index]
     if (player && pos) lineup[pos] = player
   })
   return lineup
 }
-
-const LINEUP_POSITIONS: DailyLineupPosition[] = [
-  'C',
-  '1B',
-  '2B',
-  '3B',
-  'SS',
-  'OF1',
-  'OF2',
-  'OF3',
-  'DH',
-  'SP',
-  'RP',
-  'CL',
-]
 
 async function handleGet(context: PagesContext): Promise<Response> {
   const db = context.env.DB
@@ -161,7 +145,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
   }
 
   const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
-  const userLineup = lineupFromPayload(playersById, payload.playerIds, LINEUP_POSITIONS)
+  const userLineup = lineupFromPayload(playersById, payload.playerIds)
   const battingOrder = payload.battingOrderIds
     .map((id) => playersById.get(id))
     .filter((p): p is LivePlayer => Boolean(p))
@@ -186,11 +170,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
         if (!assertLiveDraftSnapshot(snapshot) || !payload.aiPlayerIds) {
           return null
         }
-        const lineup = lineupFromPayload(
-          playersById,
-          payload.aiPlayerIds,
-          LINEUP_POSITIONS,
-        )
+        const lineup = lineupFromPayload(playersById, payload.aiPlayerIds)
         return {
           name: 'AI',
           lineup,

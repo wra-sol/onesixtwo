@@ -1,3 +1,15 @@
+import type { LiveModeId } from '../../../shared/live/live-types'
+
+/** Bump when snapshot shape or live-vs-fixture semantics change (invalidates D1 cache). */
+export const SNAPSHOT_CACHE_VERSION = 'v2'
+
+export function buildSnapshotCacheKey(
+  mode: LiveModeId,
+  challengeDate: string,
+): string {
+  return `${mode}:${SNAPSHOT_CACHE_VERSION}:${challengeDate}`
+}
+
 export async function getStoredSnapshot(
   db: D1Database,
   key: string,
@@ -8,7 +20,12 @@ export async function getStoredSnapshot(
       .bind(key)
       .first<{ payload: string }>()
     return row?.payload ?? null
-  } catch {
+  } catch (error) {
+    console.warn(
+      'live_snapshots read failed',
+      key,
+      error instanceof Error ? error.message : error,
+    )
     return null
   }
 }
@@ -29,7 +46,11 @@ export async function storeSnapshot(
       )
       .bind(key, payload, Date.now())
       .run()
-  } catch {
-    // Cache write is best-effort; snapshot response still succeeds.
+  } catch (error) {
+    console.warn(
+      'live_snapshots write failed',
+      key,
+      error instanceof Error ? error.message : error,
+    )
   }
 }
