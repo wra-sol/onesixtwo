@@ -7,6 +7,7 @@ type SpinReelsProps = {
   spinIntent: SpinIntent
   teamPreview: string
   eraPreview: Era
+  hideEra?: boolean
 }
 
 type ReelProps = {
@@ -38,24 +39,27 @@ export default function SpinReels({
   spinIntent,
   teamPreview,
   eraPreview,
+  hideEra = false,
 }: SpinReelsProps) {
   const teamLocked = isSpinning && spinIntent === 'year'
   const eraLocked = isSpinning && spinIntent === 'team'
 
   return (
-    <div className="spin-reels" role="status">
+    <div className={`spin-reels${hideEra ? ' spin-reels--team-only' : ''}`} role="status">
       <SpinReel
         label="Team"
         value={isSpinning && !teamLocked ? teamPreview : teamName}
         isSpinning={isSpinning && !teamLocked}
         locked={teamLocked}
       />
-      <SpinReel
-        label="Era"
-        value={isSpinning && !eraLocked ? eraPreview : era}
-        isSpinning={isSpinning && !eraLocked}
-        locked={eraLocked}
-      />
+      {!hideEra && (
+        <SpinReel
+          label="Era"
+          value={isSpinning && !eraLocked ? eraPreview : era}
+          isSpinning={isSpinning && !eraLocked}
+          locked={eraLocked}
+        />
+      )}
     </div>
   )
 }

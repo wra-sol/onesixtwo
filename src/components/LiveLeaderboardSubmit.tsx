@@ -3,32 +3,42 @@ import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { trackEvent } from '@/lib/analytics'
-import { buildSharePath } from '@/lib/share-url'
+import { readStoredInitials, writeStoredInitials } from '@/lib/leaderboard'
 import {
-  readStoredInitials,
-  submitToLeaderboard,
-  type SubmitLeaderboardResult,
-} from '@/lib/leaderboard'
-import type { Lineup, RosterFormatId } from '@/lib/types'
+  lineupPlayerIdsFromDailyLineup,
+  submitLiveLeaderboard,
+  type LiveSubmitResult,
+} from '@/lib/live-api-client'
+import type { LiveModeId } from '@shared/live/live-types'
+import type { DailyLineup } from '@shared/live/daily-roster'
 
-type LeaderboardSubmitProps = {
-  lineup: Lineup
-  rosterFormatId: RosterFormatId
-  rerollIndex: number
+type LiveLeaderboardSubmitProps = {
+  mode: LiveModeId
+  challengeDate: string
+  targetDate?: string
+  userLineup: DailyLineup
+  userBattingOrderIds: string[]
+  aiLineup?: DailyLineup
+  simSeed: string
+  disabled?: boolean
+  disabledReason?: string
 }
 
-export default function LeaderboardSubmit({
-  lineup,
-  rosterFormatId,
-  rerollIndex,
-}: LeaderboardSubmitProps) {
+export default function LiveLeaderboardSubmit({
+  mode,
+  challengeDate,
+  targetDate,
+  userLineup,
+  userBattingOrderIds,
+  aiLineup,
+  simSeed,
+  disabled = false,
+  disabledReason,
+}: LiveLeaderboardSubmitProps) {
   const [initials, setInitials] = useState(() => readStoredInitials())
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [result, setResult] = useState<SubmitLeaderboardResult | null>(null)
+  const [result, setResult] = useState<LiveSubmitResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  const canSubmit = rerollIndex === 0
 
   const handleInitialsChange = (value: string) => {
     setInitials(value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3))
@@ -37,29 +47,45 @@ export default function LeaderboardSubmit({
   }
 
   const handleSubmit = async () => {
-    if (!canSubmit || isSubmitting) return
+    if (disabled || isSubmitting) return
 
     setIsSubmitting(true)
     setError(null)
     setResult(null)
 
     try {
-      const sharePath = buildSharePath(lineup, 0, rosterFormatId)
-      const response = await submitToLeaderboard({ initials, sharePath })
+      const response = await submitLiveLeaderboard({
+        mode,
+        challengeDate,
+        targetDate,
+        initials,
+        playerIds: lineupPlayerIdsFromDailyLineup(userLineup),
+        battingOrderIds: userBattingOrderIds,
+        aiPlayerIds: aiLineup ? lineupPlayerIdsFromDailyLineup(aiLineup) : undefined,
+        simSeed,
+      })
       if (response.ok) {
+        writeStoredInitials(initials)
         setResult(response)
-        trackEvent('leaderboard_submit', { rank: response.rank })
       } else {
         setError(response.error)
-        trackEvent('leaderboard_submit_error', { error: response.error })
       }
     } catch {
-      const message = 'Could not submit to leaderboard.'
-      setError(message)
-      trackEvent('leaderboard_submit_error', { error: message })
+      setError('Could not submit to leaderboard.')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (disabled) {
+    return (
+      <div className="w-full space-y-2 rounded-lg border border-border bg-muted/20 p-4 text-left">
+        <h3 className="text-sm font-medium text-primary">Leaderboard</h3>
+        <p className="text-xs text-muted-foreground" role="alert">
+          {disabledReason ?? 'Submission is unavailable.'}
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -67,20 +93,15 @@ export default function LeaderboardSubmit({
       <div className="space-y-1">
         <h3 className="text-sm font-medium text-primary">Leaderboard</h3>
         <p className="text-xs text-muted-foreground">
-          Add your initials to the 24-hour board. First simulation only.
+          Add your initials to today&apos;s board. First submission only.
         </p>
       </div>
 
-      {!canSubmit ? (
-        <p className="text-xs text-muted-foreground">
-          Only your first simulation can be submitted. Draft again for a new
-          entry.
-        </p>
-      ) : result?.ok ? (
+      {result?.ok ? (
         <p className="text-sm">
           Submitted —{' '}
           <span className="font-semibold text-primary">#{result.rank}</span> on
-          the 24-hour board.{' '}
+          today&apos;s board.{' '}
           <Link
             to="/leaderboard"
             className="underline underline-offset-2 hover:text-primary"
@@ -91,9 +112,9 @@ export default function LeaderboardSubmit({
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="space-y-1.5 sm:max-w-[8rem]">
-            <Label htmlFor="leaderboard-initials">Initials</Label>
+            <Label htmlFor="live-leaderboard-initials">Initials</Label>
             <Input
-              id="leaderboard-initials"
+              id="live-leaderboard-initials"
               value={initials}
               onChange={(event) => handleInitialsChange(event.target.value)}
               placeholder="ABC"
