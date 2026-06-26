@@ -52,6 +52,7 @@ export default function LiveDraftShell({
     isFallback,
     isLoading,
     filteredPlayers,
+    playerListMessage,
     canSelect,
     isLineupPhase,
     isAssigning,
@@ -93,7 +94,8 @@ export default function LiveDraftShell({
     return (
       <div className="space-y-3 py-8 text-center">
         <p className="text-destructive" role="alert">
-          Draft stuck — no legal team or pick remains.
+          Draft stuck — no team left with enough players for this round. Fill catcher and
+          closer earlier on the next try.
         </p>
         <Button type="button" variant="outline" onClick={() => void retry()}>
           Start over
@@ -143,8 +145,7 @@ export default function LiveDraftShell({
         : undefined
 
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <LiveResultScreen
+      <LiveResultScreen
           series={series}
           opponentName={opponentName}
           shareInput={shareInput}
@@ -169,7 +170,6 @@ export default function LiveDraftShell({
             />
           }
         />
-      </div>
     )
   }
 
@@ -182,7 +182,7 @@ export default function LiveDraftShell({
     draftState.mode === 'live-draft' ? draftState.userLineup : draftState.lineup
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
+    <>
       <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -203,6 +203,11 @@ export default function LiveDraftShell({
                   disabled={!canSelect}
                 />
                 <div className="divide-y divide-border rounded-lg border border-border">
+                  {filteredPlayers.length === 0 && playerListMessage ? (
+                    <p className="px-3 py-4 text-sm text-muted-foreground">
+                      {playerListMessage}
+                    </p>
+                  ) : null}
                   {filteredPlayers.map((player) => (
                     <LivePlayerCard
                       key={player.id}
@@ -249,7 +254,7 @@ export default function LiveDraftShell({
           </Link>
         </p>
       )}
-    </div>
+    </>
   )
 }
 

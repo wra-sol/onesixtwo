@@ -117,8 +117,7 @@ export default function LeaderboardRoute() {
   }, [loadBoard])
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <Card className="mx-auto max-w-3xl">
+    <Card className="mx-auto max-w-3xl">
         <CardHeader className="text-center">
           <CardTitle className="font-display text-xl text-primary">
             Leaderboard
@@ -207,6 +206,5 @@ export default function LeaderboardRoute() {
           </p>
         </CardContent>
       </Card>
-    </div>
   )
 }

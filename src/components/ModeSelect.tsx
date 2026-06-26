@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card'
 import {
   fetchDailyMatchupSnapshot,
+  fetchLiveDraftSnapshot,
   LiveSnapshotError,
 } from '@/lib/live-api-client'
 import {
@@ -19,7 +20,11 @@ import {
 } from '@/lib/roster-format'
 import { cn } from '@/lib/utils'
 import { formatDailyMatchupOpponentHeadline } from '@shared/live/daily-matchup-display'
-import type { DailyMatchupSnapshot } from '@shared/live/live-types'
+import {
+  formatLiveDraftHomeDescription,
+  formatLiveDraftHomeHeadline,
+} from '@shared/live/live-draft-display'
+import type { DailyMatchupSnapshot, LiveDraftSnapshot } from '@shared/live/live-types'
 
 type ModeSelectProps = {
   onStartClassic: (formatId: RosterFormatId) => void
@@ -30,10 +35,18 @@ type DailyMatchupPreviewState =
   | { status: 'error'; message: string }
   | { status: 'ready'; snapshot: DailyMatchupSnapshot }
 
+type LiveDraftPreviewState =
+  | { status: 'loading' }
+  | { status: 'error'; message: string }
+  | { status: 'ready'; snapshot: LiveDraftSnapshot }
+
 export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const [formatId, setFormatId] = useState<RosterFormatId>('classic')
   const [dailyMatchupPreview, setDailyMatchupPreview] =
     useState<DailyMatchupPreviewState>({ status: 'loading' })
+  const [liveDraftPreview, setLiveDraftPreview] = useState<LiveDraftPreviewState>({
+    status: 'loading',
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -51,6 +64,29 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
             ? error.message
             : 'Could not load today\u2019s opponent.'
         setDailyMatchupPreview({ status: 'error', message })
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    void fetchLiveDraftSnapshot()
+      .then((snapshot) => {
+        if (!cancelled) {
+          setLiveDraftPreview({ status: 'ready', snapshot })
+        }
+      })
+      .catch((error) => {
+        if (cancelled) return
+        const message =
+          error instanceof LiveSnapshotError
+            ? error.message
+            : 'Could not load today\u2019s player pool.'
+        setLiveDraftPreview({ status: 'error', message })
       })
 
     return () => {
@@ -88,12 +124,40 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
     }
   })()
 
+  const liveDraftDescription = (() => {
+    switch (liveDraftPreview.status) {
+      case 'loading':
+        return 'Loading today\u2019s player pool\u2026'
+      case 'error':
+        return liveDraftPreview.message
+      case 'ready': {
+        const { snapshot } = liveDraftPreview
+        return (
+          <>
+            <span className="font-medium text-foreground">
+              {formatLiveDraftHomeHeadline(snapshot)}
+            </span>
+            <span className="mt-1 block text-muted-foreground">
+              {formatLiveDraftHomeDescription(snapshot)}
+            </span>
+          </>
+        )
+      }
+      default: {
+        const _exhaustive: never = liveDraftPreview
+        return _exhaustive
+      }
+    }
+  })()
+
   const dailyMatchupPlayDisabled =
     dailyMatchupPreview.status !== 'ready' ||
     !dailyMatchupPreview.snapshot.available
 
+  const liveDraftPlayDisabled = liveDraftPreview.status !== 'ready'
+
   return (
-    <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
+    <div className="mx-auto grid max-w-4xl gap-4 pb-20 md:grid-cols-2 md:pb-8">
       <Card className="md:col-span-2">
         <CardHeader className="items-center text-center">
           <img
@@ -178,18 +242,26 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
           <CardTitle className="font-display text-lg text-primary">
             Live Draft
           </CardTitle>
-          <CardDescription>
-            Head-to-head snake draft against AI from active MLB players, then
-            best-of-3 simulation.
-          </CardDescription>
+          <CardDescription>{liveDraftDescription}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Link
-            to="/live-draft"
-            className="inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground"
-          >
-            Play Live Draft
-          </Link>
+          {liveDraftPlayDisabled ? (
+            <p
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-muted-foreground"
+              role="status"
+            >
+              {liveDraftPreview.status === 'loading'
+                ? 'Loading today\u2019s player pool\u2026'
+                : 'Live Draft unavailable'}
+            </p>
+          ) : (
+            <Link
+              to="/live-draft"
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground"
+            >
+              Play Live Draft
+            </Link>
+          )}
         </CardContent>
       </Card>
     </div>

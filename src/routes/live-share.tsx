@@ -57,7 +57,7 @@ function LiveShareUnavailable({
   actionLabel: string
 }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-2">
+    <div className="py-2">
       <Card className="mx-auto max-w-lg text-center">
         <CardHeader>
           <CardTitle className="font-display text-xl text-primary">
@@ -124,8 +124,7 @@ function LiveShareContent({ input }: { input: LiveShareInput }) {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <LiveResultScreen
+    <LiveResultScreen
         series={state.resolved.series}
         opponentName={state.resolved.opponentName}
         shareInput={state.resolved.shareInput}
@@ -134,7 +133,6 @@ function LiveShareContent({ input }: { input: LiveShareInput }) {
           navigate(input.mode === 'daily-matchup' ? '/daily-matchup' : '/live-draft')
         }
       />
-    </div>
   )
 }
 

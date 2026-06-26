@@ -3,7 +3,7 @@ import { BRAND } from '@/lib/brand'
 
 export default function SiteFooter() {
   return (
-    <footer className="shrink-0 border-t border-border px-3 py-3 text-center text-xs text-muted-foreground md:px-4 md:py-4 md:text-sm">
+    <footer className="border-t border-border px-3 py-3 text-center text-xs text-muted-foreground md:px-4 md:py-4 md:text-sm">
       <nav
         className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1"
         aria-label="Site links"

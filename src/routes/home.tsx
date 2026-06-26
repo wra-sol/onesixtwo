@@ -60,8 +60,7 @@ export default function HomeRoute() {
   const [eraSpinTick, setEraSpinTick] = useState(0)
   const [simulationReroll, setSimulationReroll] = useState(0)
   const [isSimulating, setIsSimulating] = useState(false)
-  const draftScrollRef = useRef<HTMLDivElement>(null)
-  const dockRef = useRef<HTMLElement>(null)
+  const lineupRef = useRef<HTMLElement>(null)
 
   const teamPreview = useMemo(() => {
     if (TEAM_REEL.length === 0) return ''
@@ -81,23 +80,8 @@ export default function HomeRoute() {
   }, [gameState.status, gameState.currentBucket])
 
   useEffect(() => {
-    const dock = dockRef.current
-    const scroll = draftScrollRef.current
-    if (!dock || !scroll) return
-
-    const syncDockHeight = () => {
-      scroll.style.setProperty('--lineup-dock-h', `${dock.offsetHeight}px`)
-    }
-
-    syncDockHeight()
-    const ro = new ResizeObserver(syncDockHeight)
-    ro.observe(dock)
-    return () => ro.disconnect()
-  }, [gameState.status, gameState.selectedPlayerId])
-
-  useEffect(() => {
-    if (gameState.status === 'assigning' && dockRef.current) {
-      dockRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' })
+    if (gameState.status === 'assigning' && lineupRef.current) {
+      lineupRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
   }, [gameState.status, gameState.selectedPlayerId])
 
@@ -210,7 +194,7 @@ export default function HomeRoute() {
 
   if (gameState.status === 'intro') {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div className="py-2">
         <ModeSelect onStartClassic={handleStart} />
       </div>
     )
@@ -218,34 +202,26 @@ export default function HomeRoute() {
 
   if (gameState.status === 'stuck') {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <StuckDraft onRestart={handleRestart} />
-      </div>
+      <StuckDraft onRestart={handleRestart} />
     )
   }
 
   if (gameState.status === 'complete' && seasonResult) {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <ResultScreen
-          result={seasonResult}
-          lineup={gameState.lineup}
-          onRestart={handleRestart}
-          onSimulateAgain={handleSimulateAgain}
-          isSimulating={isSimulating}
-          rerollIndex={simulationReroll}
-        />
-      </div>
+      <ResultScreen
+        result={seasonResult}
+        lineup={gameState.lineup}
+        onRestart={handleRestart}
+        onSimulateAgain={handleSimulateAgain}
+        isSimulating={isSimulating}
+        rerollIndex={simulationReroll}
+      />
     )
   }
 
   return (
-    <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden md:grid md:h-full md:min-h-0 md:grid-cols-2 md:gap-6">
-      <div
-        ref={draftScrollRef}
-        className="draft-scroll min-h-0 flex-1 overflow-y-auto md:pb-0"
-      >
-        <Card>
+    <div className="grid gap-6 md:grid-cols-2">
+      <Card>
           <CardContent className="space-y-4 pt-4">
             <DraftPanel
               round={gameState.round}
@@ -283,11 +259,7 @@ export default function HomeRoute() {
             <DraftHistory history={gameState.history} />
           </CardContent>
         </Card>
-      </div>
-      <aside
-        ref={dockRef}
-        className="lineup-aside absolute bottom-0 left-0 z-50 w-full md:static md:z-auto md:w-auto"
-      >
+      <aside ref={lineupRef} className="lineup-aside">
         <LineupGrid
           lineup={gameState.lineup}
           rosterFormatId={gameState.rosterFormatId}

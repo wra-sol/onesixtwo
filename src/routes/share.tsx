@@ -46,7 +46,7 @@ export default function ShareRoute() {
       : 'This share link could not be loaded.'
 
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto py-2">
+      <div className="py-2">
         <Card className="mx-auto max-w-lg text-center">
           <CardHeader>
             <CardTitle className="font-display text-xl text-primary">
@@ -68,8 +68,7 @@ export default function ShareRoute() {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <ResultScreen
+    <ResultScreen
         result={result}
         lineup={lineup}
         shareUrl={
@@ -78,7 +77,6 @@ export default function ShareRoute() {
         rerollIndex={parsed.reroll}
         readOnly
         onRestart={() => navigate('/')}
-      />
-    </div>
+    />
   )
 }

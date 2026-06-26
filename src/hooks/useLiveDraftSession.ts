@@ -38,6 +38,10 @@ export type LiveModeConfig = {
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
   ) => LivePlayer[]
+  getPlayerListMessage?: (
+    state: LiveDraftSessionState,
+    snapshot: LiveSnapshot,
+  ) => string | null
   onUserReroll?: (
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
@@ -181,6 +185,11 @@ export function useLiveDraftSession(config: LiveModeConfig) {
   const liveDraftSnapshot =
     snapshot?.kind === 'live-draft' ? snapshot : null
 
+  const playerListMessage =
+    draftState && snapshot
+      ? (config.getPlayerListMessage?.(draftState, snapshot) ?? null)
+      : null
+
   return {
     snapshot,
     dailyMatchupSnapshot,
@@ -196,6 +205,7 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     isLoading,
     playersById,
     filteredPlayers,
+    playerListMessage,
     canSelect,
     isLineupPhase,
     isAssigning,

@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DAILY_HITTER_POSITIONS,
@@ -46,7 +47,8 @@ function Slot({
           type="button"
           size="sm"
           variant="secondary"
-          className="mt-1 h-7 w-full text-xs"
+          className="mt-1 h-7 w-full scroll-mt-24 text-xs"
+          data-lineup-assign="true"
           onClick={() => onAssign(position)}
         >
           Assign
@@ -64,6 +66,12 @@ export default function LiveLineupGrid({
   isAssigning,
   onAssign,
 }: LiveLineupGridProps) {
+  useEffect(() => {
+    if (!isAssigning || !selectedPlayer) return
+    const assignButton = document.querySelector('[data-lineup-assign="true"]')
+    assignButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [isAssigning, selectedPlayer?.id])
+
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-3">
       <h3 className="font-display text-sm text-primary">Lineup</h3>

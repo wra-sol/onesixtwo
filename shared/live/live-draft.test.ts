@@ -169,6 +169,38 @@ describe('live-draft', () => {
     expect(state.currentTeam?.teamId).not.toBe(beforeTeam)
   })
 
+  it('does not spin a team with only one catcher when both sides still need C', () => {
+    const snapshot = buildFixtureLiveDraftSnapshot('2026-06-30')
+    let state = startLiveDraft(snapshot)
+    state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
+
+    let guard = 0
+    while (state.status === 'drafting' && state.round < 12 && guard++ < 80) {
+      if (state.roundStatus === 'spinning') {
+        state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
+        continue
+      }
+      if (!isUserTurn(state)) {
+        state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
+        continue
+      }
+      const pool = filterRoundPool(snapshot.players, state, 'user')
+      const pick =
+        pool
+          .filter((player) => !player.positions.includes('C'))
+          .sort((a, b) => b.grades.overall - a.grades.overall)[0] ??
+        pool.sort((a, b) => b.grades.overall - a.grades.overall)[0]
+      if (!pick) break
+      state = draftLiveUserPlayer(state, pick, snapshot.players, snapshot.simSeed)
+      state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
+    }
+
+    expect(state.round).toBe(12)
+    state = advanceLiveDraftTurns(state, snapshot.players, snapshot.simSeed)
+    expect(state.currentTeam).not.toBeNull()
+    expect(filterRoundPool(snapshot.players, state, 'user').length).toBeGreaterThan(0)
+  })
+
   it('completes a full 12-round draft', () => {
     const snapshot = buildFixtureLiveDraftSnapshot('2026-06-25')
     let state = startLiveDraft(snapshot)

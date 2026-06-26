@@ -328,16 +328,6 @@
     }
   }
 
-  .draft-scroll {
-    padding-bottom: var(--lineup-dock-h, 7rem);
-  }
-
-  @media (min-width: 768px) {
-    .draft-scroll {
-      padding-bottom: 0;
-    }
-  }
-
   @media (max-width: 767px) {
     .lineup-aside {
       border-top: 2px solid color-mix(in srgb, var(--primary) 40%, transparent);

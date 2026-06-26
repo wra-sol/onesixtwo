@@ -42,6 +42,21 @@ npm run dev
 
 Open the URL shown in the terminal (typically http://localhost:5173).
 
+Classic draft works with Vite alone. **Live Draft** and **Daily Matchup** need the Cloudflare Pages API (D1 + functions). In a second terminal:
+
+```bash
+npm run dev:pages   # builds once, applies local D1 migrations, API on :8790
+npm run dev         # UI on :5173 with /api proxied to :8790
+```
+
+If the API runs on a different port, set `VITE_DEV_API_ORIGIN` (e.g. `http://127.0.0.1:8788`).
+
+The old single-command flow still works for a static preview without hot reload:
+
+```bash
+npm run dev:pages   # then open http://localhost:8790
+```
+
 ## Test & build
 
 ```bash

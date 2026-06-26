@@ -4,7 +4,7 @@ import type { DailyLineupPosition } from './daily-roster'
 
 function sampleHitters(teamId: number, abbrev: string, name: string, baseId: number): RawPlayerInput[] {
   const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'] as const
-  return positions.map((pos, index) => ({
+  const hitters = positions.map((pos, index) => ({
     personId: baseId + index,
     name: `${abbrev} Hitter ${index + 1}`,
     teamId,
@@ -23,6 +23,29 @@ function sampleHitters(teamId: number, abbrev: string, name: string, baseId: num
     appearedOnTargetDate: true,
     isFallback: false,
   }))
+
+  return [
+    ...hitters,
+    {
+      personId: baseId + 20,
+      name: `${abbrev} Backup C`,
+      teamId,
+      teamAbbrev: abbrev,
+      teamName: name,
+      positions: ['C'] as const,
+      role: 'hitter' as const,
+      batSide: 'R' as const,
+      hitterStats: {
+        obp: 0.28,
+        slg: 0.35,
+        ops: 0.63,
+        sb: 0,
+        pa: 80,
+      },
+      appearedOnTargetDate: true,
+      isFallback: false,
+    },
+  ] as RawPlayerInput[]
 }
 
 function samplePitchers(teamId: number, abbrev: string, name: string, baseId: number): RawPlayerInput[] {

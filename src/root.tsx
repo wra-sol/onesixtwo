@@ -4,8 +4,8 @@ import { BRAND } from './lib/brand'
 
 export default function Root() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-foreground">
-      <header className="shrink-0 border-b-2 border-primary/70 bg-gradient-to-b from-[#0d2a49] via-[#081f38] to-background px-4 py-2 text-center shadow-[0_10px_40px_rgba(0,0,0,0.25)] md:py-4">
+    <>
+      <header className="border-b-2 border-primary/70 bg-gradient-to-b from-[#0d2a49] via-[#081f38] to-background px-4 py-2 text-center shadow-[0_10px_40px_rgba(0,0,0,0.25)] md:py-4">
         <Link
           to="/"
           aria-label={`${BRAND.name} home`}
@@ -29,12 +29,10 @@ export default function Root() {
           </div>
         </Link>
       </header>
-      <main className="relative mx-auto flex w-full max-w-6xl min-h-0 flex-1 flex-col overflow-hidden px-4 py-2 md:py-4">
-        <div className="flex min-h-0 flex-1 flex-col">
-          <Outlet />
-        </div>
+      <main className="relative mx-auto w-full max-w-6xl px-4 py-2 md:py-4">
+        <Outlet />
       </main>
       <SiteFooter />
-    </div>
+    </>
   )
 }

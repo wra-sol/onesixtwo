@@ -11,6 +11,7 @@ import {
   setLiveDraftBattingOrder,
   startLiveDraft,
 } from '@shared/live/live-draft'
+import { liveDraftPlayerListMessage } from '@shared/live/live-draft-display'
 import { buildSimTeam, simulateBestOfThree } from '@shared/live/pa-sim'
 import type { LiveDraftState, LivePlayer } from '@shared/live/live-types'
 
@@ -31,9 +32,10 @@ function runAiTurns(
   ) {
     next = advanceLiveDraftTurns(next, players, simSeed)
   }
-  const newPick = next.picks[next.picks.length - 1]
-  if (newPick && newPick.side === 'ai' && next.picks.length > before) {
-    const player = players.find((p) => p.id === newPick.playerId)
+  const newAiPicks = next.picks.slice(before).filter((pick) => pick.side === 'ai')
+  if (newAiPicks.length > 0) {
+    const latest = newAiPicks[newAiPicks.length - 1]!
+    const player = players.find((p) => p.id === latest.playerId)
     if (player) {
       onReveal(player)
       window.setTimeout(() => onReveal(null), AI_REVEAL_MS)
@@ -60,6 +62,10 @@ export function buildLiveDraftConfig(
     getRoundPool: (state, snapshot) => {
       if (state.mode !== 'live-draft' || snapshot.kind !== 'live-draft') return []
       return filterRoundPool(snapshot.players, state, 'user')
+    },
+    getPlayerListMessage: (state, snapshot) => {
+      if (state.mode !== 'live-draft' || snapshot.kind !== 'live-draft') return null
+      return liveDraftPlayerListMessage(state)
     },
     onUserReroll: (state, snapshot) => {
       if (state.mode !== 'live-draft' || snapshot.kind !== 'live-draft') return state

@@ -1,8 +1,15 @@
 import { createSeededRandomFromString } from './rng'
 import {
+  pickAiPlayerFromPool,
+  scorePlayerForAi,
+  shouldAiAttemptReroll,
+  type AiPickContext,
+} from './live-draft-ai'
+import { bestOpenPosition, pickableFromPool } from './live-draft-positions'
+import { snakeDraftSide } from './live-draft-snake'
+import {
   createEmptyDailyLineup,
   dailyLineupIsComplete,
-  dailyLineupOpenPositions,
   dailyLineupPlayers,
   defaultBattingOrderFromLineup,
   playerEligibleForDailyPosition,
@@ -21,20 +28,8 @@ import type {
 
 export const LIVE_DRAFT_TOTAL_ROUNDS = 12
 const TOTAL_PICKS = LIVE_DRAFT_TOTAL_ROUNDS * 2
-const AI_REROLL_SCORE_THRESHOLD = 62
 
-export function snakeDraftSide(
-  pickNumber: number,
-  userPicksFirst: boolean,
-): 'user' | 'ai' {
-  const round = Math.floor((pickNumber - 1) / 2)
-  const isFirstInRound = (pickNumber - 1) % 2 === 0
-  const userFirstThisRound = round % 2 === 0 ? userPicksFirst : !userPicksFirst
-  if (isFirstInRound) {
-    return userFirstThisRound ? 'user' : 'ai'
-  }
-  return userFirstThisRound ? 'ai' : 'user'
-}
+export { snakeDraftSide }
 
 export function startLiveDraft(snapshot: LiveDraftSnapshot): LiveDraftState {
   return {
@@ -85,34 +80,6 @@ export function createDailyMatchupDraftState(
   }
 }
 
-function bestOpenPosition(
-  player: LivePlayer,
-  lineup: DailyLineup,
-): DailyLineupPosition | null {
-  const open = dailyLineupOpenPositions(lineup)
-  const eligible = open.filter((pos) => playerEligibleForDailyPosition(player, pos))
-  if (eligible.length === 0) return null
-
-  const priority: DailyLineupPosition[] = [
-    'SP',
-    'CL',
-    'RP',
-    'C',
-    'SS',
-    '1B',
-    '2B',
-    '3B',
-    'OF1',
-    'OF2',
-    'OF3',
-    'DH',
-  ]
-  for (const pos of priority) {
-    if (eligible.includes(pos)) return pos
-  }
-  return eligible[0] ?? null
-}
-
 function sideLineup(state: LiveDraftState, side: 'user' | 'ai'): DailyLineup {
   return side === 'user' ? state.userLineup : state.aiLineup
 }
@@ -136,6 +103,20 @@ function pickNumberForSideInRound(
 
 function spinSeed(state: LiveDraftState, simSeed: string): string {
   return `${simSeed}|round${state.round}|used${state.usedRoundTeamIds.join('.')}|reroll${state.pendingRerollSide ?? 'none'}|picks${state.roundPickIds.length}`
+}
+
+export function hasDistinctPickPair(
+  pool: LivePlayer[],
+  userLineup: DailyLineup,
+  aiLineup: DailyLineup,
+): boolean {
+  const userPool = pickableFromPool(pool, userLineup)
+  const aiPool = pickableFromPool(pool, aiLineup)
+  return (
+    userPool.length > 0 &&
+    aiPool.length > 0 &&
+    (userPool.length > 1 || aiPool.length > 1 || userPool[0]!.id !== aiPool[0]!.id)
+  )
 }
 
 function teamHasEnoughPickable(
@@ -165,11 +146,7 @@ function teamHasEnoughPickable(
     return pool.some((player) => bestOpenPosition(player, state.userLineup) !== null)
   }
 
-  const userOk = pool.some(
-    (player) => bestOpenPosition(player, state.userLineup) !== null,
-  )
-  const aiOk = pool.some((player) => bestOpenPosition(player, state.aiLineup) !== null)
-  return userOk && aiOk && pool.length >= 2
+  return hasDistinctPickPair(pool, state.userLineup, state.aiLineup)
 }
 
 export function getSpinEligibleTeams(
@@ -319,13 +296,11 @@ export function draftDailyMatchupPlayer(
   return next
 }
 
-function scorePlayerForAi(player: LivePlayer, lineup: DailyLineup): number {
-  const position = bestOpenPosition(player, lineup)
-  if (!position) return -1
-  let score = player.grades.overall
-  if (position === 'SP' || position === 'CL') score += 5
-  if (position === 'RP') score += 2
-  return score
+function aiPickContext(state: LiveDraftState): AiPickContext {
+  return {
+    round: state.round,
+    userPickThisRound: state.roundPickIds.length > 0,
+  }
 }
 
 function aiPickFromRoundPool(
@@ -333,24 +308,14 @@ function aiPickFromRoundPool(
   players: LivePlayer[],
   simSeed: string,
 ): LivePlayer | null {
-  const random = createSeededRandomFromString(`${simSeed}|pick${state.currentPick}`)
   const available = filterRoundPool(players, state, 'ai')
-  if (available.length === 0) return null
-
-  const scored = available
-    .map((player) => ({ player, score: scorePlayerForAi(player, state.aiLineup) }))
-    .filter((entry) => entry.score >= 0)
-    .sort((a, b) => b.score - a.score)
-
-  if (scored.length === 0) return null
-
-  const top = scored.slice(0, Math.min(5, scored.length))
-  const blockChance = 0.15
-  if (random() < blockChance && top.length > 1) {
-    return top[1]!.player
-  }
-  const index = Math.floor(random() * Math.min(3, top.length))
-  return top[index]!.player
+  return pickAiPlayerFromPool(
+    available,
+    state.aiLineup,
+    aiPickContext(state),
+    simSeed,
+    state.currentPick,
+  )
 }
 
 function applySidePick(
@@ -479,11 +444,12 @@ function maybeAiReroll(
   }
 
   const pool = filterRoundPool(players, state, 'ai')
+  const context = aiPickContext(state)
   const bestScore = pool.reduce((max, player) => {
-    return Math.max(max, scorePlayerForAi(player, state.aiLineup))
+    return Math.max(max, scorePlayerForAi(player, state.aiLineup, context))
   }, -1)
 
-  if (bestScore >= AI_REROLL_SCORE_THRESHOLD && pool.length > 0) {
+  if (!shouldAiAttemptReroll(bestScore, simSeed, state.round)) {
     return state
   }
 

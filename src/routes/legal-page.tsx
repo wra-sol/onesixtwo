@@ -198,7 +198,7 @@ function LegalDocument({ config }: { config: LegalPageConfig }) {
   }, [config])
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto py-2">
+    <div className="py-2">
       <Card className="mx-auto max-w-2xl">
         <CardHeader>
           <CardTitle className="font-display text-xl text-primary">

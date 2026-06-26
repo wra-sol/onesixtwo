@@ -25,7 +25,7 @@ export default function LiveDraftRoute() {
       subtitle={({ draftState }) => {
         if (draftState?.mode !== 'live-draft') return ''
         if (draftState.status === 'stuck') {
-          return 'No legal picks remain — refresh to try again.'
+          return 'No team left with legal picks for both sides — fill scarce slots earlier next time.'
         }
         if (draftState.roundStatus === 'spinning') {
           return `Round ${draftState.round} · Spinning team…`
@@ -91,7 +91,7 @@ export default function LiveDraftRoute() {
 
             {aiReveal && (
               <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-                AI selects {aiReveal.name} ({aiReveal.teamAbbrev})
+                AI drafted {aiReveal.name} ({aiReveal.teamAbbrev})
               </div>
             )}
 
@@ -125,18 +125,24 @@ export default function LiveDraftRoute() {
       }) =>
         draftState?.mode === 'live-draft' ? (
           <div className="space-y-3">
-            <LiveLineupGrid
-              lineup={draftState.userLineup}
-              selectedPlayer={selectedPlayer}
-              isAssigning={isAssigning && !isLineupPhase && canSelect}
-              onAssign={handleAssign}
-            />
-            <LiveLineupGrid
-              lineup={draftState.aiLineup}
-              selectedPlayer={null}
-              isAssigning={false}
-              onAssign={() => undefined}
-            />
+            <div>
+              <p className="mb-2 font-display text-sm text-primary">Your lineup</p>
+              <LiveLineupGrid
+                lineup={draftState.userLineup}
+                selectedPlayer={selectedPlayer}
+                isAssigning={isAssigning && !isLineupPhase && canSelect}
+                onAssign={handleAssign}
+              />
+            </div>
+            <div>
+              <p className="mb-2 font-display text-sm text-muted-foreground">AI lineup</p>
+              <LiveLineupGrid
+                lineup={draftState.aiLineup}
+                selectedPlayer={null}
+                isAssigning={false}
+                onAssign={() => undefined}
+              />
+            </div>
           </div>
         ) : null
       }
