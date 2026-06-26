@@ -3,9 +3,8 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
+import SeriesBroadcast from '@/components/SeriesBroadcast'
 import { buildLiveSharePath, liveSharePageTitle } from '@shared/live/live-share-url'
 import type { LiveShareInput, SimulatedSeries } from '@shared/live/live-types'
 import { trackEvent } from '@/lib/analytics'
@@ -31,7 +30,6 @@ export default function LiveResultScreen({
   shareInput,
   readOnly = false,
 }: LiveResultScreenProps) {
-  const [revealedGames, setRevealedGames] = useState(1)
   const [copied, setCopied] = useState(false)
   const [showShareText, setShowShareText] = useState(false)
 
@@ -85,55 +83,9 @@ export default function LiveResultScreen({
     }
   }
 
-  return (
+  const actions = (
     <Card className="mx-auto max-w-3xl">
-      <CardHeader className="text-center">
-        <CardTitle className="font-display text-xl text-primary">
-          {readOnly ? 'Shared series result' : series.wonSeries ? 'Series win' : 'Series loss'}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          You {series.userWins}-{series.opponentWins} vs {opponentName} · Runs{' '}
-          {series.userRuns}-{series.opponentRuns}
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {series.games.slice(0, revealedGames).map((game, index) => {
-          const userScore = game.userWasHome ? game.homeScore : game.awayScore
-          const oppScore = game.userWasHome ? game.awayScore : game.homeScore
-          return (
-            <div
-              key={`game-${index}`}
-              className="rounded-lg border border-border p-3 text-sm"
-            >
-              <p className="font-semibold">
-                Game {index + 1}: You {userScore}, {opponentName} {oppScore}
-              </p>
-              <details className="mt-2">
-                <summary className="cursor-pointer text-primary">
-                  Play-by-play
-                </summary>
-                <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-                  {game.events.slice(-40).map((event, eventIndex) => (
-                    <li key={`${index}-${eventIndex}`}>
-                      {event.inning}{event.half === 'top' ? '↑' : '↓'} {event.description}
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            </div>
-          )
-        })}
-
-        {revealedGames < series.games.length && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setRevealedGames((count) => count + 1)}
-          >
-            Reveal next game
-          </Button>
-        )}
-
+      <CardContent className="space-y-4 pt-6">
         {shareUrl && (
           <details className="group rounded-lg border border-border bg-muted/30 text-left">
             <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-primary marker:content-none [&::-webkit-details-marker]:hidden">
@@ -195,5 +147,14 @@ export default function LiveResultScreen({
         </div>
       </CardContent>
     </Card>
+  )
+
+  return (
+    <SeriesBroadcast
+      series={series}
+      opponentName={opponentName}
+      readOnly={readOnly}
+      actions={actions}
+    />
   )
 }
