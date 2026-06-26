@@ -1,0 +1,41 @@
+# Context Glossary
+
+## Daily Matchup
+
+A daily game mode where the user drafts a roster from players tied to the most recent completed MLB schedule date, then plays a simulated best-of-3 series against the highest-scoring real MLB team from that date.
+
+## Live Draft
+
+A game mode where the user and an AI opponent run a head-to-head snake draft from active MLB players, then play a simulated best-of-3 series.
+
+## Challenge Date
+
+The calendar date shown for a Daily Matchup or Live Draft leaderboard and challenge experience.
+
+## Target Date
+
+The MLB schedule date used to find completed games for Daily Matchup. It is yesterday's MLB schedule date in the America/New_York timezone.
+
+## 20-80 Grades
+
+Season-to-date player strength grades derived from current MLB performance. 20-80 Grades drive plate-appearance outcome probabilities and are shown to users with short labels.
+
+The grade labels are 20 Poor, 30 Well Below Avg, 40 Below Avg, 50 Average, 60 Plus, 70 Plus-Plus, and 80 Elite.
+
+Hitters show role-specific skill grades such as Contact, Power, Speed, Defense, and Overall. Pitchers show role-specific skill grades such as Stuff, Command, Stamina or Role, and Overall.
+
+## Defense Band
+
+A season-to-date player strength grade for defensive value. Defense Bands affect simulated hit prevention, runner advancement, rare errors, and catcher-specific effects when the player is rostered at catcher.
+
+## Per-Roster Team Lock
+
+A draft rule where each roster may include at most one player from a given MLB team. The user and AI may each draft one player from the same MLB team in Live Draft.
+
+## Global Player Exclusivity
+
+A Live Draft rule where the exact same player cannot appear on both the user roster and AI roster.
+
+## Daily Roster
+
+The roster shape used by Daily Matchup and Live Draft: C, 1B, 2B, 3B, SS, OF, OF, OF, DH, SP, RP, and CL.

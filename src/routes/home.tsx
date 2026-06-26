@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import DraftHistory from '../components/DraftHistory'
 import DraftPanel from '../components/DraftPanel'
-import HowToPlay from '../components/HowToPlay'
+import ModeSelect from '../components/ModeSelect'
 import LineupGrid from '../components/LineupGrid'
 import PlayerChoices from '../components/PlayerChoices'
 import ResultScreen from '../components/ResultScreen'
@@ -210,8 +210,8 @@ export default function HomeRoute() {
 
   if (gameState.status === 'intro') {
     return (
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <HowToPlay onStart={handleStart} />
+      <div className="min-h-0 flex-1 overflow-y-auto py-2">
+        <ModeSelect onStartClassic={handleStart} />
       </div>
     )
   }

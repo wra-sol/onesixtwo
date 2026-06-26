@@ -47,16 +47,13 @@ export type TeamProfile = {
   pitchingStrength: number
 }
 
-/** Mulberry32 seeded PRNG — deterministic from numeric seed. */
-export function createSeededRandom(seed: number): () => number {
-  let state = seed >>> 0
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0
-    let t = Math.imul(state ^ (state >>> 15), 1 | state)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
+import {
+  createSeededRandom,
+  createSeededRandomFromString,
+  hashSeed,
+} from '../../shared/live/rng'
+
+export { createSeededRandom, createSeededRandomFromString, hashSeed }
 
 /** Stable seed from lineup personIds and positions. */
 export function lineupToSeed(
@@ -66,14 +63,14 @@ export function lineupToSeed(
   return buildLineupSeed(lineup, formatId)
 }
 
-/** Hash a string to a numeric seed. */
-export function hashSeed(input: string): number {
-  let hash = 2166136261
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
+/** Treat undefined, empty, and "0" as the first (base) simulation seed. */
+export function normalizeSimulationRerollSeed(
+  rerollSeed?: SimulationSeed,
+): SimulationSeed | undefined {
+  if (rerollSeed == null || rerollSeed === '' || rerollSeed === '0') {
+    return undefined
   }
-  return hash >>> 0
+  return rerollSeed
 }
 
 export function resolveSimulationSeed(
@@ -81,8 +78,9 @@ export function resolveSimulationSeed(
   formatId: RosterFormatId,
   rerollSeed?: SimulationSeed,
 ): SimulationSeed {
-  if (rerollSeed) {
-    return `${lineupToSeed(lineup, formatId)}::reroll:${rerollSeed}`
+  const normalized = normalizeSimulationRerollSeed(rerollSeed)
+  if (normalized) {
+    return `${lineupToSeed(lineup, formatId)}::reroll:${normalized}`
   }
   return lineupToSeed(lineup, formatId)
 }
@@ -360,11 +358,12 @@ export function simulateSeason(
   options?: { rerollSeed?: SimulationSeed; rosterFormatId?: RosterFormatId },
 ): SeasonSimulation {
   const formatId = options?.rosterFormatId ?? 'classic'
-  const seed = resolveSimulationSeed(lineup, formatId, options?.rerollSeed)
+  const normalizedRerollSeed = normalizeSimulationRerollSeed(options?.rerollSeed)
+  const seed = resolveSimulationSeed(lineup, formatId, normalizedRerollSeed)
   const random = createSeededRandom(hashSeed(seed))
   const profile = buildTeamProfile(lineup, teamScore, formatId)
   const expectedWins = projectWins(teamScore).wins
-  const isReroll = Boolean(options?.rerollSeed)
+  const isReroll = Boolean(normalizedRerollSeed)
 
   const games: SimulatedGame[] = []
 

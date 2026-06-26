@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 .wrangler
+.dev.vars
 
 # Lahman source CSV (large; regenerate with npm run fetch:lahman)
 data/lahman/*.csv

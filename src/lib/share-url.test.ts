@@ -179,7 +179,7 @@ describe('share-url', () => {
     expect(fromUrl?.wins).toBe(direct?.wins)
   })
 
-  it('first-simulation share URL preserves the zero reroll seed', () => {
+  it('first-simulation share URL uses the base simulation seed', () => {
     const path = buildSharePath(lineup, 0)
     const parsed = parseShareParams(new URLSearchParams(path.split('?')[1]))
     expect(isParsedShare(parsed)).toBe(true)
@@ -189,19 +189,19 @@ describe('share-url', () => {
       rerollSeed: parsed.reroll > 0 ? String(parsed.reroll) : undefined,
       rosterFormatId: parsed.rosterFormatId,
     })
-    const direct = calculateSeasonResult(lineup, { rerollSeed: undefined })
+    const direct = calculateSeasonResult(lineup)
     expect(fromUrl?.record).toBe(direct?.record)
     expect(fromUrl?.wins).toBe(direct?.wins)
   })
 
-  it('resolveShareFromUrl preserves the zero reroll seed', () => {
+  it('resolveShareFromUrl uses the base simulation seed for first simulation', () => {
     const path = buildSharePath(lineup, 0)
     const url = new URL(`https://onesixtytwo.win${path}`)
     const resolved = resolveShareFromUrl(url)
     expect('kind' in resolved).toBe(false)
     if ('kind' in resolved) return
 
-    const direct = calculateSeasonResult(lineup, { rerollSeed: undefined })
+    const direct = calculateSeasonResult(lineup)
     expect(resolved.result.record).toBe(direct?.record)
     expect(resolved.result.wins).toBe(direct?.wins)
   })
