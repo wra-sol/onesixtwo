@@ -171,7 +171,7 @@ describe('share-url', () => {
     if (!isParsedShare(parsed)) return
 
     const fromUrl = calculateSeasonResult(reconstructLineup(parsed)!, {
-      rerollSeed: String(parsed.reroll),
+      rerollSeed: parsed.reroll > 0 ? String(parsed.reroll) : undefined,
       rosterFormatId: parsed.rosterFormatId,
     })
     const direct = calculateSeasonResult(lineup, { rerollSeed: '3' })
@@ -186,7 +186,7 @@ describe('share-url', () => {
     if (!isParsedShare(parsed)) return
 
     const fromUrl = calculateSeasonResult(reconstructLineup(parsed)!, {
-      rerollSeed: String(parsed.reroll),
+      rerollSeed: parsed.reroll > 0 ? String(parsed.reroll) : undefined,
       rosterFormatId: parsed.rosterFormatId,
     })
     const direct = calculateSeasonResult(lineup)
