@@ -9,6 +9,10 @@ export type AnalyticsEvent =
   | 'perfect_season_achieved'
   | 'leaderboard_submit'
   | 'leaderboard_submit_error'
+  | 'sim162_season_simulated'
+  | 'sim162_playoff_qualified'
+  | 'sim162_won_world_series'
+  | 'sim162_leaderboard_submitted'
 
 export function trackEvent(
   event: AnalyticsEvent,

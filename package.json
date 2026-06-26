@@ -18,6 +18,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply onesixtwo-leaderboard --remote",
     "ci": "npm run lint && npm run validate:data && npm test && npm run build",
     "qa:live": "tsx scripts/qa-live-modes.ts",
+    "qa:sim162": "tsx scripts/qa-sim162.ts",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",

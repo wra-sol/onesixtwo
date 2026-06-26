@@ -264,6 +264,41 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
           )}
         </CardContent>
       </Card>
+
+      <Card className="border-primary/40 md:col-span-2">
+        <CardHeader>
+          <CardTitle className="font-display text-lg text-primary">
+            Sim 162
+          </CardTitle>
+          <CardDescription>
+            Draft a 25-man roster from current MLB or all-time legends, set your
+            batting order and rotation, then simulate a full 162-game season.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Choose a player pool
+          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Link
+              to="/sim162?pool=live"
+              className={cn(
+                'inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground',
+              )}
+            >
+              Current MLB
+            </Link>
+            <Link
+              to="/sim162?pool=legends"
+              className={cn(
+                'inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground',
+              )}
+            >
+              All-Time Legends
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

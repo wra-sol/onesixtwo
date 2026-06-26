@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card'
 import LeaderboardTable from '@/components/LeaderboardTable'
 import LiveLeaderboardTable from '@/components/LiveLeaderboardTable'
+import Sim162LeaderboardTable from '@/components/Sim162LeaderboardTable'
 import { cn } from '@/lib/utils'
 import {
   fetchLeaderboard,
@@ -21,9 +22,13 @@ import {
   fetchLiveLeaderboard,
   type LiveLeaderboardEntryRow,
 } from '@/lib/live-api-client'
+import {
+  fetchSim162Leaderboard,
+  type Sim162LeaderboardEntryRow,
+} from '@/lib/sim162-api-client'
 import type { LiveModeId } from '@shared/live/live-types'
 
-type BoardKind = 'classic' | LiveModeId
+type BoardKind = 'classic' | 'sim162' | LiveModeId
 
 const CLASSIC_PERIODS: LeaderboardPeriod[] = ['daily', 'weekly', 'all']
 
@@ -34,6 +39,13 @@ type BoardConfig =
       description: string
       load: (period: LeaderboardPeriod) => Promise<LeaderboardEntryRow[]>
       render: (entries: LeaderboardEntryRow[]) => React.ReactNode
+    }
+  | {
+      kind: 'sim162'
+      label: string
+      description: string
+      load: () => Promise<Sim162LeaderboardEntryRow[]>
+      render: (entries: Sim162LeaderboardEntryRow[]) => React.ReactNode
     }
   | {
       kind: LiveModeId
@@ -51,6 +63,15 @@ const BOARDS: Record<BoardKind, BoardConfig> = {
     load: async (period) => (await fetchLeaderboard(period)).entries,
     render: (entries) => (
       <LeaderboardTable entries={entries as LeaderboardEntryRow[]} />
+    ),
+  },
+  sim162: {
+    kind: 'sim162',
+    label: 'Sim 162',
+    description: 'Sim 162 seasons ranked by World Series wins, then regular-season record.',
+    load: async () => (await fetchSim162Leaderboard()).entries,
+    render: (entries) => (
+      <Sim162LeaderboardTable entries={entries as Sim162LeaderboardEntryRow[]} />
     ),
   },
   'daily-matchup': {
@@ -78,6 +99,7 @@ export default function LeaderboardRoute() {
   const [period, setPeriod] = useState<LeaderboardPeriod>('daily')
   const [classicEntries, setClassicEntries] = useState<LeaderboardEntryRow[]>([])
   const [liveEntries, setLiveEntries] = useState<LiveLeaderboardEntryRow[]>([])
+  const [sim162Entries, setSim162Entries] = useState<Sim162LeaderboardEntryRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -94,6 +116,10 @@ export default function LeaderboardRoute() {
         const entries = await activeBoard.load(period)
         if (loadId !== loadIdRef.current) return
         setClassicEntries(entries)
+      } else if (activeBoard.kind === 'sim162') {
+        const entries = await activeBoard.load()
+        if (loadId !== loadIdRef.current) return
+        setSim162Entries(entries)
       } else {
         const entries = await activeBoard.load(challengeDateValue)
         if (loadId !== loadIdRef.current) return
@@ -102,6 +128,7 @@ export default function LeaderboardRoute() {
     } catch (err) {
       if (loadId !== loadIdRef.current) return
       if (activeBoard.kind === 'classic') setClassicEntries([])
+      else if (activeBoard.kind === 'sim162') setSim162Entries([])
       else setLiveEntries([])
       setError(err instanceof Error ? err.message : 'Could not load leaderboard.')
     } finally {
@@ -171,7 +198,7 @@ export default function LeaderboardRoute() {
             </div>
           )}
 
-          {board !== 'classic' && (
+          {board !== 'classic' && board !== 'sim162' && (
             <p className="text-center text-xs text-muted-foreground">
               {activeBoard.label} · Challenge date {challengeDateValue}
             </p>
@@ -192,6 +219,8 @@ export default function LeaderboardRoute() {
             </div>
           ) : activeBoard.kind === 'classic' ? (
             activeBoard.render(classicEntries)
+          ) : activeBoard.kind === 'sim162' ? (
+            activeBoard.render(sim162Entries)
           ) : (
             activeBoard.render(liveEntries)
           )}

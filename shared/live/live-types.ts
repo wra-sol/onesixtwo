@@ -105,6 +105,7 @@ export type PaEventType =
   | 'steal'
   | 'caught_stealing'
   | 'run_scored'
+  | 'pinch_hit'
 
 export type PaEvent = {
   inning: number

@@ -34,7 +34,7 @@ function platoonModifier(
   return 1
 }
 
-function paProbabilities(batter: LivePlayer, pitcher: LivePlayer, defense: number) {
+export function paProbabilities(batter: LivePlayer, pitcher: LivePlayer, defense: number) {
   const contact = gradeNorm(batter.grades.contact) * platoonModifier(batter, pitcher)
   const power = gradeNorm(batter.grades.power)
   const stuff = gradeNorm(pitcher.grades.stuff)
@@ -67,7 +67,7 @@ function paProbabilities(batter: LivePlayer, pitcher: LivePlayer, defense: numbe
   }
 }
 
-function pickOutcome(
+export function pickOutcome(
   probs: ReturnType<typeof paProbabilities>,
   random: () => number,
 ): PaEvent['type'] {
@@ -337,4 +337,283 @@ export function buildSimTeam(
     throw new Error('Batting order must have 9 hitters')
   }
   return { name, battingOrder, lineup, isUser }
+}
+
+export type RosterSimTeam = {
+  name: string
+  battingOrder: LivePlayer[]
+  bench: LivePlayer[]
+  rotation: LivePlayer[]
+  bullpen: LivePlayer[]
+  catcherDefense: number
+  isUser: boolean
+}
+
+export function buildRosterSimTeam(
+  name: string,
+  battingOrder: LivePlayer[],
+  bench: LivePlayer[],
+  rotation: LivePlayer[],
+  bullpen: LivePlayer[],
+  catcherDefense: number,
+  isUser: boolean,
+): RosterSimTeam {
+  if (battingOrder.length !== 9) {
+    throw new Error('RosterSimTeam battingOrder must have 9 hitters')
+  }
+  if (rotation.length === 0) {
+    throw new Error('RosterSimTeam rotation must have at least 1 starter')
+  }
+  return {
+    name,
+    battingOrder,
+    bench,
+    rotation,
+    bullpen: [...bullpen].sort((a, b) => b.grades.overall - a.grades.overall),
+    catcherDefense,
+    isUser,
+  }
+}
+
+function selectRosterPitcher(
+  defense: RosterSimTeam,
+  inning: number,
+  offCurrentRuns: number,
+  defGameRuns: number,
+  starter: LivePlayer,
+): LivePlayer {
+  if (inning <= 5) return starter
+  if (defense.bullpen.length === 0) return starter
+  const gameDiff = defGameRuns - offCurrentRuns
+  if (inning >= 8) {
+    const close = Math.abs(gameDiff) <= 2
+    return close
+      ? defense.bullpen[0]!
+      : defense.bullpen[defense.bullpen.length - 1]!
+  }
+  const mid = Math.floor(defense.bullpen.length / 2)
+  return defense.bullpen[mid]!
+}
+
+function simulateHalfInningRoster(
+  offense: RosterSimTeam,
+  defense: RosterSimTeam,
+  inning: number,
+  half: 'top' | 'bottom',
+  random: () => number,
+  events: PaEvent[],
+  ctx: {
+    starter: LivePlayer
+    offGameRuns: number
+    defGameRuns: number
+    orderIndex: { i: number }
+    benchUsed: Set<string>
+  },
+): number {
+  let outs = 0
+  let runs = 0
+  const bases = [false, false, false]
+
+  while (outs < 3) {
+    const dueIndex = ctx.orderIndex.i
+    ctx.orderIndex.i += 1
+    const slot = dueIndex % offense.battingOrder.length
+    const due = offense.battingOrder[slot]!
+
+    const offCurrent = ctx.offGameRuns + runs
+    const pitcher = selectRosterPitcher(
+      defense,
+      inning,
+      offCurrent,
+      ctx.defGameRuns,
+      ctx.starter,
+    )
+
+    let batter = due
+    if (inning >= 7 && slot === offense.battingOrder.length - 1) {
+      const available = offense.bench.filter((b) => !ctx.benchUsed.has(b.id))
+      if (available.length > 0) {
+        const ph = [...available].sort((a, b) => b.grades.overall - a.grades.overall)[0]!
+        ctx.benchUsed.add(ph.id)
+        batter = ph
+        events.push({
+          inning,
+          half,
+          batterName: ph.name,
+          pitcherName: pitcher.name,
+          type: 'pinch_hit',
+          description: `${ph.name} pinch-hits for ${due.name}`,
+          runsScored: 0,
+        })
+      }
+    }
+
+    const probs = paProbabilities(batter, pitcher, defense.catcherDefense)
+    const outcome = pickOutcome(probs, random)
+
+    if (
+      outcome !== 'strikeout' &&
+      outcome !== 'walk' &&
+      bases[0] &&
+      random() < gradeNorm(batter.grades.speed) * 0.08
+    ) {
+      const caught = random() < defense.catcherDefense / 200
+      events.push({
+        inning,
+        half,
+        batterName: batter.name,
+        pitcherName: pitcher.name,
+        type: caught ? 'caught_stealing' : 'steal',
+        description: caught
+          ? `${batter.name} caught stealing`
+          : `${batter.name} steals a base`,
+        runsScored: 0,
+      })
+      if (caught) {
+        outs += 1
+        bases[0] = false
+        continue
+      }
+    }
+
+    let runsScored = 0
+    const description = `${batter.name} ${outcome.replace('_', ' ')}`
+
+    switch (outcome) {
+      case 'strikeout':
+        outs += 1
+        break
+      case 'walk':
+        if (bases[0] && bases[1] && bases[2]) runsScored = 1
+        if (bases[0] && bases[1]) bases[2] = true
+        if (bases[0]) bases[1] = true
+        bases[0] = true
+        break
+      case 'single':
+        runsScored = (bases[2] ? 1 : 0) + (bases[1] ? 1 : 0)
+        bases[1] = bases[0]
+        bases[0] = true
+        bases[2] = false
+        break
+      case 'double':
+        runsScored = (bases[2] ? 1 : 0) + (bases[1] ? 1 : 0) + (bases[0] ? 1 : 0)
+        bases[2] = true
+        bases[1] = false
+        bases[0] = false
+        break
+      case 'triple':
+        runsScored = bases.filter(Boolean).length
+        bases[0] = true
+        bases[1] = false
+        bases[2] = false
+        break
+      case 'home_run':
+        runsScored = 1 + bases.filter(Boolean).length
+        bases[0] = false
+        bases[1] = false
+        bases[2] = false
+        break
+      default:
+        outs += 1
+        break
+    }
+
+    runs += runsScored
+    if (runsScored > 0) {
+      events.push({
+        inning,
+        half,
+        batterName: batter.name,
+        pitcherName: pitcher.name,
+        type: 'run_scored',
+        description: `${batter.name} drives in ${runsScored} run(s)`,
+        runsScored,
+      })
+    }
+
+    events.push({
+      inning,
+      half,
+      batterName: batter.name,
+      pitcherName: pitcher.name,
+      type: outcome,
+      description,
+      runsScored,
+    })
+  }
+
+  return runs
+}
+
+export function simulateGameRoster(
+  user: RosterSimTeam,
+  opponent: RosterSimTeam,
+  seed: string,
+  userIsHome: boolean,
+  gameIndex: number,
+): SimulatedGame {
+  const random = createSeededRandomFromString(`${seed}|g${gameIndex}`)
+  const userStarter = user.rotation[gameIndex % user.rotation.length]!
+  const oppStarter = opponent.rotation[gameIndex % opponent.rotation.length]!
+  const away = userIsHome ? opponent : user
+  const home = userIsHome ? user : opponent
+
+  let awayRuns = 0
+  let homeRuns = 0
+  const events: PaEvent[] = []
+  const awayBox = emptyBox()
+  const homeBox = emptyBox()
+  const orderIndexAway = { i: 0 }
+  const orderIndexHome = { i: 0 }
+  const benchUsedAway = new Set<string>()
+  const benchUsedHome = new Set<string>()
+
+  const playInning = (inning: number) => {
+    const topRuns = simulateHalfInningRoster(away, home, inning, 'top', random, events, {
+      starter: home === user ? userStarter : oppStarter,
+      offGameRuns: awayRuns,
+      defGameRuns: homeRuns,
+      orderIndex: orderIndexAway,
+      benchUsed: benchUsedAway,
+    })
+    awayRuns += topRuns
+    awayBox.runs += topRuns
+
+    const bottomRuns = simulateHalfInningRoster(home, away, inning, 'bottom', random, events, {
+      starter: away === user ? userStarter : oppStarter,
+      offGameRuns: homeRuns,
+      defGameRuns: awayRuns,
+      orderIndex: orderIndexHome,
+      benchUsed: benchUsedHome,
+    })
+    homeRuns += bottomRuns
+    homeBox.runs += bottomRuns
+  }
+
+  for (let inning = 1; inning <= 9; inning += 1) playInning(inning)
+  let extra = 10
+  while (awayRuns === homeRuns && extra <= 20) {
+    playInning(extra)
+    extra += 1
+  }
+
+  for (const event of events) {
+    const box = event.half === 'top' ? awayBox : homeBox
+    if (event.type === 'single' || event.type === 'double' || event.type === 'triple') {
+      box.hits += 1
+    }
+    if (event.type === 'home_run') {
+      box.hits += 1
+      box.homeRuns += 1
+    }
+  }
+
+  return {
+    homeScore: homeRuns,
+    awayScore: awayRuns,
+    homeBox,
+    awayBox,
+    events,
+    userWasHome: userIsHome,
+  }
 }

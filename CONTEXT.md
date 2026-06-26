@@ -39,3 +39,19 @@ A Live Draft rule where the exact same player cannot appear on both the user ros
 ## Daily Roster
 
 The roster shape used by Daily Matchup and Live Draft: C, 1B, 2B, 3B, SS, OF, OF, OF, DH, SP, RP, and CL.
+
+## Sim 162
+
+A game mode where the user drafts a 25-man roster (current MLB players or all-time legends), simulates a 162-game season with full rotation and bullpen depth, then plays through a 12-team MLB playoff bracket if they qualify. The grail is the World Series championship.
+
+## 25-Man Roster
+
+The roster shape used by Sim 162: C, C, 1B, 2B, 3B, SS, LF, CF, RF, DH, BENCH, BENCH, BENCH, SP, SP, SP, SP, SP, RP, RP, RP, RP, RP, RP, CL. Thirteen position players and twelve pitchers.
+
+## Rotation
+
+The five starting pitchers (SP1 through SP5) on a Sim 162 roster. The starter for each game is determined by game index modulo five, so rotation depth materially affects season outcomes.
+
+## Playoff Bracket
+
+The 12-team MLB postseason format used by Sim 162: six teams per league (three division winners and three wild cards). Wild Card round, Division Series (best-of-5), League Championship Series (best-of-7), and World Series (best-of-7). The user's series are PA-simmed; other series advance coarsely.
