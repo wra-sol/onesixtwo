@@ -20,13 +20,19 @@ import {
   type LiveModeConfig,
 } from '@/hooks/useLiveDraftSession'
 
+type LiveDraftSession = ReturnType<typeof useLiveDraftSession>
+
 type LiveDraftShellProps = {
   config: LiveModeConfig
   title: string
-  subtitle: (session: ReturnType<typeof useLiveDraftSession>) => string
-  unavailable?: (session: ReturnType<typeof useLiveDraftSession>) => React.ReactNode
-  extraPlayerPanel?: (session: ReturnType<typeof useLiveDraftSession>) => React.ReactNode
-  lineupPanel?: (session: ReturnType<typeof useLiveDraftSession>) => React.ReactNode
+  subtitle: (session: LiveDraftSession) => string
+  unavailable?: (session: LiveDraftSession) => React.ReactNode
+  extraPlayerPanel?: (session: LiveDraftSession) => React.ReactNode
+  lineupPanel?: (session: LiveDraftSession) => React.ReactNode
+  loadingState?: (session: LiveDraftSession) => React.ReactNode
+  errorState?: (session: LiveDraftSession) => React.ReactNode
+  playerBrowser?: (session: LiveDraftSession) => React.ReactNode
+  lineupPhase?: (session: LiveDraftSession) => React.ReactNode
   alternateLink?: { href: string; label: string }
 }
 
@@ -37,6 +43,10 @@ export default function LiveDraftShell({
   unavailable,
   extraPlayerPanel,
   lineupPanel,
+  loadingState,
+  errorState,
+  playerBrowser,
+  lineupPhase,
   alternateLink,
 }: LiveDraftShellProps) {
   const session = useLiveDraftSession(config)
@@ -71,22 +81,26 @@ export default function LiveDraftShell({
 
   if (error) {
     return (
-      <div className="space-y-3 py-8 text-center">
-        <p className="text-destructive" role="alert">
-          {error}
-        </p>
-        <Button type="button" variant="outline" onClick={() => void retry()}>
-          Retry
-        </Button>
-      </div>
+      errorState?.(session) ?? (
+        <div className="space-y-3 py-8 text-center">
+          <p className="text-destructive" role="alert">
+            {error}
+          </p>
+          <Button type="button" variant="outline" onClick={() => void retry()}>
+            Retry
+          </Button>
+        </div>
+      )
     )
   }
 
   if (isLoading || !snapshot || !draftState || !userLineup) {
     return (
-      <p className="py-8 text-center text-muted-foreground">
-        Loading {title}…
-      </p>
+      loadingState?.(session) ?? (
+        <p className="py-8 text-center text-muted-foreground">
+          Loading {title}…
+        </p>
+      )
     )
   }
 
@@ -195,44 +209,48 @@ export default function LiveDraftShell({
             {extraPlayerPanel?.(session)}
 
             {!isLineupPhase ? (
-              <>
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search players"
-                  disabled={!canSelect}
-                />
-                <div className="divide-y divide-border rounded-lg border border-border">
-                  {filteredPlayers.length === 0 && playerListMessage ? (
-                    <p className="px-3 py-4 text-sm text-muted-foreground">
-                      {playerListMessage}
-                    </p>
-                  ) : null}
-                  {filteredPlayers.map((player) => (
-                    <LivePlayerCard
-                      key={player.id}
-                      player={player}
-                      selected={selectedPlayer?.id === player.id}
-                      disabled={!canSelect || Boolean(getDisabledReason(player))}
-                      disabledReason={
-                        !canSelect ? 'Wait for your turn' : getDisabledReason(player)
-                      }
-                      onSelect={() => handleSelect(player)}
-                      compact
-                    />
-                  ))}
-                </div>
-              </>
+              playerBrowser?.(session) ?? (
+                <>
+                  <Input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search players"
+                    disabled={!canSelect}
+                  />
+                  <div className="divide-y divide-border rounded-lg border border-border">
+                    {filteredPlayers.length === 0 && playerListMessage ? (
+                      <p className="px-3 py-4 text-sm text-muted-foreground">
+                        {playerListMessage}
+                      </p>
+                    ) : null}
+                    {filteredPlayers.map((player) => (
+                      <LivePlayerCard
+                        key={player.id}
+                        player={player}
+                        selected={selectedPlayer?.id === player.id}
+                        disabled={!canSelect || Boolean(getDisabledReason(player))}
+                        disabledReason={
+                          !canSelect ? 'Wait for your turn' : getDisabledReason(player)
+                        }
+                        onSelect={() => handleSelect(player)}
+                        compact
+                      />
+                    ))}
+                  </div>
+                </>
+              )
             ) : (
-              <>
-                <BattingOrderEditor
-                  order={battingOrder}
-                  onChange={handleBattingOrderChange}
-                />
-                <Button type="button" onClick={handleSimulate}>
-                  Simulate best-of-3
-                </Button>
-              </>
+              lineupPhase?.(session) ?? (
+                <>
+                  <BattingOrderEditor
+                    order={battingOrder}
+                    onChange={handleBattingOrderChange}
+                  />
+                  <Button type="button" onClick={handleSimulate}>
+                    Simulate best-of-3
+                  </Button>
+                </>
+              )
             )}
           </CardContent>
         </Card>
