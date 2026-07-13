@@ -19,6 +19,7 @@ type DailyPlayerBrowserProps = {
   selectedPlayer: LivePlayer | null
   canSelect: boolean
   getDisabledReason: (player: LivePlayer) => string | null
+  getPlayerBadge?: (player: LivePlayer) => string | null
   onSelect: (player: LivePlayer) => void
 }
 
@@ -31,6 +32,7 @@ export default function DailyPlayerBrowser({
   selectedPlayer,
   canSelect,
   getDisabledReason,
+  getPlayerBadge,
   onSelect,
 }: DailyPlayerBrowserProps) {
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
@@ -123,6 +125,7 @@ export default function DailyPlayerBrowser({
             <LivePlayerCard
               key={player.id}
               player={player}
+              badge={getPlayerBadge?.(player) ?? null}
               selected={selectedPlayer?.id === player.id}
               disabled={!canSelect || Boolean(getDisabledReason(player))}
               disabledReason={!canSelect ? 'Wait for your turn' : getDisabledReason(player)}

@@ -1,4 +1,5 @@
 import { createSeededRandomFromString } from './rng'
+import { canAffordDailyPick } from './daily-star-budget'
 import {
   pickAiPlayerFromPool,
   scorePlayerForAi,
@@ -77,6 +78,7 @@ export function createDailyMatchupDraftState(
     draftedPlayerIds: [],
     draftedTeamIds: [],
     status: 'drafting',
+    salaryCapEnabled: false,
   }
 }
 
@@ -234,6 +236,7 @@ export function filterRoundPool(
 export function getDailyMatchupDisabledReason(
   player: LivePlayer,
   state: DailyMatchupDraftState,
+  pool: LivePlayer[] = [],
 ): string | null {
   if (state.draftedPlayerIds.includes(player.id)) return 'Already drafted'
   if (state.draftedTeamIds.includes(player.teamId)) return `${player.teamAbbrev} used`
@@ -241,6 +244,7 @@ export function getDailyMatchupDisabledReason(
   const position = bestOpenPosition(player, state.lineup)
   if (!position) return 'No open positions'
   if (!playerEligibleForDailyPosition(player, position)) return 'No eligible slot'
+  if (!canAffordDailyPick(state, player, pool)) return 'Over star budget'
   return null
 }
 
@@ -270,8 +274,9 @@ export function draftDailyMatchupPlayer(
   state: DailyMatchupDraftState,
   player: LivePlayer,
   position?: DailyLineupPosition,
+  pool: LivePlayer[] = [],
 ): DailyMatchupDraftState {
-  if (getDailyMatchupDisabledReason(player, state)) {
+  if (getDailyMatchupDisabledReason(player, state, pool)) {
     return state
   }
   const slot = position ?? bestOpenPosition(player, state.lineup)

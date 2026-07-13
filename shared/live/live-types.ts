@@ -193,6 +193,8 @@ export type DailyMatchupDraftState = {
   draftedPlayerIds: string[]
   draftedTeamIds: number[]
   status: 'drafting' | 'lineup' | 'complete'
+  /** Opt-in "Salary Cap" challenge: when true, drafting is constrained by the star budget. */
+  salaryCapEnabled: boolean
 }
 
 export type LiveLeaderboardEntryRow = {

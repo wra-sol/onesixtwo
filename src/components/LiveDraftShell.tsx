@@ -77,6 +77,7 @@ export default function LiveDraftShell({
     retry,
     opponentName,
     getDisabledReason,
+    getPlayerBadge,
   } = session
 
   if (error) {
@@ -227,6 +228,7 @@ export default function LiveDraftShell({
                       <LivePlayerCard
                         key={player.id}
                         player={player}
+                        badge={getPlayerBadge(player)}
                         selected={selectedPlayer?.id === player.id}
                         disabled={!canSelect || Boolean(getDisabledReason(player))}
                         disabledReason={

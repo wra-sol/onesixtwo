@@ -75,6 +75,7 @@ function buildState(
     draftedPlayerIds: [],
     draftedTeamIds: [],
     status: 'drafting',
+    salaryCapEnabled: false,
     ...overrides,
   }
 }

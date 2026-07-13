@@ -37,6 +37,11 @@ export type LiveModeConfig = {
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
   ) => string | null
+  getPlayerBadge?: (
+    player: LivePlayer,
+    state: LiveDraftSessionState,
+    snapshot: LiveSnapshot,
+  ) => string | null
   canSelectPlayer?: (
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
@@ -224,6 +229,16 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     setSelectedPlayerId(null)
   }, [config, draftState, snapshot])
 
+  const handleToggleSalaryCap = useCallback(
+    (enabled: boolean) => {
+      if (!draftState || draftState.mode !== 'daily-matchup') return
+      // Locking the rule in only before the first pick keeps the draft fair.
+      if (draftState.draftedPlayerIds.length > 0) return
+      setDraftState({ ...draftState, salaryCapEnabled: enabled })
+    },
+    [draftState],
+  )
+
   const isStuck = draftState?.mode === 'live-draft' && draftState.status === 'stuck'
   const isLineupPhase = draftState?.status === 'lineup'
   const isAssigning = selectedPlayer !== null
@@ -266,12 +281,17 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     handleSimulate,
     handleBattingOrderChange,
     handleUserReroll,
+    handleToggleSalaryCap,
     isStuck,
     retry: loadSnapshot,
     opponentName: snapshot ? config.opponentName(snapshot) : 'Opponent',
     getDisabledReason: (player: LivePlayer) =>
       draftState && snapshot
         ? config.getDisabledReason(player, draftState, snapshot)
+        : null,
+    getPlayerBadge: (player: LivePlayer) =>
+      draftState && snapshot
+        ? config.getPlayerBadge?.(player, draftState, snapshot) ?? null
         : null,
   }
 }

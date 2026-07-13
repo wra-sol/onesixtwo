@@ -54,6 +54,7 @@ function freshState(): DailyMatchupDraftState {
     draftedPlayerIds: [],
     draftedTeamIds: [],
     status: 'drafting',
+    salaryCapEnabled: false,
   }
 }
 
@@ -97,6 +98,36 @@ describe('live-draft-persistence', () => {
     expect(loaded!.positionPlayerIds.C).toBe('1')
     expect(loaded!.positionPlayerIds.SP).toBe('10')
     expect(loaded!.selectedPlayerId).toBe('1')
+  })
+
+  it('round-trips salaryCapEnabled through save and rehydrate', () => {
+    const key = storageKey('daily-matchup', '2026-06-25')
+    const state = freshState()
+    state.salaryCapEnabled = true
+    state.lineup.C = hitter('1', 1, 'LAD', ['C'])
+    state.draftedPlayerIds = ['1']
+    state.draftedTeamIds = [1]
+    saveDailyDraft(key, state, null)
+
+    const saved = loadDailyDraft(key)
+    expect(saved!.salaryCapEnabled).toBe(true)
+
+    const pool = new Map(fullPool().map((p) => [p.id, p]))
+    const rehydrated = rehydrateDailyDraft(saved!, freshState(), pool)
+    expect(rehydrated!.salaryCapEnabled).toBe(true)
+  })
+
+  it('rehydrateDailyDraft falls back to fresh salaryCapEnabled for legacy payloads', () => {
+    const pool = new Map(fullPool().map((p) => [p.id, p]))
+    const legacy: PersistedDailyDraft = {
+      challengeDate: '2026-06-25',
+      positionPlayerIds: { C: '1', '1B': null, '2B': null, '3B': null, SS: null, OF1: null, OF2: null, OF3: null, DH: null, SP: null, RP: null, CL: null },
+      battingOrderIds: [],
+      selectedPlayerId: null,
+      status: 'drafting',
+    }
+    const rehydrated = rehydrateDailyDraft(legacy, freshState(), pool)
+    expect(rehydrated!.salaryCapEnabled).toBe(false)
   })
 
   it('rehydrateDailyDraft rebuilds state against the fresh player pool', () => {

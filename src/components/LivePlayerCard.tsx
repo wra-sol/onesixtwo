@@ -7,6 +7,7 @@ type LivePlayerCardProps = {
   selected?: boolean
   disabled?: boolean
   disabledReason?: string | null
+  badge?: string | null
   onSelect?: () => void
   compact?: boolean
 }
@@ -26,6 +27,7 @@ export default function LivePlayerCard({
   selected,
   disabled,
   disabledReason,
+  badge,
   onSelect,
   compact,
 }: LivePlayerCardProps) {
@@ -52,6 +54,11 @@ export default function LivePlayerCard({
           </p>
         </div>
         <div className="text-right">
+          {badge && (
+            <span className="mb-0.5 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[0.6rem] font-semibold tabular-nums text-primary">
+              {badge}
+            </span>
+          )}
           <p className="font-display text-lg text-primary">{overall}</p>
           <p className="text-[0.65rem] text-muted-foreground">
             {GRADE_LABELS[overall]}

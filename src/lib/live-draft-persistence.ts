@@ -16,6 +16,7 @@ export type PersistedDailyDraft = {
   battingOrderIds: string[]
   selectedPlayerId: string | null
   status: DailyMatchupDraftState['status']
+  salaryCapEnabled?: boolean
 }
 
 export function storageKey(mode: string, challengeDate: string): string {
@@ -38,6 +39,7 @@ export function saveDailyDraft(
     battingOrderIds: state.battingOrder.map((p) => p.id),
     selectedPlayerId,
     status: state.status,
+    salaryCapEnabled: state.salaryCapEnabled,
   }
   try {
     window.localStorage.setItem(key, JSON.stringify(persisted))
@@ -106,5 +108,6 @@ export function rehydrateDailyDraft(
     draftedPlayerIds,
     draftedTeamIds,
     status,
+    salaryCapEnabled: saved.salaryCapEnabled ?? fresh.salaryCapEnabled,
   }
 }
