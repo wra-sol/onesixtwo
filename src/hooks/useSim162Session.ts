@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeForSearch } from '@/lib/text'
+import { deriveTeamOptions, type TeamOption } from '@/lib/team-options'
 import { fetchSim162Snapshot, type Sim162Pool } from '@/lib/sim162-snapshot'
 import { challengeDate } from '@shared/live/live-dates'
 import { heuristicAiBattingOrder } from '@shared/live/live-draft'
@@ -34,6 +35,9 @@ export type Sim162Session = {
   selectedPlayer: LivePlayer | null
   search: string
   setSearch: (s: string) => void
+  teamFilter: string
+  setTeamFilter: (abbrev: string) => void
+  teamOptions: TeamOption[]
   filteredPlayers: LivePlayer[]
   canSelect: boolean
   getDisabledReason: (player: LivePlayer) => string | null
@@ -58,6 +62,7 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
   const [draftState, setDraftState] = useState<Sim162DraftState | null>(null)
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [teamFilter, setTeamFilter] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [battingOrder, setBattingOrderState] = useState<LivePlayer[]>([])
@@ -80,6 +85,7 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
     setDraftState(null)
     setSeasonResult(null)
     setSelectedPlayerId(null)
+    setTeamFilter('')
     setBattingOrderState([])
     setRotationOrderState([])
     ordersInitializedRef.current = false
@@ -110,13 +116,41 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
     return map
   }, [snapshot])
 
+  const teamOptions = useMemo(
+    () => (snapshot ? deriveTeamOptions(snapshot.players) : []),
+    [snapshot],
+  )
+
+  // Derived (not stored in an effect): fall back to the first team whenever the
+  // explicit selection is empty or no longer in the pool.
+  const effectiveTeamFilter =
+    teamFilter && teamOptions.some((t) => t.abbrev === teamFilter)
+      ? teamFilter
+      : (teamOptions[0]?.abbrev ?? '')
+
   const filteredPlayers = useMemo(() => {
     if (!snapshot || !draftState) return []
     const q = normalizeForSearch(search.trim())
-    return snapshot.players
-      .filter((p) => !q || normalizeForSearch(p.name).includes(q))
-      .sort((a, b) => b.grades.overall - a.grades.overall)
-  }, [snapshot, draftState, search])
+    // A name search escapes the team scope so any player is findable; with no
+    // search the browser always shows a single team's players.
+    const base = q
+      ? snapshot.players.filter((p) => normalizeForSearch(p.name).includes(q))
+      : snapshot.players.filter((p) => p.teamAbbrev === effectiveTeamFilter)
+    return [...base].sort((a, b) => b.grades.overall - a.grades.overall)
+  }, [snapshot, draftState, search, effectiveTeamFilter])
+
+  const firstAvailableTeam = useCallback(
+    (state: Sim162DraftState, players: LivePlayer[], startAbbrev: string): string => {
+      const hasAvailable = (abbrev: string) =>
+        players.some(
+          (p) => p.teamAbbrev === abbrev && !getSim162DisabledReason(p, state),
+        )
+      if (startAbbrev && hasAvailable(startAbbrev)) return startAbbrev
+      const next = deriveTeamOptions(players).find((t) => hasAvailable(t.abbrev))
+      return next ? next.abbrev : startAbbrev
+    },
+    [],
+  )
 
   const selectedPlayer = selectedPlayerId
     ? (playersById.get(selectedPlayerId) ?? null)
@@ -150,12 +184,24 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
       const next = assignSim162Player(draftState, selectedPlayer, slot)
       setDraftState(next)
       setSelectedPlayerId(null)
+      // Team-lock means the just-used team has no more legal picks; advance the
+      // picker to the next team that still has an available player.
+      setTeamFilter(
+        firstAvailableTeam(next, snapshot?.players ?? [], effectiveTeamFilter),
+      )
       if (isSim162RosterComplete(next) && !ordersInitializedRef.current) {
         ordersInitializedRef.current = true
         initializeOrders(next)
       }
     },
-    [draftState, selectedPlayer, initializeOrders],
+    [
+      draftState,
+      selectedPlayer,
+      initializeOrders,
+      firstAvailableTeam,
+      snapshot,
+      effectiveTeamFilter,
+    ],
   )
 
   const handleAutoFill = useCallback(() => {
@@ -202,6 +248,9 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
     selectedPlayer,
     search,
     setSearch,
+    teamFilter: effectiveTeamFilter,
+    setTeamFilter,
+    teamOptions,
     filteredPlayers,
     canSelect,
     getDisabledReason,

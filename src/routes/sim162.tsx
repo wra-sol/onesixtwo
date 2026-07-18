@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import LivePlayerCard from '@/components/LivePlayerCard'
+import TeamFilter from '@/components/TeamFilter'
 import Roster25Grid, { RotationOrderEditor } from '@/components/Roster25Grid'
 import { BattingOrderEditor } from '@/components/LiveLineupGrid'
 import Sim162ResultScreen from '@/components/Sim162ResultScreen'
@@ -50,6 +51,9 @@ export default function Sim162Route() {
     selectedPlayer,
     search,
     setSearch,
+    teamFilter,
+    setTeamFilter,
+    teamOptions,
     filteredPlayers,
     canSelect,
     isLineupPhase,
@@ -223,11 +227,18 @@ export default function Sim162Route() {
           <CardContent className="space-y-3">
             {!isLineupPhase ? (
               <>
+                <TeamFilter
+                  options={teamOptions}
+                  value={teamFilter}
+                  onChange={setTeamFilter}
+                  disabled={!canSelect || search.trim().length > 0}
+                  hint={search.trim() ? 'Searching all teams' : undefined}
+                />
                 <div className="flex items-center gap-2">
                   <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search players"
+                    placeholder="Search all players by name"
                     disabled={!canSelect}
                   />
                   <Button

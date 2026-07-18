@@ -232,6 +232,58 @@ describe('useSim162Session', () => {
     expect(result.current.filteredPlayers[0]!.id).toBe('c1')
   })
 
+  it('defaults the team filter to the first team and scopes the list', async () => {
+    vi.mocked(fetchSim162Snapshot).mockResolvedValue(makeFullSnapshot())
+    const { result } = renderHook(() => useSim162Session('legends'))
+
+    await waitFor(() => {
+      expect(result.current.draftState).not.toBeNull()
+    })
+
+    expect(result.current.teamOptions).toHaveLength(25)
+    expect(result.current.teamFilter).toBe('T1')
+    expect(result.current.filteredPlayers).toHaveLength(1)
+    expect(result.current.filteredPlayers[0]!.id).toBe('c1')
+  })
+
+  it('scopes the player list to the selected team', async () => {
+    vi.mocked(fetchSim162Snapshot).mockResolvedValue(makeFullSnapshot())
+    const { result } = renderHook(() => useSim162Session('legends'))
+
+    await waitFor(() => {
+      expect(result.current.draftState).not.toBeNull()
+    })
+
+    act(() => result.current.setTeamFilter('T3'))
+
+    expect(result.current.filteredPlayers).toHaveLength(1)
+    expect(result.current.filteredPlayers[0]!.id).toBe('1b')
+  })
+
+  it('auto-advances the team filter to the next available team after assigning', async () => {
+    vi.mocked(fetchSim162Snapshot).mockResolvedValue(makeFullSnapshot())
+    const { result } = renderHook(() => useSim162Session('legends'))
+
+    await waitFor(() => {
+      expect(result.current.draftState).not.toBeNull()
+    })
+
+    expect(result.current.teamFilter).toBe('T1')
+
+    const catcher = result.current.snapshot!.players[0]!
+    act(() => result.current.handleSelect(catcher))
+    act(() => result.current.handleAssign('C1'))
+
+    // Team-lock consumes T1, so the picker moves to the next team with a pick.
+    expect(result.current.teamFilter).not.toBe('T1')
+    expect(result.current.filteredPlayers.length).toBeGreaterThan(0)
+    expect(
+      result.current.filteredPlayers.every(
+        (p) => p.teamAbbrev === result.current.teamFilter,
+      ),
+    ).toBe(true)
+  })
+
   it('retries on error by reloading the snapshot', async () => {
     vi.mocked(fetchSim162Snapshot).mockRejectedValueOnce(new Error('First fail'))
     const { result } = renderHook(() => useSim162Session())

@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import LivePlayerCard from '@/components/LivePlayerCard'
+import TeamFilter from '@/components/TeamFilter'
+import { deriveTeamOptions } from '@/lib/team-options'
 import {
   DAILY_LINEUP_POSITIONS,
   playerEligibleForDailyPosition,
@@ -38,9 +40,21 @@ export default function DailyPlayerBrowser({
   const [positionFilter, setPositionFilter] = useState<PositionFilter>('ALL')
   const [sortBy, setSortBy] = useState<SortKey>('overall')
   const [hideUnavailable, setHideUnavailable] = useState(false)
+  const [teamFilter, setTeamFilter] = useState('')
+
+  const searching = search.trim().length > 0
+  const teamOptions = useMemo(() => deriveTeamOptions(players), [players])
+
+  // Derived: fall back to the first team when nothing valid is selected, so the
+  // list is always scoped to a real team without an effect syncing state.
+  const effectiveTeam =
+    teamFilter && teamOptions.some((t) => t.abbrev === teamFilter)
+      ? teamFilter
+      : (teamOptions[0]?.abbrev ?? '')
 
   const displayPlayers = useMemo(() => {
     const filtered = players.filter((p) => {
+      if (!searching && effectiveTeam && p.teamAbbrev !== effectiveTeam) return false
       if (positionFilter !== 'ALL' && !playerEligibleForDailyPosition(p, positionFilter)) {
         return false
       }
@@ -58,14 +72,21 @@ export default function DailyPlayerBrowser({
       sorted.sort((a, b) => b.grades.overall - a.grades.overall)
     }
     return sorted
-  }, [players, positionFilter, hideUnavailable, sortBy, getDisabledReason])
+  }, [players, positionFilter, hideUnavailable, sortBy, getDisabledReason, effectiveTeam, searching])
 
   return (
     <div className="space-y-3">
+      <TeamFilter
+        options={teamOptions}
+        value={effectiveTeam}
+        onChange={setTeamFilter}
+        disabled={!canSelect || searching}
+        hint={searching ? 'Searching all teams' : undefined}
+      />
       <Input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Search players"
+        placeholder="Search all players by name"
         disabled={!canSelect}
       />
 
