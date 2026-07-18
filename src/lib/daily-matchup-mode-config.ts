@@ -8,6 +8,7 @@ import {
   setDailyMatchupBattingOrder,
 } from '@shared/live/live-draft'
 import { createEmptyDailyLineup, type DailyLineupPosition } from '@shared/live/daily-roster'
+import { playerStarCost } from '@shared/live/daily-star-budget'
 import { buildSimTeam, simulateBestOfThree } from '@shared/live/pa-sim'
 import type { LivePlayer } from '@shared/live/live-types'
 
@@ -24,13 +25,19 @@ export const dailyMatchupConfig: LiveModeConfig = {
       snapshot.opponent,
     )
   },
-  onAssign: (state, player, position) => {
+  onAssign: (state, player, position, snapshot) => {
     if (state.mode !== 'daily-matchup') return state
-    return draftDailyMatchupPlayer(state, player, position)
+    const pool = snapshot.kind === 'daily-matchup' ? snapshot.players : []
+    return draftDailyMatchupPlayer(state, player, position, pool)
   },
-  getDisabledReason: (player, state) => {
+  getDisabledReason: (player, state, snapshot) => {
     if (state.mode !== 'daily-matchup') return 'Invalid state'
-    return getDailyMatchupDisabledReason(player, state)
+    const pool = snapshot.kind === 'daily-matchup' ? snapshot.players : []
+    return getDailyMatchupDisabledReason(player, state, pool)
+  },
+  getPlayerBadge: (player, state) => {
+    if (state.mode !== 'daily-matchup' || !state.salaryCapEnabled) return null
+    return `★${playerStarCost(player)}`
   },
   buildSeries: (state, snapshot) => {
     if (state.mode !== 'daily-matchup' || snapshot.kind !== 'daily-matchup') {

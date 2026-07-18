@@ -92,3 +92,41 @@ Config: `wrangler.toml`, `public/_redirects`, `public/_headers`.
 - Lahman / licensed stat import for top-20 by WAR
 - Lazy-loaded or split player JSON
 - Cloudflare D1 leaderboards, KV daily seeds, Pages Functions for share links
+
+## Sim 162 (new mode)
+
+A deep season-simulation mode where the user drafts a **25-man roster** (current MLB or all-time legends), simulates a **162-game season** with full rotation/bullpen/bench depth, then plays through a **12-team MLB playoff bracket**. The grail is the **World Series championship**.
+
+**Route:** `/sim162` · **Plan:** `docs/plans/sim162-mode.md` · **Migration:** `0003_sim162.sql`
+
+### Architecture — hybrid compute
+
+- **User's 162 games** → roster-aware PA-sim (`simulateGameRoster` in `shared/live/pa-sim.ts`) → real box scores + marquee broadcasts. ~70ms.
+- **Other 29 teams' seasons** → coarse win-prob sim (`shared/live/league-standings.ts`) → standings only. <10ms.
+- **Playoff bracket** → 12-team field derived from standings; user's series PA-simmed, others advanced coarsely.
+- **Opponent rosters** built from the same player pool filtered by franchise.
+
+### Key modules
+
+| Module | Purpose |
+|---|---|
+| `shared/live/roster25.ts` | 25-man roster format + eligibility |
+| `shared/live/sim162-draft.ts` | Solo draft state (quota-enforced, no AI) |
+| `shared/live/pa-sim.ts` | Extended with `RosterSimTeam`, `simulateGameRoster` (rotation, bullpen-by-leverage, bench PH) |
+| `shared/live/league-standings.ts` | Coarse 30-team standings + playoff seeding |
+| `shared/live/sim162-season.ts` | `buildSim162Season` — 162 PA-sim games + standings + bracket + marquee selection |
+| `src/lib/classic-live-adapter.ts` | `Player → LivePlayer` adapter for the legends pool |
+| `src/lib/sim162-snapshot.ts` | Pool chooser (live MLB / legends) |
+| `src/hooks/useSim162Session.ts` | Session hook (draft → batting/rotation order → sim) |
+| `src/components/Sim162ResultScreen.tsx` | Result UI (marquee broadcasts, 162 box scores, playoff bracket, WS climax) |
+| `functions/api/sim162-leaderboard.ts` | D1 leaderboard submit + fetch |
+| `functions/_lib/live/sim162-live-snapshot.ts` | Live MLB snapshot for Sim 162 |
+
+### Player pools
+
+- **Current MLB:** reuses the existing MLB API fetch (all 30 teams, season stats, 20-80 grades).
+- **All-Time Legends:** Lahman `PLAYERS` → `LivePlayer` via the adapter (grade mapping: contact/power/speed direct, strikeouts→stuff, whip→command directly, catcher fielding→defense; roles from `saves`).
+
+### Determinism
+
+Season seed = `roster25ToSeed(roster)::simSeed`. All sims seeded. Same roster + seed → identical season, standings, bracket, and marquee games. Share URLs re-sim client-side.

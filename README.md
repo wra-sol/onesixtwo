@@ -2,7 +2,12 @@
 
 **https://onesixtytwo.win**
 
-A browser game where you draft an all-time MLB starting lineup and see if your squad can earn a **Perfect Season**: a projected **162-0** record.
+A browser game where you draft MLB rosters and simulate seasons. Three modes:
+
+- **Classic 162** — Spin franchise decades, draft historical legends, project a 162-game record. Aim for the dream **162-0**.
+- **Daily Matchup** — Draft from last night's MLB players and play a simulated best-of-3 series against the highest-scoring real team.
+- **Live Draft** — Head-to-head snake draft vs an AI opponent, then play a simulated best-of-3 series.
+- **Sim 162** — Draft a 25-man roster (current MLB or all-time legends), simulate a 162-game season with full rotation and bullpen depth, then play through a 12-team MLB playoff bracket. The grail is the **World Series championship**.
 
 Inspired by [82-0](https://www.82-0.com/).
 

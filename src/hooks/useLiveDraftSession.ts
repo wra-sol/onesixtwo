@@ -1,6 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { normalizeForSearch } from '@/lib/text'
 import { LiveSnapshotError } from '@/lib/live-api-client'
+import {
+  clearDraft,
+  loadDailyDraft,
+  rehydrateDailyDraft,
+  saveDailyDraft,
+  storageKey,
+} from '@/lib/live-draft-persistence'
 import type {
   DailyMatchupDraftState,
   DailyMatchupSnapshot,
@@ -26,6 +33,11 @@ export type LiveModeConfig = {
     snapshot: LiveSnapshot,
   ) => LiveDraftSessionState
   getDisabledReason: (
+    player: LivePlayer,
+    state: LiveDraftSessionState,
+    snapshot: LiveSnapshot,
+  ) => string | null
+  getPlayerBadge?: (
     player: LivePlayer,
     state: LiveDraftSessionState,
     snapshot: LiveSnapshot,
@@ -61,18 +73,45 @@ export function useLiveDraftSession(config: LiveModeConfig) {
   const [series, setSeries] = useState<SimulatedSeries | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isFallback, setIsFallback] = useState(false)
+  const [fallbackWarning, setFallbackWarning] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const persistenceKeyRef = useRef<string | null>(null)
 
   const loadSnapshot = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     setIsFallback(false)
+    setFallbackWarning(null)
     setSeries(null)
     setSelectedPlayerId(null)
     try {
       const data = await config.fetchSnapshot()
       setSnapshot(data)
-      setDraftState(config.initDraft(data))
+      setIsFallback(Boolean(data.fallback))
+      setFallbackWarning(data.fallback ? data.error ?? 'Sample data — live MLB unavailable.' : null)
+      const initial = config.initDraft(data)
+      const key = storageKey(config.mode, data.challengeDate)
+      persistenceKeyRef.current = key
+      let restored = initial
+      let restoredSelectedId: string | null = null
+      if (initial?.mode === 'daily-matchup') {
+        const poolById = new Map<string, LivePlayer>(data.players.map((p) => [p.id, p]))
+        const saved = loadDailyDraft(key)
+        if (saved) {
+          const rehydrated = rehydrateDailyDraft(saved, initial, poolById)
+          if (rehydrated) {
+            restored = rehydrated
+            restoredSelectedId =
+              saved.selectedPlayerId && poolById.has(saved.selectedPlayerId)
+                ? saved.selectedPlayerId
+                : null
+          } else {
+            clearDraft(key)
+          }
+        }
+      }
+      setDraftState(restored)
+      setSelectedPlayerId(restoredSelectedId)
     } catch (err) {
       setSnapshot(null)
       setDraftState(null)
@@ -97,6 +136,19 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     snapshot?.players.forEach((p) => map.set(p.id, p))
     return map
   }, [snapshot])
+
+  const persistenceKey = useMemo(() => {
+    if (!snapshot) return null
+    return storageKey(config.mode, snapshot.challengeDate)
+  }, [config.mode, snapshot])
+
+  // Persist the in-progress daily draft whenever it changes.
+  useEffect(() => {
+    if (!draftState || !persistenceKey) return
+    if (draftState.mode !== 'daily-matchup') return
+    if (series) return
+    saveDailyDraft(persistenceKey, draftState, selectedPlayerId)
+  }, [draftState, persistenceKey, selectedPlayerId, series])
 
   const filteredPlayers = useMemo(() => {
     if (!snapshot || !draftState) return []
@@ -138,6 +190,7 @@ export function useLiveDraftSession(config: LiveModeConfig) {
 
   const handleSimulate = useCallback(() => {
     if (!draftState || !snapshot) return
+    if (persistenceKeyRef.current) clearDraft(persistenceKeyRef.current)
     setSeries(config.buildSeries(draftState, snapshot))
   }, [config, draftState, snapshot])
 
@@ -176,6 +229,16 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     setSelectedPlayerId(null)
   }, [config, draftState, snapshot])
 
+  const handleToggleSalaryCap = useCallback(
+    (enabled: boolean) => {
+      if (!draftState || draftState.mode !== 'daily-matchup') return
+      // Locking the rule in only before the first pick keeps the draft fair.
+      if (draftState.draftedPlayerIds.length > 0) return
+      setDraftState({ ...draftState, salaryCapEnabled: enabled })
+    },
+    [draftState],
+  )
+
   const isStuck = draftState?.mode === 'live-draft' && draftState.status === 'stuck'
   const isLineupPhase = draftState?.status === 'lineup'
   const isAssigning = selectedPlayer !== null
@@ -202,6 +265,7 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     series,
     error,
     isFallback,
+    fallbackWarning,
     isLoading,
     playersById,
     filteredPlayers,
@@ -217,12 +281,17 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     handleSimulate,
     handleBattingOrderChange,
     handleUserReroll,
+    handleToggleSalaryCap,
     isStuck,
     retry: loadSnapshot,
     opponentName: snapshot ? config.opponentName(snapshot) : 'Opponent',
     getDisabledReason: (player: LivePlayer) =>
       draftState && snapshot
         ? config.getDisabledReason(player, draftState, snapshot)
+        : null,
+    getPlayerBadge: (player: LivePlayer) =>
+      draftState && snapshot
+        ? config.getPlayerBadge?.(player, draftState, snapshot) ?? null
         : null,
   }
 }

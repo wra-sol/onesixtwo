@@ -28,17 +28,9 @@ async function parseSnapshotResponse<T>(response: Response): Promise<T> {
         : 'Could not load live snapshot.',
     )
   }
-  if (
-    typeof body === 'object' &&
-    body &&
-    'fallback' in body &&
-    body.fallback === true
-  ) {
-    throw new LiveSnapshotError(
-      body.error ?? 'Live mode is temporarily unavailable.',
-      true,
-    )
-  }
+  // A fallback body (sample data) is playable: return it so the draft renders.
+  // Callers read `body.fallback` / `body.error` to surface a non-blocking banner
+  // and disable leaderboard submit. Only hard HTTP errors throw.
   return body
 }
 
