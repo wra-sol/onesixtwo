@@ -8,6 +8,9 @@ type TeamFilterProps = {
   id?: string
   /** Shown as muted helper text next to the select (e.g. why the list is scoped). */
   hint?: string
+  /** When true, prepend an "All teams" entry (value "") so filtering is optional. */
+  includeAllOption?: boolean
+  allOptionLabel?: string
 }
 
 /**
@@ -21,7 +24,10 @@ export default function TeamFilter({
   disabled = false,
   id = 'team-filter',
   hint,
+  includeAllOption = false,
+  allOptionLabel = 'All teams',
 }: TeamFilterProps) {
+  const hasTeams = options.length > 0
   return (
     <div className="flex items-center gap-2">
       <label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -32,10 +38,11 @@ export default function TeamFilter({
         aria-label="Filter players by team"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        disabled={disabled || options.length === 0}
+        disabled={disabled || (!hasTeams && !includeAllOption)}
         className="h-8 min-w-0 flex-1 rounded border border-border bg-background px-2 text-sm"
       >
-        {options.length === 0 ? (
+        {includeAllOption && <option value="">{allOptionLabel}</option>}
+        {!hasTeams && !includeAllOption ? (
           <option value="">No teams</option>
         ) : (
           options.map((t) => (

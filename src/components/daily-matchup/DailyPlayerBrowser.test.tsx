@@ -85,29 +85,40 @@ const selectTeam = (abbrev: string) =>
   })
 
 describe('DailyPlayerBrowser', () => {
-  it('defaults to the first team and scopes the list to it, sorted by overall desc', () => {
+  it('defaults to all teams sorted by overall desc (team filter is optional)', () => {
     renderBrowser()
-    // Team AAA (first alphabetically) → players 1, 2, 5 only.
+    const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
+    expect(names).toEqual(['Player 1', 'Player 4', 'Player 2', 'Player 5', 'Player 3'])
+    expect(screen.getByRole('option', { name: 'All teams' })).toBeTruthy()
+  })
+
+  it('narrows to a single team when one is selected', () => {
+    renderBrowser()
+    selectTeam('AAA')
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 2', 'Player 5'])
     expect(screen.getByText(/3 players/)).toBeTruthy()
   })
 
-  it('switches to another team via the team selector', () => {
+  it('returns to all teams via the All teams option', () => {
     renderBrowser()
     selectTeam('BBB')
-    const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
-    expect(names).toEqual(['Player 4', 'Player 3'])
+    expect(screen.getAllByText(/^Player \d$/).map((el) => el.textContent)).toEqual([
+      'Player 4',
+      'Player 3',
+    ])
+    selectTeam('')
+    expect(screen.getAllByText(/^Player \d$/)).toHaveLength(5)
   })
 
-  it('shows players across all teams when a search is active', () => {
-    // A non-empty search escapes the team scope (parent supplies matched players).
+  it('shows all teams and disables the team select when a search is active', () => {
     renderBrowser({ search: 'player' })
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 4', 'Player 2', 'Player 5', 'Player 3'])
+    expect((screen.getByLabelText('Filter players by team') as HTMLSelectElement).disabled).toBe(true)
   })
 
-  it('filters to a position within the selected team', () => {
+  it('filters to a position when a position chip is clicked', () => {
     renderBrowser()
     fireEvent.click(screen.getByRole('button', { name: 'C' }))
     expect(screen.getAllByText(/^Player \d$/)).toHaveLength(1)
@@ -116,19 +127,19 @@ describe('DailyPlayerBrowser', () => {
   })
 
   it('sorts by name when the sort selector changes', () => {
-    renderBrowser({ search: 'player' })
+    renderBrowser()
     fireEvent.change(screen.getByDisplayValue('Overall'), { target: { value: 'name' } })
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'])
   })
 
-  it('hides unavailable players within the team when the toggle is on', () => {
+  it('hides unavailable players when the toggle is on', () => {
     const getDisabledReason = (p: LivePlayer) => (p.id === '2' ? 'AAA used' : null)
     renderBrowser({ getDisabledReason })
     fireEvent.click(screen.getByLabelText('Hide unavailable'))
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).not.toContain('Player 2')
-    expect(names).toEqual(['Player 1', 'Player 5'])
+    expect(names).toHaveLength(4)
   })
 
   it('shows a no-match message when filters exclude everyone', () => {

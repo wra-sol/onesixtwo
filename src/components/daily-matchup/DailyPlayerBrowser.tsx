@@ -45,12 +45,11 @@ export default function DailyPlayerBrowser({
   const searching = search.trim().length > 0
   const teamOptions = useMemo(() => deriveTeamOptions(players), [players])
 
-  // Derived: fall back to the first team when nothing valid is selected, so the
-  // list is always scoped to a real team without an effect syncing state.
+  // Team filtering is optional here: an empty selection means "all teams"
+  // (position is the primary axis for building a daily lineup). Fall back to
+  // all teams if a stale team is no longer in the pool.
   const effectiveTeam =
-    teamFilter && teamOptions.some((t) => t.abbrev === teamFilter)
-      ? teamFilter
-      : (teamOptions[0]?.abbrev ?? '')
+    teamFilter && teamOptions.some((t) => t.abbrev === teamFilter) ? teamFilter : ''
 
   const displayPlayers = useMemo(() => {
     const filtered = players.filter((p) => {
@@ -81,6 +80,7 @@ export default function DailyPlayerBrowser({
         value={effectiveTeam}
         onChange={setTeamFilter}
         disabled={!canSelect || searching}
+        includeAllOption
         hint={searching ? 'Searching all teams' : undefined}
       />
       <Input
