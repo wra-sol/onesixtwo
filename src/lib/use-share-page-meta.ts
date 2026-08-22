@@ -1,10 +1,9 @@
 import { useEffect } from 'react'
 import { BRAND } from './brand'
-import { formatLineupShareSummary } from './brand'
 import { buildOgPath } from './share-url'
 import type { ParsedShare } from './share-url'
+import { sharePageDescription, sharePageTitle } from './share-page-meta'
 import type { Lineup, SeasonResult } from './types'
-import { LINEUP_POSITIONS } from './types'
 
 type MetaDescriptor =
   | { selector: string; name: string; value: string }
@@ -88,15 +87,4 @@ export function useSharePageMeta(
       canonical?.setAttribute('href', `${BRAND.url}/`)
     }
   }, [lineup, parsed, result, searchParams])
-}
-
-export function sharePageTitle(record: string): string {
-  return `${BRAND.name} · ${record}`
-}
-
-export function sharePageDescription(
-  result: SeasonResult,
-  lineup: Lineup,
-): string {
-  return `${result.tier.label} — ${formatLineupShareSummary(LINEUP_POSITIONS, lineup)}`
 }

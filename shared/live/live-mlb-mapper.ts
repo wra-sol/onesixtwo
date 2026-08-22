@@ -159,16 +159,16 @@ export function mapRawPlayersToLive(players: RawPlayerInput[]): LivePlayer[] {
   })
 }
 
-export function selectHighestScoringTeam(
-  games: Array<{
+export function selectHighestScoringTeam<
+  T extends {
     teamId: number
     teamAbbrev: string
     teamName: string
     runs: number
     hits: number
     opponentRuns: number
-  }>,
-): (typeof games)[number] | null {
+  },
+>(games: T[]): T | null {
   if (games.length === 0) return null
   return [...games].sort((a, b) => {
     if (a.runs !== b.runs) return b.runs - a.runs

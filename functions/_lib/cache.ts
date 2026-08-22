@@ -1,10 +1,6 @@
-type CacheStorageWithDefault = CacheStorage & {
-  default?: Cache
-}
+const CACHE = (typeof caches !== 'undefined' ? caches : undefined)?.default
 
 type CacheableResponse = () => Promise<Response> | Response
-
-const CACHE = (globalThis.caches as CacheStorageWithDefault | undefined)?.default
 
 function buildCacheRequest(url: URL): Request {
   const key = new URL(url)

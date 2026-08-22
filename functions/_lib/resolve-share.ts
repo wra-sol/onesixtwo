@@ -10,7 +10,7 @@ import {
 import {
   sharePageDescription,
   sharePageTitle,
-} from '../../src/lib/use-share-page-meta'
+} from '../../src/lib/share-page-meta'
 import type { Lineup, SeasonResult } from '../../src/lib/types'
 
 export type ResolvedShare = {

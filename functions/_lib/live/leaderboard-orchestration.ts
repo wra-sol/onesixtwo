@@ -23,6 +23,10 @@ export async function resolveSnapshot(
 
 export type LiveSubmitValidationError = { ok: false; error: string }
 
+function isLiveModeId(value: unknown): value is LiveModeId {
+  return value === 'daily-matchup' || value === 'live-draft'
+}
+
 export function parseLiveSubmitPayload(
   raw: unknown,
 ): LiveSubmitPayload | LiveSubmitValidationError {
@@ -32,7 +36,7 @@ export function parseLiveSubmitPayload(
 
   const record = raw as Record<string, unknown>
   const mode = record.mode
-  if (mode !== 'daily-matchup' && mode !== 'live-draft') {
+  if (!isLiveModeId(mode)) {
     return { ok: false, error: 'Invalid mode.' }
   }
 

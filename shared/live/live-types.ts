@@ -29,6 +29,7 @@ export type LivePlayerGrades = {
 export type PitcherRoleSlot = 'SP' | 'RP' | 'CL'
 
 export type LivePlayerPosition =
+  | 'P'
   | 'C'
   | '1B'
   | '2B'
