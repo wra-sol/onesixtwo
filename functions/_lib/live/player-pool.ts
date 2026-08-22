@@ -1,5 +1,6 @@
 import type { RawPlayerInput } from '../../../shared/live/live-mlb-mapper'
 import {
+  fetchPitchArsenal,
   fetchSeasonStats,
   fetchSeasonStatsBatched,
   fetchTeamRoster,
@@ -11,6 +12,7 @@ import {
   parseHitterStats,
   parsePitchHand,
   parsePitcherStats,
+  toPlayerArsenal,
 } from './mlb-parsers'
 
 export const ROSTER_CONCURRENCY = 10
@@ -83,6 +85,17 @@ export async function buildRawFromRoster(
       isFallback,
     })
   }
+
+  // Real pitch mixes for the arms that made the pool; synthesis covers any
+  // pitcher without tracked data via getArsenal() at sim time.
+  const pitcherEntries = results.filter((r) => r.role === 'pitcher')
+  await Promise.all(
+    pitcherEntries.map(async (entry) => {
+      const splits = await fetchPitchArsenal(entry.personId, season).catch(() => null)
+      const arsenal = splits ? toPlayerArsenal(splits) : undefined
+      if (arsenal) entry.arsenal = arsenal
+    }),
+  )
 
   return results
 }

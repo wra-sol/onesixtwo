@@ -8,6 +8,7 @@ import type {
   LivePlayer,
   LivePlayerGrades,
   LivePlayerPosition,
+  PlayerArsenal,
   PitcherRoleSlot,
 } from './live-types'
 
@@ -32,6 +33,7 @@ export type RawPitcherStats = {
 }
 
 export type RawPlayerInput = {
+  arsenal?: PlayerArsenal
   personId: number
   name: string
   teamId: number
@@ -146,6 +148,7 @@ export function mapRawPlayersToLive(players: RawPlayerInput[]): LivePlayer[] {
       teamName: raw.teamName,
       positions: raw.positions,
       role: raw.role,
+      arsenal: raw.arsenal,
       batSide: raw.batSide,
       pitchHand: raw.pitchHand,
       grades,

@@ -1,7 +1,7 @@
 import type { LiveModeId } from '../../../shared/live/live-types'
 
-/** Bump when snapshot shape or live-vs-fixture semantics change (invalidates D1 cache). */
-export const SNAPSHOT_CACHE_VERSION = 'v2'
+/** v3: added real pitch arsenals. Bump when snapshot shape or semantics change. */
+export const SNAPSHOT_CACHE_VERSION = 'v3'
 
 /**
  * Snapshot kinds that get their own versioned D1 cache entry. 'sim162-live'

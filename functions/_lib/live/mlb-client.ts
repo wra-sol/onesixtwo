@@ -137,3 +137,32 @@ export async function mapWithConcurrency<T, R>(
   }
   return results
 }
+
+export type MlbArsenalSplit = {
+  percentage: number
+  count: number
+  totalPitches?: number
+  averageSpeed?: number
+  type: { code: string; description: string }
+}
+
+/**
+ * Real pitch mix for one pitcher from MLB's pitchArsenal stat. Null when
+ * the league has no tracked data (rookie without pitches, etc.) — callers
+ * fall back to deterministic synthesis.
+ */
+export async function fetchPitchArsenal(
+  personId: number,
+  season: number,
+): Promise<MlbArsenalSplit[] | null> {
+  const data = await fetchJson<{
+    stats?: Array<{ splits?: Array<{ stat?: MlbArsenalSplit }> }>
+  }>(
+    `${MLB_API}/people/${personId}/stats?stats=pitchArsenal&season=${season}&group=pitching`,
+  ).catch(() => null)
+  const splits = data?.stats?.[0]?.splits ?? []
+  const usable = splits
+    .map((s) => s.stat)
+    .filter((s): s is MlbArsenalSplit => Boolean(s && s.type && s.percentage > 0))
+  return usable.length > 0 ? usable : null
+}

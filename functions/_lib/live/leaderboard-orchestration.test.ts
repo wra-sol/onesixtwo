@@ -101,7 +101,7 @@ describe('resolveSnapshot', () => {
       challengeDate: '2026-06-25',
     })
     const store = new Map<string, string>([
-      ['daily-matchup:v2:2026-06-25', payload],
+      ['daily-matchup:v3:2026-06-25', payload],
     ])
     const db = {
       prepare: (sql: string) => ({

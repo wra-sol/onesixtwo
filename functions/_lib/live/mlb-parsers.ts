@@ -1,3 +1,4 @@
+import type { PitchFamily } from '../../../shared/live/pitch-profiles'
 import type { RawPlayerInput } from '../../../shared/live/live-mlb-mapper'
 
 type BatSide = 'L' | 'R' | 'S'
@@ -68,4 +69,57 @@ export function parsePitcherStats(
   const g = Number(split.gamesPlayed ?? split.g ?? 0)
   if (!Number.isFinite(gs) || !Number.isFinite(saves) || !Number.isFinite(g)) return null
   return { era, whip, k9, bb9, ip, gs, saves, g }
+}
+
+// --- Pitch arsenal mapping ------------------------------------------------
+
+export type ParsedArsenalPitch = { name: string; family: PitchFamily; usage: number }
+
+const FAMILY_BY_CODE: Record<string, PitchFamily> = {
+  FF: 'fastball',
+  FA: 'fastball',
+  SI: 'fastball',
+  FC: 'fastball',
+  SL: 'breaking',
+  ST: 'breaking',
+  SW: 'breaking',
+  CU: 'breaking',
+  KC: 'breaking',
+  CS: 'breaking',
+  CH: 'offspeed',
+  FS: 'offspeed',
+  FO: 'offspeed',
+  SC: 'offspeed',
+  KN: 'offspeed',
+}
+
+/** Classifies an MLB pitch code/description into a sim pitch family. */
+export function familyForPitch(code: string, description?: string): PitchFamily {
+  const byCode = FAMILY_BY_CODE[code.toUpperCase()]
+  if (byCode) return byCode
+  const d = (description ?? '').toLowerCase()
+  if (d.includes('curve') || d.includes('slider') || d.includes('sweep')) return 'breaking'
+  if (d.includes('change') || d.includes('split') || d.includes('fork')) return 'offspeed'
+  return 'fastball'
+}
+
+/**
+ * Converts raw MLB arsenal splits into the snapshot's PlayerArsenal shape.
+ * Returns undefined for empty input so callers keep their synthesis path.
+ */
+export function toPlayerArsenal(
+  splits: Array<{ percentage: number; type: { code: string; description: string } }>,
+): { pitches: ParsedArsenalPitch[] } | undefined {
+  const pitches = splits
+    .filter((s) => s.percentage > 0)
+    .map((s) => ({
+      name: s.type.description,
+      family: familyForPitch(s.type.code, s.type.description),
+      usage: s.percentage,
+    }))
+  if (pitches.length === 0) return undefined
+  // Renormalize after any rounding so usage sums to ~1.
+  const sum = pitches.reduce((acc, p) => acc + p.usage, 0)
+  for (const p of pitches) p.usage /= sum
+  return { pitches }
 }
