@@ -1,9 +1,7 @@
-import { createSeededRandomFromString } from './rng'
 import {
   buildLeagueStrengths,
   buildPlayoffField,
   generateSchedule,
-  simulateCoarseSeason,
   teamDivision,
   teamLeague,
   type Division,
@@ -22,7 +20,7 @@ import {
   buildOpponentRoster25SimTeam,
   buildRoster25SimTeam,
 } from './sim162-team'
-import { filterSim162PlayersByTeam, type Sim162Snapshot } from './sim162-snapshot'
+import type { Sim162Snapshot } from './sim162-snapshot'
 import { type TeamStaffState, createStaffState } from './staff-state'
 import type { Roster25 } from './roster25'
 import type {
@@ -120,7 +118,6 @@ export function buildSim162Season(
 
   const opponentCache = new Map<string, RosterSimTeam>()
   const staffByFranchise = new Map<string, TeamStaffState>()
-  staffByFranchise.set('user', createStaffState())
   const getOpponent = (franchiseId: string): RosterSimTeam => {
     const cached = opponentCache.get(franchiseId)
     if (cached) return cached
@@ -145,58 +142,54 @@ export function buildSim162Season(
     return s
   }
 
-  const strengthByTeamId: Record<string, number> = {}
-  for (const t of leagueTeams) strengthByTeamId[t.teamId] = 50
-  const userRosterPlayers = [
-    ...userTeam.battingOrder,
-    ...userTeam.bench,
-    ...userTeam.rotation,
-    ...userTeam.bullpen,
-  ]
-  strengthByTeamId[userFranchise] = avgOverall(userRosterPlayers)
-  for (const t of leagueTeams) {
-    if (t.teamId === userFranchise) continue
-    const pid = poolTeamIdByFranchise.get(t.teamId)
-    if (pid == null) {
-      strengthByTeamId[t.teamId] = 50
-      continue
-    }
-    const players = filterSim162PlayersByTeam(pool, pid)
-    strengthByTeamId[t.teamId] = players.length ? avgOverall(players) : 50
-  }
+  // Every scheduled game is PA-simmed: standings come from real results and
+  // every team's staff state accrues fatigue/rest across the season.
+  const schedule = [...generateSchedule(seasonSeed)].sort(
+    (a, b) => a.gameIndex - b.gameIndex,
+  )
 
-  const schedule = generateSchedule(seasonSeed)
-  const userSchedule = schedule
-    .filter((g) => g.home === userFranchise || g.away === userFranchise)
-    .sort((a, b) => a.gameIndex - b.gameIndex)
+  const winsByTeam = new Map<string, number>()
+  const lossesByTeam = new Map<string, number>()
+  for (const t of leagueTeams) {
+    winsByTeam.set(t.teamId, 0)
+    lossesByTeam.set(t.teamId, 0)
+  }
 
   const userGames: SimulatedGame[] = []
   let wins = 0
   let losses = 0
-  userSchedule.forEach((g, idx) => {
-    const oppFranchise = g.home === userFranchise ? g.away : g.home
-    const userIsHome = g.home === userFranchise
-    const oppTeam = getOpponent(oppFranchise)
+
+  schedule.forEach((g, idx) => {
+    const awayIsUser = g.away === userFranchise
+    const homeIsUser = g.home === userFranchise
+    const awayTeam = awayIsUser ? userTeam : getOpponent(g.away)
+    const homeTeam = homeIsUser ? userTeam : getOpponent(g.home)
     const game = simulateGameRoster(
-      userTeam,
-      oppTeam,
+      awayTeam,
+      homeTeam,
       regularSeasonGameSeed(seasonSeed, idx),
-      userIsHome,
+      false,
       idx,
-      { user: staffFor('user'), opponent: staffFor(oppFranchise) },
+      { user: staffFor(g.away), opponent: staffFor(g.home) },
     )
-    userGames.push(game)
-    const userScore = userIsHome ? game.homeScore : game.awayScore
-    const oppScore = userIsHome ? game.awayScore : game.homeScore
-    if (userScore > oppScore) wins += 1
-    else if (oppScore > userScore) losses += 1
-    else if (coinFlipTieWinner(seasonSeed, idx)) wins += 1
-    else losses += 1
+    if (awayIsUser || homeIsUser) userGames.push(game)
+
+    let winner: string
+    if (game.awayScore > game.homeScore) winner = g.away
+    else if (game.homeScore > game.awayScore) winner = g.home
+    else winner = coinFlipTieWinner(seasonSeed, idx) ? g.away : g.home
+
+    winsByTeam.set(winner, (winsByTeam.get(winner) ?? 0) + 1)
+    const loser = winner === g.away ? g.home : g.away
+    lossesByTeam.set(loser, (lossesByTeam.get(loser) ?? 0) + 1)
+
+    if (awayIsUser || homeIsUser) {
+      if (winner === userFranchise) wins += 1
+      else losses += 1
+    }
   })
 
-  const strengths = buildLeagueStrengths(strengthByTeamId)
-  const coarse = simulateCoarseSeason(strengths, seasonSeed)
-  const standings = mergeStandings(coarse, userFranchise, wins, losses, divisions)
+  const standings = standingsFromRecords(winsByTeam, lossesByTeam, divisions)
 
   const playoffFields = buildPlayoffField(standings)
   const userField = playoffFields.find((f) => f.league === userLeague)!
@@ -211,7 +204,6 @@ export function buildSim162Season(
     userFranchise,
     userTeam,
     getOpponent,
-    strengthByTeamId,
     seasonSeed,
     staffFor,
   )
@@ -239,38 +231,33 @@ export function buildSim162Season(
   }
 }
 
-type SeedTeam = { seed: number; teamId: string; strength: number }
+type SeedTeam = { seed: number; teamId: string }
 
-function avgOverall(players: LivePlayer[]): number {
-  if (players.length === 0) return 50
-  return players.reduce((s, p) => s + p.grades.overall, 0) / players.length
-}
 
-function mergeStandings(
-  coarse: Standings,
-  userFranchise: string,
-  wins: number,
-  losses: number,
+function standingsFromRecords(
+  winsByTeam: Map<string, number>,
+  lossesByTeam: Map<string, number>,
   divisions: Division[],
 ): Standings {
-  const orderIndex = new Map(coarse.records.map((r, i) => [r.teamId, i]))
   const cmp = (a: TeamRecord, b: TeamRecord) =>
-    b.wins !== a.wins
-      ? b.wins - a.wins
-      : (orderIndex.get(a.teamId)! - orderIndex.get(b.teamId)!)
-  const mergedRecords = coarse.records.map((r) =>
-    r.teamId === userFranchise ? { teamId: userFranchise, wins, losses } : r,
-  )
-  const records = [...mergedRecords].sort(cmp)
+    b.wins !== a.wins ? b.wins - a.wins : a.teamId.localeCompare(b.teamId)
+  const records: TeamRecord[] = buildLeagueStrengths({})
+    .map((t) => t.teamId)
+    .map((teamId) => ({
+      teamId,
+      wins: winsByTeam.get(teamId) ?? 0,
+      losses: lossesByTeam.get(teamId) ?? 0,
+    }))
+    .sort(cmp)
   const byDivision = {} as Record<Division, TeamRecord[]>
   for (const div of divisions) {
-    byDivision[div] = mergedRecords
+    byDivision[div] = records
       .filter((r) => teamDivision(r.teamId) === div)
       .sort(cmp)
   }
   const byLeague = {
-    AL: mergedRecords.filter((r) => teamLeague(r.teamId) === 'AL').sort(cmp),
-    NL: mergedRecords.filter((r) => teamLeague(r.teamId) === 'NL').sort(cmp),
+    AL: records.filter((r) => teamLeague(r.teamId) === 'AL'),
+    NL: records.filter((r) => teamLeague(r.teamId) === 'NL'),
   }
   return { records, byDivision, byLeague }
 }
@@ -309,28 +296,6 @@ function paSimUserSeries(
   return { games: series.games, series, winnerIsUser: series.wonSeries }
 }
 
-function coarseSeries(
-  homeStrength: number,
-  awayStrength: number,
-  bestOf: number,
-  seed: string,
-): { homeWins: number; awayWins: number; winner: 'home' | 'away' } {
-  const needed = bestOf === 3 ? 2 : bestOf === 5 ? 3 : 4
-  const random = createSeededRandomFromString(seed)
-  const total = homeStrength + awayStrength
-  const probHome = total > 0 ? homeStrength / total : 0.5
-  let homeWins = 0
-  let awayWins = 0
-  for (let i = 0; i < bestOf && homeWins < needed && awayWins < needed; i += 1) {
-    if (random() < probHome) homeWins += 1
-    else awayWins += 1
-  }
-  return {
-    homeWins,
-    awayWins,
-    winner: homeWins > awayWins ? 'home' : 'away',
-  }
-}
 
 function bySeed(seeds: SeedTeam[], seed: number): SeedTeam | undefined {
   return seeds.find((s) => s.seed === seed)
@@ -342,7 +307,6 @@ function buildBracket(
   userFranchise: string,
   userTeam: RosterSimTeam,
   getOpponent: (franchiseId: string) => RosterSimTeam,
-  strengthByTeamId: Record<string, number>,
   seasonSeed: string,
   staffFor: (franchiseId: string) => TeamStaffState,
 ): {
@@ -361,7 +325,6 @@ function buildBracket(
     seedTeamByLeague[field.league] = field.seeds.map((s) => ({
       seed: s.seed,
       teamId: s.teamId,
-      strength: strengthByTeamId[s.teamId] ?? 50,
     }))
   }
 
@@ -407,11 +370,7 @@ function buildBracket(
         games,
       }
       const advance = winnerIsUser
-        ? {
-            seed: userSeedNum,
-            teamId: userFranchise,
-            strength: strengthByTeamId[userFranchise] ?? 50,
-          }
+        ? { seed: userSeedNum, teamId: userFranchise }
         : opp
       if (winnerIsUser && roundName === 'World Series') {
         postseasonResult = 'ws-champs'
@@ -420,21 +379,24 @@ function buildBracket(
       }
       return { series: ps, advance }
     }
-    const { homeWins, awayWins, winner } = coarseSeries(
-      home.strength,
-      away.strength,
+    const { series, winnerIsUser: winnerIsHome } = paSimUserSeries(
+      getOpponent(home.teamId),
+      getOpponent(away.teamId),
       bestOf,
       seed,
+      true,
+      { user: staffFor(home.teamId), opponent: staffFor(away.teamId) },
     )
-    const winnerTeamId = winner === 'home' ? home.teamId : away.teamId
-    const advance = winner === 'home' ? home : away
+    const winnerTeamId = winnerIsHome ? home.teamId : away.teamId
+    const advance = winnerIsHome ? home : away
     const ps: PlayoffSeries = {
       awaySeed: away.seed,
       homeSeed: home.seed,
       awayTeamId: away.teamId,
       homeTeamId: home.teamId,
-      awayWins,
-      homeWins,
+      awayWins: series.opponentWins,
+      homeWins: series.userWins,
+      games: series.games,
       winnerTeamId,
       isUserSeries: false,
     }

@@ -331,22 +331,20 @@ describe('buildSim162Season — qualifying user (strong roster vs mediocre pool)
     }
   })
 
-  it('marks exactly the user-involved series as isUserSeries and attaches PA-sim games', () => {
+  it('marks exactly the user-involved series as isUserSeries; every series carries PA-sim games', () => {
     const result = seasonFromRoster(roster, pool, 'qualify-seed')
-    const userSeries = result.playoffBracket.rounds.flatMap((r) =>
-      r.series.filter((s) => s.isUserSeries),
-    )
+    const allSeries = result.playoffBracket.rounds.flatMap((r) => r.series)
+    const userSeries = allSeries.filter((s) => s.isUserSeries)
     expect(userSeries.length).toBe(result.userPlayoffSeries.length)
     expect(userSeries.length).toBeGreaterThan(0)
     for (const s of userSeries) {
-      expect(s.games).toBeDefined()
       expect(s.games!.length).toBeGreaterThan(0)
     }
-    const nonUser = result.playoffBracket.rounds
-      .flatMap((r) => r.series)
-      .filter((s) => !s.isUserSeries)
+    // All-PA seasons: non-user playoff series are fully simulated too.
+    const nonUser = allSeries.filter((s) => !s.isUserSeries)
     for (const s of nonUser) {
-      expect(s.games).toBeUndefined()
+      expect(s.games).toBeDefined()
+      expect(s.games!.length).toBeGreaterThan(0)
     }
   })
 

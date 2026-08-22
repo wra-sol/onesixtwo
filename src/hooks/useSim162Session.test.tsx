@@ -191,7 +191,7 @@ describe('useSim162Session', () => {
     expect(result.current.isRosterComplete).toBe(true)
   })
 
-  it('stubs handleSimulate and produces a placeholder season result', async () => {
+  it('runs a full all-PA season through handleSimulate', async () => {
     vi.mocked(fetchSim162Snapshot).mockResolvedValue(makeFullSnapshot())
     const { result } = renderHook(() => useSim162Session('legends'))
 
@@ -216,7 +216,7 @@ describe('useSim162Session', () => {
     expect(result.current.isSimulating).toBe(false)
     expect(result.current.seasonResult).not.toBeNull()
     expect(result.current.seasonResult!.userRecord.wins + result.current.seasonResult!.userRecord.losses).toBe(162)
-  })
+  }, 60_000)
 
   it('filters players by search', async () => {
     vi.mocked(fetchSim162Snapshot).mockResolvedValue(makeFullSnapshot())

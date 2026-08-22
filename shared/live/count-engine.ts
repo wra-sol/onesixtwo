@@ -29,6 +29,17 @@ function clamp(v: number, min: number, max: number): number {
  * behind, breaking balls and offspeed with two strikes. Deterministic given
  * the same roll stream.
  */
+function adjustedUsage(
+  p: { family: PitchFamily; usage: number },
+  balls: number,
+  strikes: number,
+): number {
+  let w = p.usage
+  if (balls > strikes) w *= p.family === 'fastball' ? 1.35 : 0.9
+  if (strikes === 2) w *= p.family === 'fastball' ? 0.85 : 1.25
+  return w
+}
+
 function selectFamily(
   player: LivePlayer,
   balls: number,
@@ -36,22 +47,21 @@ function selectFamily(
   random: () => number,
 ): PitchFamily {
   const arsenal = getArsenal(player)
-  const weights = new Map<PitchFamily, number>()
+  // Iterate arsenal order directly (deterministic by construction) — no
+  // per-pitch allocations on the hot path.
+  let total = 0
   for (const p of arsenal.pitches) {
-    let w = p.usage
-    if (balls > strikes) w *= p.family === 'fastball' ? 1.35 : 0.9
-    if (strikes === 2) w *= p.family === 'fastball' ? 0.85 : 1.25
-    weights.set(p.family, w)
+    total += adjustedUsage(p, balls, strikes)
   }
-  const entries = [...weights.entries()].sort((a, b) => a[0].localeCompare(b[0]))
-  const total = entries.reduce((s, [, w]) => s + w, 0)
   let acc = 0
   const roll = random()
-  for (const [family, w] of entries) {
-    acc += w / total
-    if (roll < acc) return family
+  let fallback: PitchFamily = 'fastball'
+  for (const p of arsenal.pitches) {
+    fallback = p.family
+    acc += adjustedUsage(p, balls, strikes) / total
+    if (roll < acc) return p.family
   }
-  return entries[entries.length - 1]![0]
+  return fallback
 }
 
 /**
