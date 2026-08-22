@@ -1,4 +1,5 @@
 import { useScrollToFirstAssign } from '@/hooks/useScrollToFirstAssign'
+import { OrderEditor } from '@/components/OrderEditor'
 import { Button } from '@/components/ui/button'
 import {
   DAILY_HITTER_POSITIONS,
@@ -9,7 +10,6 @@ import {
   type DailyLineupPosition,
 } from '@shared/live/daily-roster'
 import type { LivePlayer } from '@shared/live/live-types'
-import { cn } from '@/lib/utils'
 
 type LiveLineupGridProps = {
   lineup: DailyLineup
@@ -107,54 +107,6 @@ type BattingOrderEditorProps = {
   onChange: (order: LivePlayer[]) => void
 }
 
-export function BattingOrderEditor({ order, onChange }: BattingOrderEditorProps) {
-  const move = (index: number, direction: -1 | 1) => {
-    const next = [...order]
-    const target = index + direction
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target]!, next[index]!]
-    onChange(next)
-  }
-
-  return (
-    <div className="space-y-2">
-      <h3 className="font-display text-sm text-primary">Batting order</h3>
-      <ol className="space-y-1">
-        {order.map((player, index) => (
-          <li
-            key={player.id}
-            className={cn(
-              'flex items-center justify-between rounded-md border border-border px-2 py-1.5 text-sm',
-            )}
-          >
-            <span>
-              {index + 1}. {player.name}
-            </span>
-            <span className="flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 px-2"
-                disabled={index === 0}
-                onClick={() => move(index, -1)}
-              >
-                ↑
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 px-2"
-                disabled={index === order.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                ↓
-              </Button>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
-  )
+export function BattingOrderEditor(props: BattingOrderEditorProps) {
+  return <OrderEditor title="Batting order" {...props} />
 }

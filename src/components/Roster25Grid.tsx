@@ -1,4 +1,5 @@
 import { useScrollToFirstAssign } from '@/hooks/useScrollToFirstAssign'
+import { OrderEditor } from '@/components/OrderEditor'
 import { Button } from '@/components/ui/button'
 import {
   playerEligibleForRoster25Slot,
@@ -179,52 +180,12 @@ type RotationOrderEditorProps = {
   onChange: (order: LivePlayer[]) => void
 }
 
-export function RotationOrderEditor({ order, onChange }: RotationOrderEditorProps) {
-  const move = (index: number, direction: -1 | 1) => {
-    const next = [...order]
-    const target = index + direction
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target]!, next[index]!]
-    onChange(next)
-  }
-
+export function RotationOrderEditor(props: RotationOrderEditorProps) {
   return (
-    <div className="space-y-2">
-      <h3 className="font-display text-sm text-primary">Rotation order</h3>
-      <ol className="space-y-1">
-        {order.map((player, index) => (
-          <li
-            key={player.id}
-            className="flex items-center justify-between rounded-md border border-border px-2 py-1.5 text-sm"
-          >
-            <span>
-              SP{index + 1}. {player.name}
-            </span>
-            <span className="flex gap-1">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 px-2"
-                disabled={index === 0}
-                onClick={() => move(index, -1)}
-              >
-                ↑
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-7 px-2"
-                disabled={index === order.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                ↓
-              </Button>
-            </span>
-          </li>
-        ))}
-      </ol>
-    </div>
+    <OrderEditor
+      title="Rotation order"
+      labelFor={(player, index) => `SP${index + 1}. ${player.name}`}
+      {...props}
+    />
   )
 }
