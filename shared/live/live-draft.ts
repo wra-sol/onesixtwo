@@ -635,7 +635,9 @@ export function setLiveDraftBattingOrder(
 }
 
 export function heuristicAiBattingOrder(players: LivePlayer[]): LivePlayer[] {
-  const sorted = [...players].sort((a, b) => {
+  // Callers hand over full lineups (pitchers included); only hitters bat.
+  const batters = players.filter((p) => p.role === 'hitter')
+  const sorted = [...batters].sort((a, b) => {
     const aObp = (a.grades.contact ?? 50) * 0.6 + (a.grades.speed ?? 50) * 0.2
     const bObp = (b.grades.contact ?? 50) * 0.6 + (b.grades.speed ?? 50) * 0.2
     return bObp - aObp
