@@ -133,6 +133,8 @@ export type PaEvent = {
   type: PaEventType
   description: string
   runsScored: number
+  /** Pitch count for this plate appearance (count-based engine). */
+  pitches?: number
 }
 
 export type SimBoxScore = {
