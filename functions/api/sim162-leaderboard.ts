@@ -4,7 +4,6 @@ import {
   fetchSim162LeaderboardEntries,
   hasSim162SubmissionForIp,
   insertSim162LeaderboardEntry,
-  POSTSEASON_RANK,
   SIM162_LEADERBOARD_MAX,
   type Sim162Pool,
 } from '../_lib/sim162-leaderboard'
@@ -12,18 +11,14 @@ import {
   normalizeInitials,
   SUBMIT_ERROR_MESSAGES,
 } from '../_lib/leaderboard'
-import type { PostseasonResult } from '../../shared/live/sim162-season'
+import { verifySim162Submission } from '../_lib/sim162-verify'
+import {
+  SIM162_BATTING_ORDER_SIZE,
+  SIM162_ROTATION_SIZE,
+  SIM162_ROSTER_SIZE,
+} from '../../src/lib/sim162-share-url'
 import { jsonResponse, clientIp, type PagesContext } from '../_lib/http'
 
-
-const VALID_POSTSEASON_RESULTS: PostseasonResult[] = [
-  'missed',
-  'wc',
-  'ds',
-  'lcs',
-  'ws-runner-up',
-  'ws-champs',
-]
 
 type Sim162SubmitBody = {
   pool: unknown
@@ -32,12 +27,6 @@ type Sim162SubmitBody = {
   playerIds: unknown
   battingOrderIds: unknown
   rotationOrderIds: unknown
-  simSeed: unknown
-  wins: unknown
-  losses: unknown
-  postseasonResult: unknown
-  wonWorldSeries: unknown
-  userQualified: unknown
 }
 
 type ParsedSim162Submit =
@@ -48,15 +37,13 @@ type ParsedSim162Submit =
       playerIds: string[]
       battingOrderIds: string[]
       rotationOrderIds: string[]
-      simSeed: string
-      wins: number
-      losses: number
-      postseasonResult: PostseasonResult
-      wonWorldSeries: boolean
-      userQualified: boolean
     }
   | { ok: false; error: string }
 
+/**
+ * Structural validation only. Claimed results (wins/losses/postseason) are
+ * not part of the submission contract — the server derives them by re-sim.
+ */
 function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
   if (!body || typeof body !== 'object') {
     return { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json }
@@ -78,10 +65,10 @@ function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
   const playerIds = record.playerIds
   if (
     !Array.isArray(playerIds) ||
-    playerIds.length !== 25 ||
+    playerIds.length !== SIM162_ROSTER_SIZE ||
     !playerIds.every((id) => typeof id === 'string' && id.length > 0)
   ) {
-    return { ok: false, error: 'Roster must include 25 players.' }
+    return { ok: false, error: `Roster must include ${SIM162_ROSTER_SIZE} players.` }
   }
 
   const seen = new Set<string>()
@@ -95,46 +82,26 @@ function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
   const battingOrderIds = record.battingOrderIds
   if (
     !Array.isArray(battingOrderIds) ||
-    battingOrderIds.length !== 9 ||
+    battingOrderIds.length !== SIM162_BATTING_ORDER_SIZE ||
     !battingOrderIds.every((id) => typeof id === 'string' && id.length > 0)
   ) {
-    return { ok: false, error: 'Batting order must include 9 players.' }
+    return {
+      ok: false,
+      error: `Batting order must include ${SIM162_BATTING_ORDER_SIZE} players.`,
+    }
   }
 
   const rotationOrderIds = record.rotationOrderIds
   if (
     !Array.isArray(rotationOrderIds) ||
-    rotationOrderIds.length !== 5 ||
+    rotationOrderIds.length !== SIM162_ROTATION_SIZE ||
     !rotationOrderIds.every((id) => typeof id === 'string' && id.length > 0)
   ) {
-    return { ok: false, error: 'Rotation must include 5 pitchers.' }
+    return {
+      ok: false,
+      error: `Rotation must include ${SIM162_ROTATION_SIZE} pitchers.`,
+    }
   }
-
-  const simSeed = record.simSeed
-  if (typeof simSeed !== 'string' || !simSeed.trim()) {
-    return { ok: false, error: 'Missing simulation seed.' }
-  }
-
-  const wins = typeof record.wins === 'number' ? Math.trunc(record.wins) : NaN
-  const losses =
-    typeof record.losses === 'number' ? Math.trunc(record.losses) : NaN
-  if (!Number.isFinite(wins) || wins < 0 || wins > 162) {
-    return { ok: false, error: 'Invalid win total.' }
-  }
-  if (!Number.isFinite(losses) || losses < 0 || losses > 162) {
-    return { ok: false, error: 'Invalid loss total.' }
-  }
-
-  const postseasonResult = record.postseasonResult
-  if (
-    typeof postseasonResult !== 'string' ||
-    !VALID_POSTSEASON_RESULTS.includes(postseasonResult as PostseasonResult)
-  ) {
-    return { ok: false, error: 'Invalid postseason result.' }
-  }
-
-  const wonWorldSeries = record.wonWorldSeries === true
-  const userQualified = record.userQualified === true
 
   return {
     ok: true,
@@ -143,12 +110,6 @@ function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
     playerIds: playerIds as string[],
     battingOrderIds: battingOrderIds as string[],
     rotationOrderIds: rotationOrderIds as string[],
-    simSeed: simSeed.trim(),
-    wins,
-    losses,
-    postseasonResult: postseasonResult as PostseasonResult,
-    wonWorldSeries,
-    userQualified,
   }
 }
 
@@ -209,9 +170,25 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
+  // Server-side verification: rebuild the season deterministically from the
+  // submitted ids and the server-owned pool seed. Client-claimed results are
+  // never stored.
+  const verified = await verifySim162Submission(
+    {
+      pool: parsed.pool,
+      challengeDate: parsed.challengeDate,
+      playerIds: parsed.playerIds,
+      battingOrderIds: parsed.battingOrderIds,
+      rotationOrderIds: parsed.rotationOrderIds,
+    },
+    context.env,
+  )
+  if (!verified.ok) {
+    return jsonResponse({ ok: false, error: verified.error }, 400)
+  }
+
   const lineupKey = buildSim162LineupKey(parsed.pool, parsed.playerIds)
   const createdAt = Date.now()
-  const postseasonRank = POSTSEASON_RANK[parsed.postseasonResult]
 
   const payloadJson = JSON.stringify({
     pool: parsed.pool,
@@ -219,7 +196,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     playerIds: parsed.playerIds,
     battingOrderIds: parsed.battingOrderIds,
     rotationOrderIds: parsed.rotationOrderIds,
-    simSeed: parsed.simSeed,
+    simSeed: verified.seasonSeed.slice(verified.seasonSeed.indexOf('::') + 2),
     initials,
   })
 
@@ -227,12 +204,12 @@ async function handlePost(context: PagesContext): Promise<Response> {
     id: crypto.randomUUID(),
     pool: parsed.pool,
     initials,
-    wins: parsed.wins,
-    losses: parsed.losses,
-    postseasonResult: parsed.postseasonResult,
-    postseasonRank,
-    wonWorldSeries: parsed.wonWorldSeries,
-    userQualified: parsed.userQualified,
+    wins: verified.wins,
+    losses: verified.losses,
+    postseasonResult: verified.postseasonResult,
+    postseasonRank: verified.postseasonRank,
+    wonWorldSeries: verified.wonWorldSeries,
+    userQualified: verified.userQualified,
     lineupKey,
     payloadJson,
     submitterIp,
@@ -240,13 +217,22 @@ async function handlePost(context: PagesContext): Promise<Response> {
   })
 
   const rank = await computeSim162Rank(db, {
-    wonWorldSeries: parsed.wonWorldSeries,
-    wins: parsed.wins,
-    postseasonRank,
+    wonWorldSeries: verified.wonWorldSeries,
+    wins: verified.wins,
+    postseasonRank: verified.postseasonRank,
     createdAt,
   })
 
-  return jsonResponse({ ok: true, rank, ranked: true })
+  return jsonResponse({
+    ok: true,
+    rank,
+    ranked: true,
+    record: {
+      wins: verified.wins,
+      losses: verified.losses,
+      postseasonResult: verified.postseasonResult,
+    },
+  })
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {

@@ -11,6 +11,10 @@ export type Sim162SubmitPayload = {
   battingOrderIds: string[]
   rotationOrderIds: string[]
   simSeed: string
+  /**
+   * Claimed results below are sent for display continuity only — the server
+   * re-sims the season and stores its own derived values (ADR-0002).
+   */
   wins: number
   losses: number
   postseasonResult: PostseasonResult
@@ -19,7 +23,12 @@ export type Sim162SubmitPayload = {
 }
 
 export type Sim162SubmitResult =
-  | { ok: true; rank: number; ranked: true }
+  | {
+      ok: true
+      rank: number
+      ranked: true
+      record?: { wins: number; losses: number; postseasonResult: PostseasonResult }
+    }
   | { ok: false; error: string; ranked?: false }
 
 export async function fetchSim162Leaderboard(): Promise<{
