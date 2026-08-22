@@ -31,6 +31,9 @@ export type PitchArsenal = {
   pitches: ArsenalPitch[]
 }
 
+const arsenalCache = new WeakMap<LivePlayer, PitchArsenal>()
+const profileCache = new WeakMap<LivePlayer, BatterPitchProfile>()
+
 export type BatterPitchProfile = {
   /** Multiplier applied to contact success against each family (~0.85-1.15). */
   contactMod: Record<PitchFamily, number>
@@ -55,6 +58,14 @@ function clamp(value: number, min: number, max: number): number {
  * need to know which they got.
  */
 export function getArsenal(player: LivePlayer): PitchArsenal {
+  const cached = arsenalCache.get(player)
+  if (cached) return cached
+  const built = buildArsenal(player)
+  arsenalCache.set(player, built)
+  return built
+}
+
+function buildArsenal(player: LivePlayer): PitchArsenal {
   const stuff = player.grades.stuff ?? 50
   const command = player.grades.command ?? 50
 
@@ -166,6 +177,14 @@ export function arsenalQualityFor(
  * everything a little better.
  */
 export function synthesizeBatterProfile(player: LivePlayer): BatterPitchProfile {
+  const cached = profileCache.get(player)
+  if (cached) return cached
+  const profile = buildBatterProfile(player)
+  profileCache.set(player, profile)
+  return profile
+}
+
+function buildBatterProfile(player: LivePlayer): BatterPitchProfile {
   const contact = player.grades.contact ?? 50
   const power = player.grades.power ?? 50
   const speed = player.grades.speed ?? 50
