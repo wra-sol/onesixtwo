@@ -28,6 +28,22 @@ export type LivePlayerGrades = {
 
 export type PitcherRoleSlot = 'SP' | 'RP' | 'CL'
 
+/**
+ * Real pitch-mix data from MLB when tracked. Absent for every legends-pool
+ * player; callers fall back to deterministic synthesis via getArsenal().
+ * Per-pitch quality is never stored here — it derives from the pitcher's
+ * grade profile at read time.
+ */
+export type PlayerArsenal = {
+  pitches: Array<{
+    /** Scouted pitch name, e.g. "Slider". Optional for synthesized mixes. */
+    name?: string
+    family: import('./pitch-profiles').PitchFamily
+    /** Share of pitches thrown, 0-1. */
+    usage: number
+  }>
+}
+
 export type LivePlayerPosition =
   | 'P'
   | 'C'
@@ -59,6 +75,7 @@ export type LivePlayer = {
   appearedOnTargetDate: boolean
   isFallback: boolean
   pitcherRoles?: PitcherRoleSlot[]
+  arsenal?: PlayerArsenal
 }
 
 export type OpponentRoster = {
