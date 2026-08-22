@@ -42,7 +42,7 @@ The roster shape used by Daily Matchup and Live Draft: C, 1B, 2B, 3B, SS, OF, OF
 
 ## Sim 162
 
-A game mode where the user drafts a 25-man roster (current MLB players or all-time legends), simulates a 162-game season with full rotation and bullpen depth, then plays through a 12-team MLB playoff bracket if they qualify. The grail is the World Series championship.
+A game mode where the user drafts a 25-man roster (current MLB players or all-time legends), simulates a full 162-game season pitch-by-pitch for all thirty teams (~2,430 games), then plays through a 12-team MLB playoff bracket if they qualify. The grail is the World Series championship.
 
 ## 25-Man Roster
 
@@ -54,7 +54,7 @@ The five starting pitchers (SP1 through SP5) on a Sim 162 roster. The starter fo
 
 ## Playoff Bracket
 
-The 12-team MLB postseason format used by Sim 162: six teams per league (three division winners and three wild cards). Wild Card round, Division Series (best-of-5), League Championship Series (best-of-7), and World Series (best-of-7). The user's series are PA-simmed; other series advance coarsely.
+The 12-team MLB postseason format used by Sim 162: six teams per league (three division winners and three wild cards). Wild Card round, Division Series (best-of-5), League Championship Series (best-of-7), and World Series (best-of-7). Every series — user or not — is simulated pitch-by-pitch with full box scores.
 
 ## Series Tie Policy
 
@@ -63,3 +63,15 @@ What happens when a simulated game ends tied. Daily Matchup and Live Draft let t
 ## Season Seed
 
 The seed string that makes a simulation reproducible: same roster, orders, and seed produce an identical season. Share links and stored leaderboard rows re-sim from it, so its format must never drift.
+
+## Pitch Family
+
+One of three pitch classes used by the simulation: fastball, breaking, or offspeed. Pitchers carry an Arsenal of families with usage shares; batters carry contact/power modifiers against each family plus a chase tendency.
+
+## Arsenal
+
+A pitcher's pitch mix. Real mixes ride the snapshot for live pitchers where MLB tracks them; every other case (legends, missing data) synthesizes deterministically from grades and handedness. Per-pitch quality always derives from the pitcher's grade profile.
+
+## Staff State
+
+Per-team pitching data that persists across games: rest counters and last-outing pitch totals per arm. Stuff and command decay within an outing past a stamina-driven soft cap, and relievers on short rest after heavy work are diminished. States persist through the playoff bracket.
