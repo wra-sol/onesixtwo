@@ -30,7 +30,7 @@ Add repository secrets:
 
 | Secret | Where to find it |
 |--------|------------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token with **Cloudflare Pages — Edit** |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare dashboard → My Profile → API Tokens → Create Token with **Cloudflare Pages — Edit** and **D1 — Edit** (D1 is required: production deploys apply pending D1 migrations) |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare dashboard → any zone → Overview → Account ID (right column) |
 
 Push to `main`; workflow `.github/workflows/deploy.yml` builds and deploys production automatically.
@@ -74,9 +74,26 @@ One-time setup (requires `wrangler login`):
 ```bash
 npx wrangler d1 create onesixtwo-leaderboard
 # Copy the database_id from output into wrangler.toml [[d1_databases]]
-npx wrangler d1 migrations apply onesixtwo-leaderboard --local
-npx wrangler d1 migrations apply onesixtwo-leaderboard --remote
+npm run db:migrate:local
+npm run db:migrate:remote
 ```
+
+Migration scripts target the binding name `DB` from `wrangler.toml` (the
+database-name form does not resolve on wrangler 4.97).
+
+**Migrations run automatically on production deploys** — the GitHub Actions
+deploy applies pending migrations before publishing, and `npm run deploy`
+does the same locally. Check for pending migrations any time with:
+
+```bash
+npm run db:migrations:pending
+```
+
+> **Incident note (2026-08):** migrations 0002/0003 were only ever applied
+> locally, so live/Sim 162 leaderboards returned 500s in production while
+> classic worked. The deploy-time migration step and post-deploy smoke test
+> exist to prevent a repeat. Previews deliberately do not migrate — they
+> share the production D1 and must not mutate its schema ahead of main.
 
 Attach the **DB** D1 binding to the Pages project **onesixtwo** in the Cloudflare dashboard (Settings → Functions → D1 database bindings) if production `/api/leaderboard` returns 500.
 

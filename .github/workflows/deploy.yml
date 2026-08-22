@@ -29,6 +29,16 @@ jobs:
       - run: npm run build
         env:
           VITE_CF_BEACON_TOKEN: ${{ secrets.VITE_CF_BEACON_TOKEN }}
+      - name: Apply D1 migrations
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Skipping D1 migrations — add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets."
+            exit 0
+          fi
+          npx wrangler d1 migrations apply DB --remote
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -40,3 +50,22 @@ jobs:
             exit 0
           fi
           npx wrangler pages deploy dist --project-name onesixtwo
+      - name: Smoke test production leaderboards
+        run: |
+          # Guards against the 2026-08 incident where unapplied remote D1
+          # migrations left live/sim162 boards returning 500s unnoticed.
+          sleep 15
+          today=$(date -u +%F)
+          fail=0
+          for path in "api/sim162-leaderboard" \
+                      "api/live-leaderboard?mode=daily-matchup&date=$today" \
+                      "api/live-leaderboard?mode=live-draft&date=$today" \
+                      "api/daily-matchup"; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://onesixtytwo.win/$path")
+            echo "/$path -> HTTP $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::Production smoke test failed for /$path (HTTP $code)"
+              fail=1
+            fi
+          done
+          exit $fail
