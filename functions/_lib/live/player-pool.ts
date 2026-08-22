@@ -1,7 +1,6 @@
 import type { RawPlayerInput } from '../../../shared/live/live-mlb-mapper'
 import {
   fetchPitchArsenal,
-  fetchSeasonStats,
   fetchSeasonStatsBatched,
   fetchTeamRoster,
   getCachedSeasonStats,
@@ -17,9 +16,8 @@ import {
 
 export const ROSTER_CONCURRENCY = 10
 
-export type SeasonStats = Awaited<ReturnType<typeof fetchSeasonStats>>
-
-export type SeasonStatsCache = Map<string, SeasonStats>
+export type { SeasonStats, SeasonStatsCache } from './mlb-client'
+import type { SeasonStatsCache } from './mlb-client'
 
 export type RawRosterInput = {
   teamId: number

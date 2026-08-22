@@ -12,6 +12,7 @@ import {
   SUBMIT_ERROR_MESSAGES,
 } from '../_lib/leaderboard'
 import { verifySim162Submission } from '../_lib/sim162-verify'
+import { seasonSeedSimSeed } from '../../shared/live/seeds'
 import {
   SIM162_BATTING_ORDER_SIZE,
   SIM162_ROTATION_SIZE,
@@ -196,7 +197,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     playerIds: parsed.playerIds,
     battingOrderIds: parsed.battingOrderIds,
     rotationOrderIds: parsed.rotationOrderIds,
-    simSeed: verified.seasonSeed.slice(verified.seasonSeed.indexOf('::') + 2),
+    simSeed: seasonSeedSimSeed(verified.seasonSeed),
     initials,
   })
 

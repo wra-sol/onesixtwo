@@ -70,9 +70,9 @@ function selectFamily(
  * table the legacy single-roll engine used, conditioned on the pitch family
  * the batter finally saw.
  *
- * Calibration contract: across many PAs this must reproduce the legacy
- * marginals (K ≈ 22%, BB ≈ 8%, hit mix unchanged) — enforced by the league
- * harness test.
+ * Calibration contract: across many PAs this must reproduce the league
+ * marginals (K ≈ 24%, BB ≈ 9%, ~4.8 runs/team/game, ~3.4 pitches/PA) —
+ * pinned by the league harness test (count-engine.test.ts).
  */
 export function resolvePlateAppearance(input: {
   batter: LivePlayer

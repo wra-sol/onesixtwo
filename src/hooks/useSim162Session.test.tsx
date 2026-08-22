@@ -209,9 +209,13 @@ describe('useSim162Session', () => {
 
     expect(result.current.isSimulating).toBe(true)
 
-    await waitFor(() => {
-      expect(result.current.seasonResult).not.toBeNull()
-    })
+    // A full all-PA season (~2,430 games) can take a few seconds under load.
+    await waitFor(
+      () => {
+        expect(result.current.seasonResult).not.toBeNull()
+      },
+      { timeout: 30_000 },
+    )
 
     expect(result.current.isSimulating).toBe(false)
     expect(result.current.seasonResult).not.toBeNull()

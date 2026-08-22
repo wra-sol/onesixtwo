@@ -14,11 +14,11 @@ import type { PaEvent } from './live-types'
  * outside them, that is a conscious recalibration, never an accident.
  */
 const BANDS = {
-  kRate: [0.185, 0.255],
-  bbRate: [0.055, 0.11],
+  kRate: [0.22, 0.26],
+  bbRate: [0.075, 0.105],
   /** Team runs per game, both sides pooled. */
-  runsPerTeamGame: [3.7, 5.1],
-  pitchesPerPlateAppearance: [3.35, 4.35],
+  runsPerTeamGame: [4.35, 5.05],
+  pitchesPerPlateAppearance: [3.3, 3.55],
 }
 
 const GAMES = 250

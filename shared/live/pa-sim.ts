@@ -52,7 +52,6 @@ function playHalfInning(options: {
   random: () => number
   events: PaEvent[]
   catcherDefense: number
-  battingOrderLength: number
   /** Called once per plate appearance; may substitute (pinch hit). */
   nextBatter: (pitcher: LivePlayer) => { batter: LivePlayer }
   /** Runs scored by this offense so far in the half are passed in. */
@@ -208,7 +207,6 @@ function simulateHalfInning(
     random,
     events,
     catcherDefense: defenseForCatcher(defense.lineup),
-    battingOrderLength: offense.battingOrder.length,
     pitcherFor: (halfRuns) => {
       if (inning >= 8 && Math.abs(halfRuns) <= 2) return cl
       if (inning >= 6) return rp
@@ -396,7 +394,6 @@ function simulateHalfInningRoster(
     random,
     events,
     catcherDefense: defense.catcherDefense,
-    battingOrderLength: offense.battingOrder.length,
     defenseStaff: ctx.defenseStaff,
     pitchCounts: ctx.pitchCounts,
     pitcherFor: (halfRuns) =>
@@ -449,9 +446,8 @@ export function simulateGameRoster(
   staffs?: GameStaffContext,
 ): SimulatedGame {
   const random = createSeededRandomFromString(rosterSeriesGameSeed(seed, gameIndex))
-  // Rotation slots respect rest: skip a starter who is on short rest only if
-  // an alternative has full rest (keeps the modulo-5 rhythm honest under
-  // fatigue without inventing roster moves).
+  // Rotation slot is plain modulo-5 by game index; rest/fatigue penalties
+  // are applied through staff state at pitch time.
 
   const userStarter = user.rotation[gameIndex % user.rotation.length]!
   const oppStarter = opponent.rotation[gameIndex % opponent.rotation.length]!

@@ -12,7 +12,7 @@ Three product goals drove the change: better pitching depth, better pitch sequen
 
 ## Decision
 
-1. **Count-based plate appearances.** Every PA is resolved pitch-by-pitch inside the shared half-inning core: the pitcher selects a family (fastball / breaking / offspeed) with count-contextual tendencies, then location, swing/take, and contact are rolled. Walks and strikeouts emerge from counts. One engine serves every mode — classic included — preserving the single-engine rule from the half-inning merge.
+1. **Count-based plate appearances.** Every PA is resolved pitch-by-pitch inside the shared half-inning core: the pitcher selects a family (fastball / breaking / offspeed) with count-contextual tendencies, then location, swing/take, and contact are rolled. Walks and strikeouts emerge from counts. One pitch engine serves every live/season mode (Daily Matchup, Live Draft, Sim 162). The classic spin-draft board's *verification re-sim* still runs its legacy statistical model (`src/lib/simulation.ts`) — unifying it is tracked as follow-up work; the shared half-inning seam is where it lands.
 
 2. **Hybrid arsenal data.** Real pitch mixes ride the snapshot for live pitchers where MLB tracks them; per-pitch quality always derives from grades. Everything else — all legends, all batter profiles (contact/power modifiers per family, chase tendency) — is synthesized deterministically from grades and handedness via `getArsenal()`. Same player id → same profile, so seeds stay replayable.
 

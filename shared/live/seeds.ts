@@ -18,6 +18,12 @@ export function sim162SeasonSeed(roster: Roster25, simSeed: string): string {
 /**
  * One Sim 162 regular-season game (162-game grind).
  */
+/** Recovers the snapshot sim seed component from a composed season seed. */
+export function seasonSeedSimSeed(seasonSeed: string): string {
+  const idx = seasonSeed.indexOf('::')
+  return idx === -1 ? '' : seasonSeed.slice(idx + 2)
+}
+
 export function regularSeasonGameSeed(
   seasonSeed: string,
   gameIndex: number,

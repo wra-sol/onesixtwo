@@ -24,7 +24,9 @@ When a client's claimed numbers differ from the replay, the server values win. N
 
 ## Consequences
 
-One integrity model across all three boards. Fabricated records require forging inputs that actually produce them under the deterministic simulator, not just editing a JSON body.
+One integrity model across all three boards.
+
+Known accepted trade-off: the Sim 162 board ranks globally by record, and the live pool for any `challengeDate` remains fetchable — so a determined player can shop historical pools/seeds locally and submit the best result. Verification guarantees the submitted season really happened under that pool's seed; it does not scope which dates are eligible. Per-date boards or an eligibility window are the product-level fixes if this ever matters. Fabricated records require forging inputs that actually produce them under the deterministic simulator, not just editing a JSON body.
 
 A Sim 162 submission costs one full season replay (~100 ms) on an endpoint rate-limited to one submission per IP ever. The legends pool ships in the function bundle via the same import path the classic share resolver already uses.
 

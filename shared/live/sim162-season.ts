@@ -350,7 +350,7 @@ function buildBracket(
         bestOf,
         seed,
         userIsHomeTeam,
-        { user: staffFor('user'), opponent: staffFor(opp.teamId) },
+        { user: staffFor(userFranchise), opponent: staffFor(opp.teamId) },
       )
       userSeries.push(series)
       const homeWins =

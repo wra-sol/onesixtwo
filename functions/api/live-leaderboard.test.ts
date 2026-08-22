@@ -21,7 +21,7 @@ function pickLineups(): {
   const user = (() => {
     const lineup: LivePlayer[] = []
     const localTeams = new Set<number>()
-    const slots: Array<'C' | '1B' | '2B' | '3B' | 'SS' | 'OF1' | 'DH' | 'SP' | 'RP' | 'CL'> = [
+    const slots: Array<'C' | '1B' | '2B' | '3B' | 'SS' | 'OF1' | 'OF2' | 'OF3' | 'DH' | 'SP' | 'RP' | 'CL'> = [
       'C', '1B', '2B', '3B', 'SS', 'OF1', 'OF2', 'OF3', 'DH', 'SP', 'RP', 'CL',
     ]
     for (const pos of slots) {
