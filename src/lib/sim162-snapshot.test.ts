@@ -1,11 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  buildLegendsSim162Snapshot,
-  fetchSim162Snapshot,
-  filterSim162PlayersByTeam,
-  type Sim162Snapshot,
-} from './sim162-snapshot'
+import { fetchSim162Snapshot, type Sim162Snapshot } from './sim162-snapshot'
 import { buildLegendsSnapshotForSim162 } from './classic-live-adapter'
+import { filterSim162PlayersByTeam } from '@shared/live/sim162-snapshot'
 import { FRANCHISES } from '../data/franchises'
 import type { LivePlayer } from '@shared/live/live-types'
 
@@ -110,11 +106,5 @@ describe('fetchSim162Snapshot', () => {
     await expect(fetchSim162Snapshot('live', '2026-06-26')).rejects.toThrow(
       'upstream down',
     )
-  })
-})
-
-describe('buildLegendsSim162Snapshot (re-export)', () => {
-  it('matches buildLegendsSnapshotForSim162', () => {
-    expect(buildLegendsSim162Snapshot()).toEqual(buildLegendsSnapshotForSim162())
   })
 })

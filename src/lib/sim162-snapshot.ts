@@ -1,15 +1,9 @@
 import { buildLegendsSnapshotForSim162 } from './classic-live-adapter'
 import type { Sim162Snapshot } from '@shared/live/sim162-snapshot'
-import { filterSim162PlayersByTeam } from '@shared/live/sim162-snapshot'
 
 export type Sim162Pool = 'live' | 'legends'
 
 export type { Sim162Snapshot }
-export { filterSim162PlayersByTeam }
-
-export function buildLegendsSim162Snapshot(): Sim162Snapshot {
-  return buildLegendsSnapshotForSim162()
-}
 
 export async function fetchSim162Snapshot(
   pool: Sim162Pool,
