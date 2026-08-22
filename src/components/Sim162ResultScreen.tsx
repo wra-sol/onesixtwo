@@ -20,7 +20,7 @@ import {
   userGameOutcome,
 } from '@/lib/sim162-display'
 import { buildSim162SharePath, type Sim162ShareInput } from '@/lib/sim162-share-url'
-import { trackEvent } from '@/lib/analytics'
+import { useShareActions } from '@/hooks/useShareActions'
 import { BRAND } from '@/lib/brand'
 import type { SimulatedSeries } from '@shared/live/live-types'
 import type { Sim162SeasonResult } from '@shared/live/sim162-season'
@@ -36,8 +36,6 @@ type Sim162ResultScreenProps = {
 
 const USER_TEAM_LABEL = 'You'
 
-const canNativeShare =
-  typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
 export default function Sim162ResultScreen({
   result,
@@ -76,8 +74,6 @@ export default function Sim162ResultScreen({
     series: SimulatedSeries
     opponent: string
   } | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [showShareText, setShowShareText] = useState(false)
 
   const sharePath = shareInput ? buildSim162SharePath(shareInput) : null
   const shareUrl =
@@ -87,43 +83,15 @@ export default function Sim162ResultScreen({
   const shareTitle = `${BRAND.name}: Sim 162 ${userRecord.wins}-${userRecord.losses} · ${label}`
   const shareText = shareUrl ? `${shareTitle}\n${shareUrl}` : shareTitle
 
-  const handleCopy = async () => {
-    if (!shareUrl) return
-    setShowShareText(false)
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      trackEvent('share_copied', {
-        record: `${userRecord.wins}-${userRecord.losses}`,
-      })
-      window.setTimeout(() => setCopied(false), 2000)
-      return
-    } catch {
-      setCopied(false)
-    }
-    setShowShareText(true)
-  }
-
-  const handleShare = async () => {
-    if (!shareUrl) return
-    if (!canNativeShare) {
-      await handleCopy()
-      return
-    }
-    try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: shareUrl,
-      })
-      trackEvent('native_share_opened', {
-        record: `${userRecord.wins}-${userRecord.losses}`,
-      })
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      await handleCopy()
-    }
-  }
+  const {
+    canNativeShare,
+    copied,
+    showShareText,
+    share: handleShare,
+    copy: handleCopy,
+  } = useShareActions(shareUrl, shareTitle, shareText, {
+    record: `${userRecord.wins}-${userRecord.losses}`,
+  })
 
   const postseasonLines = useMemo(() => {
     if (!userQualified) return []

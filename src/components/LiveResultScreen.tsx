@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -7,7 +6,7 @@ import {
 import SeriesBroadcast from '@/components/SeriesBroadcast'
 import { buildLiveSharePath, liveSharePageTitle } from '@shared/live/live-share-url'
 import type { LiveShareInput, SimulatedSeries } from '@shared/live/live-types'
-import { trackEvent } from '@/lib/analytics'
+import { useShareActions } from '@/hooks/useShareActions'
 import { BRAND } from '@/lib/brand'
 
 type LiveResultScreenProps = {
@@ -19,8 +18,6 @@ type LiveResultScreenProps = {
   readOnly?: boolean
 }
 
-const canNativeShare =
-  typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
 export default function LiveResultScreen({
   series,
@@ -30,8 +27,6 @@ export default function LiveResultScreen({
   shareInput,
   readOnly = false,
 }: LiveResultScreenProps) {
-  const [copied, setCopied] = useState(false)
-  const [showShareText, setShowShareText] = useState(false)
 
   const sharePath = shareInput ? buildLiveSharePath(shareInput) : null
   const shareUrl =
@@ -43,45 +38,16 @@ export default function LiveResultScreen({
     : `${BRAND.name}: ${series.userWins}-${series.opponentWins} vs ${opponentName}`
   const shareText = shareUrl ? `${shareTitle}\n${shareUrl}` : shareTitle
 
-  const handleCopy = async () => {
-    if (!shareUrl) return
-    setShowShareText(false)
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      trackEvent('share_copied', {
-        ...(shareInput ? { mode: shareInput.mode } : {}),
-        record: `${series.userWins}-${series.opponentWins}`,
-      })
-      window.setTimeout(() => setCopied(false), 2000)
-      return
-    } catch {
-      setCopied(false)
-    }
-    setShowShareText(true)
-  }
-
-  const handleShare = async () => {
-    if (!shareUrl) return
-    if (!canNativeShare) {
-      await handleCopy()
-      return
-    }
-    try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: shareUrl,
-      })
-      trackEvent('native_share_opened', {
-        ...(shareInput ? { mode: shareInput.mode } : {}),
-        record: `${series.userWins}-${series.opponentWins}`,
-      })
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      await handleCopy()
-    }
-  }
+  const {
+    canNativeShare,
+    copied,
+    showShareText,
+    share: handleShare,
+    copy: handleCopy,
+  } = useShareActions(shareUrl, shareTitle, shareText, {
+    ...(shareInput ? { mode: shareInput.mode } : {}),
+    record: `${series.userWins}-${series.opponentWins}`,
+  })
 
   const actions = (
     <Card className="mx-auto max-w-3xl">

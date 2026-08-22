@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -9,7 +8,7 @@ import {
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { trackEvent } from '../lib/analytics'
+import { useShareActions } from '@/hooks/useShareActions'
 import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { buildShareUrl } from '../lib/share-url'
@@ -32,8 +31,6 @@ type ResultScreenProps = {
   rerollIndex?: number
 }
 
-const canNativeShare =
-  typeof navigator !== 'undefined' && typeof navigator.share === 'function'
 
 export default function ResultScreen({
   result,
@@ -45,8 +42,6 @@ export default function ResultScreen({
   shareUrl: shareUrlOverride,
   rerollIndex = 0,
 }: ResultScreenProps) {
-  const [copied, setCopied] = useState(false)
-  const [showShareText, setShowShareText] = useState(false)
 
   const shareUrl =
     shareUrlOverride ??
@@ -55,37 +50,15 @@ export default function ResultScreen({
   const shareText = `${shareTitle}\n${result.tier.label}\n${shareUrl}`
   const formatLabel = getRosterFormat(result.rosterFormatId).label
 
-  const handleCopy = async () => {
-    setShowShareText(false)
-    try {
-      await navigator.clipboard.writeText(shareUrl)
-      setCopied(true)
-      trackEvent('share_copied', { record: result.record })
-      window.setTimeout(() => setCopied(false), 2000)
-      return
-    } catch {
-      setCopied(false)
-    }
-    setShowShareText(true)
-  }
-
-  const handleShare = async () => {
-    if (!canNativeShare) {
-      await handleCopy()
-      return
-    }
-    try {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: shareUrl,
-      })
-      trackEvent('native_share_opened', { record: result.record })
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return
-      await handleCopy()
-    }
-  }
+  const {
+    canNativeShare,
+    copied,
+    showShareText,
+    share: handleShare,
+    copy: handleCopy,
+  } = useShareActions(shareUrl, shareTitle, shareText, {
+    record: result.record,
+  })
 
   return (
     <Card
