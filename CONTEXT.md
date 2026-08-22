@@ -55,3 +55,11 @@ The five starting pitchers (SP1 through SP5) on a Sim 162 roster. The starter fo
 ## Playoff Bracket
 
 The 12-team MLB postseason format used by Sim 162: six teams per league (three division winners and three wild cards). Wild Card round, Division Series (best-of-5), League Championship Series (best-of-7), and World Series (best-of-7). The user's series are PA-simmed; other series advance coarsely.
+
+## Series Tie Policy
+
+What happens when a simulated game ends tied. Daily Matchup and Live Draft let the tie stand, so a best-of-3 can end without a series winner. Sim 162 coin-flips tied games with the season seed, so a playoff series always advances someone.
+
+## Season Seed
+
+The seed string that makes a simulation reproducible: same roster, orders, and seed produce an identical season. Share links and stored leaderboard rows re-sim from it, so its format must never drift.
