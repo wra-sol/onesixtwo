@@ -2,7 +2,7 @@ import {
   normalizeInitials,
   type LeaderboardEntryRow,
   type LeaderboardPeriod,
-} from '../../functions/_lib/leaderboard'
+} from '@/lib/leaderboard-contract'
 
 export type { LeaderboardEntryRow, LeaderboardPeriod }
 

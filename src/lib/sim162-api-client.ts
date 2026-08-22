@@ -1,5 +1,5 @@
 import type { PostseasonResult } from '@shared/live/sim162-season'
-import type { Sim162LeaderboardEntryRow, Sim162Pool } from '../../functions/_lib/sim162-leaderboard'
+import type { Sim162LeaderboardEntryRow, Sim162Pool } from '@/lib/sim162-share-url'
 
 export type { Sim162LeaderboardEntryRow, Sim162Pool }
 

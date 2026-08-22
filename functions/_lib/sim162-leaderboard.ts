@@ -1,13 +1,19 @@
-/* eslint-disable @typescript-eslint/triple-slash-reference -- Cloudflare D1 ambient types */
-/// <reference path="./d1.d.ts" />
 import type { PostseasonResult } from '../../shared/live/sim162-season'
 import {
   buildSim162SharePath,
+  type Sim162LeaderboardEntryRow,
   type Sim162Pool,
   type Sim162ShareInput,
 } from '../../src/lib/sim162-share-url'
+import {
+  buildLineupKey,
+  computeRank,
+  hasSubmissionForIp,
+  orderBySql,
+  type RankKey,
+} from './leaderboard-core'
 
-export type { Sim162Pool, Sim162ShareInput }
+export type { Sim162LeaderboardEntryRow, Sim162Pool, Sim162ShareInput }
 
 export const SIM162_LEADERBOARD_MAX = 50
 
@@ -20,18 +26,6 @@ export const POSTSEASON_RANK: Record<PostseasonResult, number> = {
   'ws-champs': 6,
 }
 
-export type Sim162LeaderboardEntryRow = {
-  initials: string
-  pool: Sim162Pool
-  wins: number
-  losses: number
-  postseasonResult: PostseasonResult
-  wonWorldSeries: boolean
-  userQualified: boolean
-  createdAt: number
-  sharePath: string
-}
-
 export type Sim162StoredPayload = Sim162ShareInput & {
   initials: string
 }
@@ -40,7 +34,7 @@ export function buildSim162LineupKey(
   pool: Sim162Pool,
   playerIds: readonly string[],
 ): string {
-  return `${pool}:${[...playerIds].sort().join(',')}`
+  return buildLineupKey(pool, playerIds)
 }
 
 type RawSim162LeaderboardRow = {
@@ -86,6 +80,22 @@ function enrichSim162LeaderboardRow(
   }
 }
 
+/**
+ * THE ranking definition for the Sim 162 board. ORDER BY and rank cascade
+ * derive from this one list.
+ */
+type Sim162RankEntry = {
+  wonWorldSeries: boolean
+  wins: number
+  postseasonRank: number
+}
+
+const SIM162_RANK_KEYS: Array<RankKey<Sim162RankEntry>> = [
+  { column: 'won_world_series', value: (e) => (e.wonWorldSeries ? 1 : 0) },
+  { column: 'wins', value: (e) => e.wins },
+  { column: 'postseason_rank', value: (e) => e.postseasonRank },
+]
+
 export async function fetchSim162LeaderboardEntries(
   db: D1Database,
   limit: number,
@@ -95,7 +105,7 @@ export async function fetchSim162LeaderboardEntries(
       `SELECT initials, pool, wins, losses, postseason_result, won_world_series,
               user_qualified, created_at, payload_json
        FROM sim162_leaderboard_entries
-       ORDER BY won_world_series DESC, wins DESC, postseason_rank DESC, created_at ASC
+       ORDER BY ${orderBySql(SIM162_RANK_KEYS)}, created_at ASC
        LIMIT ?`,
     )
     .bind(limit)
@@ -108,15 +118,10 @@ export async function hasSim162SubmissionForIp(
   db: D1Database,
   submitterIp: string,
 ): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT 1 AS found FROM sim162_leaderboard_entries
-       WHERE submitter_ip = ?
-       LIMIT 1`,
-    )
-    .bind(submitterIp)
-    .first<{ found: number }>()
-  return Boolean(row)
+  return hasSubmissionForIp(db, {
+    table: 'sim162_leaderboard_entries',
+    submitterIp,
+  })
 }
 
 export async function insertSim162LeaderboardEntry(
@@ -172,30 +177,10 @@ export async function computeSim162Rank(
     createdAt: number
   },
 ): Promise<number> {
-  const result = await db
-    .prepare(
-      `SELECT COUNT(*) AS ahead
-       FROM sim162_leaderboard_entries
-       WHERE (
-         won_world_series > ?
-         OR (won_world_series = ? AND wins > ?)
-         OR (won_world_series = ? AND wins = ? AND postseason_rank > ?)
-         OR (won_world_series = ? AND wins = ? AND postseason_rank = ? AND created_at < ?)
-       )`,
-    )
-    .bind(
-      entry.wonWorldSeries ? 1 : 0,
-      entry.wonWorldSeries ? 1 : 0,
-      entry.wins,
-      entry.wonWorldSeries ? 1 : 0,
-      entry.wins,
-      entry.postseasonRank,
-      entry.wonWorldSeries ? 1 : 0,
-      entry.wins,
-      entry.postseasonRank,
-      entry.createdAt,
-    )
-    .first<{ ahead: number }>()
-
-  return (result?.ahead ?? 0) + 1
+  return computeRank<Sim162RankEntry>(db, {
+    table: 'sim162_leaderboard_entries',
+    keys: SIM162_RANK_KEYS,
+    entry,
+    createdAt: entry.createdAt,
+  })
 }

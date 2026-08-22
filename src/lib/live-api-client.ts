@@ -5,7 +5,6 @@ import type {
   LiveModeId,
   SimulatedSeries,
 } from '@shared/live/live-types'
-import { challengeDate, targetDate } from '@shared/live/live-dates'
 
 export type { LiveLeaderboardEntryRow }
 
@@ -87,7 +86,3 @@ export async function submitLiveLeaderboard(input: {
   }
   return body
 }
-
-export { lineupPlayerIdsFromDailyLineup } from '@shared/live/live-lineup-ids'
-
-export { challengeDate, targetDate }

@@ -16,43 +16,15 @@ import {
   parseLiveSubmitPayload,
   resolveSnapshot,
 } from '../_lib/live/leaderboard-orchestration'
-import { createEmptyDailyLineup, type DailyLineupPosition } from '../../shared/live/daily-roster'
-import { buildSimTeam, simulateBestOfThree } from '../../shared/live/pa-sim'
-import { heuristicAiBattingOrder } from '../../shared/live/live-draft'
+import { simulateLineupSeries, resolveLiveShareOpponent } from '../../shared/live/live-share-sim'
 import {
-  resolveLeaderboardSimSeed,
   validateDailyMatchupSubmission,
   validateLiveDraftSubmission,
 } from '../../shared/live/live-submit-validation'
-import type { LivePlayer } from '../../shared/live/live-types'
+import { jsonResponse, clientIp, type PagesContext } from '../_lib/http'
 
-type Env = {
-  DB?: D1Database
-  USE_LIVE_FIXTURES?: string
-}
 
-type PagesContext = {
-  request: Request
-  env: Env
-}
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      'Cache-Control': 'no-store',
-    },
-  })
-}
-
-function clientIp(request: Request): string {
-  return (
-    request.headers.get('CF-Connecting-IP') ??
-    request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ??
-    'unknown'
-  )
-}
 
 async function handleGet(context: PagesContext): Promise<Response> {
   const db = context.env.DB
@@ -104,7 +76,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
   }
 
   const parsed = parseLiveSubmitPayload(body)
-  if ('ok' in parsed && parsed.ok === false) {
+  if ('error' in parsed) {
     return jsonResponse({ ok: false, error: parsed.error }, 400)
   }
 
@@ -132,9 +104,9 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const simSeed = resolveLeaderboardSimSeed(snapshot)
+  const simSeed = snapshot.simSeed
 
-  const validated = (() => {
+  const outcome = (() => {
     switch (payload.mode) {
       case 'daily-matchup': {
         if (!assertDailyMatchupSnapshot(snapshot)) {
@@ -148,51 +120,20 @@ async function handlePost(context: PagesContext): Promise<Response> {
         }
         return validateLiveDraftSubmission(snapshot, payload)
       }
-      default: {
-        const _exhaustive: never = payload.mode
-        return _exhaustive
-      }
     }
   })()
 
-  if (!validated.ok) {
-    return jsonResponse({ ok: false, error: validated.error }, 400)
+  if (!outcome.ok) {
+    return jsonResponse({ ok: false, error: outcome.error }, 400)
   }
 
-  const opponent = (() => {
-    switch (payload.mode) {
-      case 'daily-matchup': {
-        if (!assertDailyMatchupSnapshot(snapshot)) {
-          return null
-        }
-        const lineup = createEmptyDailyLineup()
-        for (const [pos, player] of Object.entries(snapshot.opponent.lineup)) {
-          if (player) lineup[pos as DailyLineupPosition] = player
-        }
-        return {
-          name: snapshot.opponent.teamName,
-          lineup,
-          battingOrder: snapshot.opponent.battingOrder,
-        }
-      }
-      case 'live-draft': {
-        return {
-          name: 'AI',
-          lineup: validated.aiLineup,
-          battingOrder: heuristicAiBattingOrder(
-            Object.values(validated.aiLineup).filter(
-              (player): player is LivePlayer => Boolean(player),
-            ),
-          ),
-        }
-      }
-      default: {
-        const _exhaustive: never = payload.mode
-        return _exhaustive
-      }
-    }
-  })()
-
+  // Opponent resolution goes through the same interface as share rendering
+  // and leaderboard enrichment, so a stored row re-sims identically to the
+  // submission that created it.
+  const opponent = resolveLiveShareOpponent(snapshot, {
+    mode: payload.mode,
+    aiPlayerIds: payload.aiPlayerIds,
+  })
   if (!opponent) {
     return jsonResponse(
       { ok: false, error: 'Daily Matchup is unavailable today.' },
@@ -200,14 +141,15 @@ async function handlePost(context: PagesContext): Promise<Response> {
     )
   }
 
-  const userTeam = buildSimTeam('You', validated.userLineup, validated.battingOrder, true)
-  const opponentTeam = buildSimTeam(
-    opponent.name,
-    opponent.lineup,
-    opponent.battingOrder,
-    false,
+  const series = simulateLineupSeries(
+    {
+      name: 'You',
+      lineup: outcome.userLineup,
+      battingOrder: outcome.battingOrder,
+    },
+    opponent,
+    simSeed,
   )
-  const series = simulateBestOfThree(userTeam, opponentTeam, simSeed)
 
   const submitterIp = clientIp(context.request)
   const alreadySubmitted = await hasLiveSubmissionForIp(

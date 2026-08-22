@@ -18,10 +18,10 @@ import {
   type LeaderboardPeriod,
 } from '@/lib/leaderboard'
 import {
-  challengeDate,
   fetchLiveLeaderboard,
   type LiveLeaderboardEntryRow,
 } from '@/lib/live-api-client'
+import { challengeDate } from '@shared/live/live-dates'
 import {
   fetchSim162Leaderboard,
   type Sim162LeaderboardEntryRow,

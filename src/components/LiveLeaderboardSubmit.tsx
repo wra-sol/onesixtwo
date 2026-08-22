@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { readStoredInitials, writeStoredInitials } from '@/lib/leaderboard'
+import { lineupPlayerIdsFromDailyLineup } from '@shared/live/live-lineup-ids'
 import {
-  lineupPlayerIdsFromDailyLineup,
   submitLiveLeaderboard,
   type LiveSubmitResult,
 } from '@/lib/live-api-client'

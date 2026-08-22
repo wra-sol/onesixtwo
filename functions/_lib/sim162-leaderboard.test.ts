@@ -16,6 +16,20 @@ type MockResult = {
   run?: unknown
 }
 
+function emptyD1Meta() {
+  return {
+    duration: 0,
+    size_after: 0,
+    rows_read: 0,
+    rows_written: 0,
+    last_row_id: 0,
+    changed_db: false,
+    changes: 0,
+  }
+}
+
+const EMPTY_RESULT = { results: [], success: true as const, meta: emptyD1Meta() }
+
 function createMockDb(
   handler: (query: string, binds: unknown[]) => MockResult,
 ): D1Database {
@@ -29,18 +43,34 @@ function createMockDb(
       first<T = unknown>(): Promise<T | null> {
         return Promise.resolve((handler(query, binds).first ?? null) as T | null)
       },
-      all<T = unknown>(): Promise<{ results?: T[] }> {
-        return Promise.resolve(
-          (handler(query, binds).all ?? { results: [] }) as { results?: T[] },
-        )
+      all<T = unknown>(): Promise<D1Result<T>> {
+        const result = handler(query, binds).all
+        return Promise.resolve({
+          ...EMPTY_RESULT,
+          results: (result?.results ?? []) as T[],
+          meta: emptyD1Meta(),
+        })
       },
-      run(): Promise<unknown> {
-        return Promise.resolve(handler(query, binds).run ?? null)
+      run<T = Record<string, unknown>>(): Promise<D1Result<T>> {
+        handler(query, binds)
+        return Promise.resolve({ ...EMPTY_RESULT, meta: emptyD1Meta() } as D1Result<T>)
+      },
+      raw<T = unknown[]>(): Promise<T> {
+        return Promise.resolve([] as unknown as T)
       },
     }
     return stmt
   }
-  return { prepare }
+  return {
+    prepare,
+    batch: () =>
+      Promise.resolve([{ ...EMPTY_RESULT, results: [], meta: emptyD1Meta() }]),
+    exec: () => Promise.resolve({ count: 0, duration: 0 }),
+    withSession: () => {
+      throw new Error('withSession is not supported by this mock')
+    },
+    dump: () => Promise.resolve(new ArrayBuffer(0)),
+  }
 }
 
 const SAMPLE_PAYLOAD = JSON.stringify({

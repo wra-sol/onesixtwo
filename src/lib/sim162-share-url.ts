@@ -93,3 +93,20 @@ export function sim162ShareValidationMessage(
 ): string {
   return error.error
 }
+
+/**
+ * Leaderboard row contract for the Sim 162 board. Owned here (the sim162
+ * contract module) so the client and the Pages Functions share one
+ * definition without the client importing server code.
+ */
+export type Sim162LeaderboardEntryRow = {
+  initials: string
+  pool: Sim162Pool
+  wins: number
+  losses: number
+  postseasonResult: import('@shared/live/sim162-season').PostseasonResult
+  wonWorldSeries: boolean
+  userQualified: boolean
+  createdAt: number
+  sharePath: string
+}

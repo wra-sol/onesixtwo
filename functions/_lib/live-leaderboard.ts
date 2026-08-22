@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/triple-slash-reference -- Cloudflare D1 ambient types */
-/// <reference path="./d1.d.ts" />
 import type {
   LiveLeaderboardEntryRow,
   LiveModeId,
@@ -7,9 +5,15 @@ import type {
 } from '../../shared/live/live-types'
 import type { LiveSnapshot } from '../../shared/live/live-types'
 import { enrichLiveLeaderboardRow } from '../../shared/live/live-share-sim'
+import {
+  buildLineupKey,
+  computeRank,
+  hasSubmissionForIp,
+  orderBySql,
+  type RankKey,
+} from './leaderboard-core'
 
 export type { LiveLeaderboardEntryRow, LiveSubmitPayload }
-export { compareLiveLeaderboardRows } from '../../shared/live/live-types'
 
 export const LIVE_LEADERBOARD_MAX = 30
 
@@ -18,7 +22,7 @@ export function buildLiveLineupKey(
   challengeDate: string,
   playerIds: readonly string[],
 ): string {
-  return `${mode}:${challengeDate}:${[...playerIds].sort().join(',')}`
+  return buildLineupKey(`${mode}:${challengeDate}`, playerIds)
 }
 
 type RawLiveLeaderboardRow = {
@@ -53,6 +57,22 @@ function mapRawLiveLeaderboardRow(row: RawLiveLeaderboardRow) {
   }
 }
 
+/**
+ * THE ranking definition for live boards. ORDER BY, rank cascade, and any
+ * in-memory comparator derive from this one list.
+ */
+type LiveRankEntry = Pick<
+  LiveLeaderboardEntryRow,
+  'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns'
+>
+
+const LIVE_RANK_KEYS: Array<RankKey<LiveRankEntry>> = [
+  { column: 'won_series', value: (e) => (e.wonSeries ? 1 : 0) },
+  { column: 'series_wins', value: (e) => e.seriesWins },
+  { column: 'run_diff', value: (e) => e.runDiff },
+  { column: 'user_runs', value: (e) => e.userRuns },
+]
+
 export async function fetchEnrichedLiveLeaderboardEntries(
   db: D1Database,
   mode: LiveModeId,
@@ -66,7 +86,7 @@ export async function fetchEnrichedLiveLeaderboardEntries(
               user_runs, opponent_runs, run_diff, won_series, created_at, payload_json
        FROM live_leaderboard_entries
        WHERE mode = ? AND challenge_date = ?
-       ORDER BY won_series DESC, series_wins DESC, run_diff DESC, user_runs DESC, created_at ASC
+       ORDER BY ${orderBySql(LIVE_RANK_KEYS)}, created_at ASC
        LIMIT ?`,
     )
     .bind(mode, challengeDate, limit)
@@ -83,15 +103,14 @@ export async function hasLiveSubmissionForIp(
   mode: LiveModeId,
   challengeDate: string,
 ): Promise<boolean> {
-  const row = await db
-    .prepare(
-      `SELECT 1 AS found FROM live_leaderboard_entries
-       WHERE submitter_ip = ? AND mode = ? AND challenge_date = ?
-       LIMIT 1`,
-    )
-    .bind(submitterIp, mode, challengeDate)
-    .first<{ found: number }>()
-  return Boolean(row)
+  return hasSubmissionForIp(db, {
+    table: 'live_leaderboard_entries',
+    submitterIp,
+    scope: [
+      { column: 'mode', value: mode },
+      { column: 'challenge_date', value: challengeDate },
+    ],
+  })
 }
 
 export async function insertLiveLeaderboardEntry(
@@ -149,39 +168,14 @@ export async function computeLiveRank(
     'mode' | 'challengeDate' | 'wonSeries' | 'seriesWins' | 'runDiff' | 'userRuns' | 'createdAt'
   >,
 ): Promise<number> {
-  const result = await db
-    .prepare(
-      `SELECT COUNT(*) AS ahead
-       FROM live_leaderboard_entries
-       WHERE mode = ? AND challenge_date = ?
-         AND (
-           won_series > ?
-           OR (won_series = ? AND series_wins > ?)
-           OR (won_series = ? AND series_wins = ? AND run_diff > ?)
-           OR (won_series = ? AND series_wins = ? AND run_diff = ? AND user_runs > ?)
-           OR (won_series = ? AND series_wins = ? AND run_diff = ? AND user_runs = ? AND created_at < ?)
-         )`,
-    )
-    .bind(
-      entry.mode,
-      entry.challengeDate,
-      entry.wonSeries ? 1 : 0,
-      entry.wonSeries ? 1 : 0,
-      entry.seriesWins,
-      entry.wonSeries ? 1 : 0,
-      entry.seriesWins,
-      entry.runDiff,
-      entry.wonSeries ? 1 : 0,
-      entry.seriesWins,
-      entry.runDiff,
-      entry.userRuns,
-      entry.wonSeries ? 1 : 0,
-      entry.seriesWins,
-      entry.runDiff,
-      entry.userRuns,
-      entry.createdAt,
-    )
-    .first<{ ahead: number }>()
-
-  return (result?.ahead ?? 0) + 1
+  return computeRank<LiveRankEntry>(db, {
+    table: 'live_leaderboard_entries',
+    keys: LIVE_RANK_KEYS,
+    entry,
+    createdAt: entry.createdAt,
+    scope: [
+      { column: 'mode', value: entry.mode },
+      { column: 'challenge_date', value: entry.challengeDate },
+    ],
+  })
 }

@@ -1,24 +1,32 @@
-/* eslint-disable @typescript-eslint/triple-slash-reference -- Cloudflare D1 ambient types */
-/// <reference path="./d1.d.ts" />
 import {
   buildSharePathFromParsed,
   isParsedShare,
   parseShareParams,
 } from '../../src/lib/share-url'
 import type { RosterFormatId } from '../../src/lib/types'
+import {
+  normalizeInitials,
+  INITIALS_PATTERN,
+  type LeaderboardEntryRow,
+  type LeaderboardPeriod,
+} from '../../src/lib/leaderboard-contract'
+import { computeRank, orderBySql, type RankKey } from './leaderboard-core'
 
-export type LeaderboardPeriod = 'daily' | 'weekly' | 'all'
+export { normalizeInitials, INITIALS_PATTERN }
+export type { LeaderboardEntryRow, LeaderboardPeriod }
 
-export type LeaderboardEntryRow = {
-  initials: string
-  wins: number
-  losses: number
-  teamScore: number
-  isPerfectSeason: boolean
-  rosterFormatId: RosterFormatId
-  sharePath: string
-  createdAt: number
-}
+/**
+ * THE ranking definition for the classic board. ORDER BY (fetch), the rank
+ * cascade, and the in-memory comparator derive from this one list. Losses
+ * rank ASCENDING (fewer losses is better).
+ */
+type ClassicRankEntry = Pick<LeaderboardEntryRow, 'wins' | 'losses' | 'teamScore'>
+
+const CLASSIC_RANK_KEYS: Array<RankKey<ClassicRankEntry>> = [
+  { column: 'wins', value: (e) => e.wins },
+  { column: 'losses', value: (e) => e.losses, desc: false },
+  { column: 'team_score', value: (e) => e.teamScore },
+]
 
 export type SubmitPayload = {
   initials: string
@@ -42,15 +50,6 @@ export const SUBMIT_ERROR_MESSAGES: Record<SubmitValidationError, string> = {
   invalid_reroll: 'Invalid reroll value.',
   reroll_not_allowed: 'Only your first simulation can be submitted.',
   invalid_share: 'This lineup could not be verified.',
-}
-
-export const INITIALS_PATTERN = /^[A-Z]{2,3}$/
-
-export function normalizeInitials(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null
-  const normalized = raw.trim().toUpperCase().replace(/[^A-Z]/g, '')
-  if (!INITIALS_PATTERN.test(normalized)) return null
-  return normalized
 }
 
 export function parseLeaderboardPeriod(
@@ -185,6 +184,8 @@ export function compareLeaderboardRows(
   return a.createdAt - b.createdAt
 }
 
+export const CLASSIC_ORDER_BY = orderBySql(CLASSIC_RANK_KEYS)
+
 export function rankForEntry(
   entry: Pick<
     LeaderboardEntryRow,
@@ -277,13 +278,13 @@ export async function fetchLeaderboardEntries(
       ? `SELECT initials, wins, losses, team_score, is_perfect,
                 roster_format_id, share_path, created_at
          FROM leaderboard_entries
-         ORDER BY wins DESC, losses ASC, team_score DESC, created_at ASC
+         ORDER BY ${CLASSIC_ORDER_BY}, created_at ASC
          LIMIT ?`
       : `SELECT initials, wins, losses, team_score, is_perfect,
                 roster_format_id, share_path, created_at
          FROM leaderboard_entries
          WHERE created_at >= ?
-         ORDER BY wins DESC, losses ASC, team_score DESC, created_at ASC
+         ORDER BY ${CLASSIC_ORDER_BY}, created_at ASC
          LIMIT ?`
 
   const statement =
@@ -342,33 +343,11 @@ export async function computeDailyRank(
   >,
   now = Date.now(),
 ): Promise<number> {
-  const sinceMs = startOfRollingDayMs(now)
-  const result = await db
-    .prepare(
-      `SELECT COUNT(*) AS ahead
-       FROM leaderboard_entries
-       WHERE created_at >= ?
-         AND (
-           wins > ?
-           OR (wins = ? AND losses < ?)
-           OR (wins = ? AND losses = ? AND team_score > ?)
-           OR (wins = ? AND losses = ? AND team_score = ? AND created_at < ?)
-         )`,
-    )
-    .bind(
-      sinceMs,
-      entry.wins,
-      entry.wins,
-      entry.losses,
-      entry.wins,
-      entry.losses,
-      entry.teamScore,
-      entry.wins,
-      entry.losses,
-      entry.teamScore,
-      entry.createdAt,
-    )
-    .first<{ ahead: number }>()
-
-  return (result?.ahead ?? 0) + 1
+  return computeRank<ClassicRankEntry>(db, {
+    table: 'leaderboard_entries',
+    keys: CLASSIC_RANK_KEYS,
+    entry,
+    createdAt: entry.createdAt,
+    createdSince: startOfRollingDayMs(now),
+  })
 }
