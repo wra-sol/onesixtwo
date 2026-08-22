@@ -4,7 +4,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   FRANCHISES,
   MODERN_ERAS,
@@ -433,4 +433,8 @@ function main() {
   console.log(`Buckets with fewer than ${BUCKET_MIN} players: ${exceptions}`)
 }
 
-main()
+// Only write generated data when executed directly (npm run build:data),
+// never when imported for buildBucket by tests.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+}
