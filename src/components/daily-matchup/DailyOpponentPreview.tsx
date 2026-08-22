@@ -5,7 +5,7 @@ import {
   DAILY_LINEUP_POSITIONS,
   type DailyLineupPosition,
 } from '@shared/live/daily-roster'
-import { continuousToDisplayGrade, GRADE_LABELS } from '@shared/live/live-grades'
+import GradeChip from '@/components/GradeChip'
 import type { OpponentRoster } from '@shared/live/live-types'
 import { cn } from '@/lib/utils'
 
@@ -15,13 +15,7 @@ type DailyOpponentPreviewProps = {
 }
 
 function gradeChip(label: string, value: number | undefined) {
-  if (value === undefined) return null
-  const display = continuousToDisplayGrade(value)
-  return (
-    <span className="text-[0.65rem] tabular-nums text-muted-foreground">
-      {label} {display} {GRADE_LABELS[display]}
-    </span>
-  )
+  return <GradeChip label={label} value={value} />
 }
 
 export default function DailyOpponentPreview({

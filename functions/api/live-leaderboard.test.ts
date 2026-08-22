@@ -16,36 +16,6 @@ function pickLineups(): {
   const snapshot = buildFixtureLiveDraftSnapshot(DATE)
   const pool = snapshot.players
 
-  const fillSide = (
-    usedGlobal: Set<string>,
-  ): { ids: string[]; hitterIds: string[] } => {
-    const lineup: LivePlayer[] = []
-    const hitterIds: string[] = []
-    const localTeams = new Set<number>()
-    const slots: Array<'C' | '1B' | '2B' | '3B' | 'SS' | 'OF1' | 'DH'> = [
-      'C', '1B', '2B', '3B', 'SS', 'OF', 'OF', 'OF', 'DH',
-    ]
-    for (const pos of slots) {
-      const pick = pool.find(
-        (p) =>
-          p.role === 'hitter' &&
-          !usedGlobal.has(p.id) &&
-          !localTeams.has(p.teamId) &&
-          playerEligibleForDailyPosition(p, pos),
-      )
-      if (!pick) throw new Error(`fixture pool exhausted at ${pos}`)
-      lineup.push(pick)
-      if (pos !== 'DH') hitterIds.push(pick.id)
-      else hitterIds.unshift(...hitterIds.slice()) // DH appended below keeps order simple
-      usedGlobal.add(pick.id)
-      localTeams.add(pick.teamId)
-    }
-    // Batting order = the nine hitters in lineup order minus pitchers.
-    const order = lineup.map((p) => p.id)
-    return { ids: [...lineup.map((p) => p.id)], hitterIds: order.slice(0, 9) }
-  }
-
-  void 0
   const usedGlobal = new Set<string>()
 
   const user = (() => {

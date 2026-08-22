@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useScrollToFirstAssign } from '@/hooks/useScrollToFirstAssign'
 import { Button } from '@/components/ui/button'
 import {
   DAILY_HITTER_POSITIONS,
@@ -93,11 +93,7 @@ export default function DailyLineupGrid({
   isAssigning,
   onAssign,
 }: DailyLineupGridProps) {
-  useEffect(() => {
-    if (!isAssigning || !selectedPlayer) return
-    const assignButton = document.querySelector('[data-lineup-assign="true"]')
-    assignButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [isAssigning, selectedPlayer?.id])
+  useScrollToFirstAssign('lineup', isAssigning, selectedPlayer?.id ?? null)
 
   const hittersFilled = DAILY_HITTER_POSITIONS.filter((p) => lineup[p]).length
   const pitchersFilled = DAILY_PITCHER_POSITIONS.filter((p) => lineup[p]).length

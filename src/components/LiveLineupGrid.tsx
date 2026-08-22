@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useScrollToFirstAssign } from '@/hooks/useScrollToFirstAssign'
 import { Button } from '@/components/ui/button'
 import {
   DAILY_HITTER_POSITIONS,
@@ -66,11 +66,7 @@ export default function LiveLineupGrid({
   isAssigning,
   onAssign,
 }: LiveLineupGridProps) {
-  useEffect(() => {
-    if (!isAssigning || !selectedPlayer) return
-    const assignButton = document.querySelector('[data-lineup-assign="true"]')
-    assignButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [isAssigning, selectedPlayer?.id])
+  useScrollToFirstAssign('lineup', isAssigning, selectedPlayer?.id ?? null)
 
   return (
     <div className="space-y-3 rounded-lg border border-border bg-card p-3">

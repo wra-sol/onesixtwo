@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import GradeChip from '@/components/GradeChip'
 import { continuousToDisplayGrade, GRADE_LABELS } from '@shared/live/live-grades'
 import type { LivePlayer } from '@shared/live/live-types'
 
@@ -13,13 +14,7 @@ type LivePlayerCardProps = {
 }
 
 function gradeLine(label: string, value: number | undefined) {
-  if (value === undefined) return null
-  const display = continuousToDisplayGrade(value)
-  return (
-    <span className="text-xs text-muted-foreground">
-      {label} {display} {GRADE_LABELS[display]}
-    </span>
-  )
+  return <GradeChip label={label} value={value} className="text-xs" />
 }
 
 export default function LivePlayerCard({

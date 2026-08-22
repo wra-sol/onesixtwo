@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useScrollToFirstAssign } from '@/hooks/useScrollToFirstAssign'
 import { Button } from '@/components/ui/button'
 import {
   playerEligibleForRoster25Slot,
@@ -126,11 +126,7 @@ export default function Roster25Grid({
   isAssigning,
   onAssign,
 }: Roster25GridProps) {
-  useEffect(() => {
-    if (!isAssigning || !selectedPlayer) return
-    const assignButton = document.querySelector('[data-roster25-assign="true"]')
-    assignButton?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [isAssigning, selectedPlayer?.id])
+  useScrollToFirstAssign('roster25', isAssigning, selectedPlayer?.id ?? null)
 
   const filled = ROSTER25_POSITION_SLOTS.filter((s) => roster[s]).length
 
