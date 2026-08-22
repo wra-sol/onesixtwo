@@ -93,10 +93,14 @@ export function seasonFromDate(date: string): number {
 
 const STATS_CONCURRENCY = 10
 
+export type SeasonStats = Awaited<ReturnType<typeof fetchSeasonStats>>
+
+export type SeasonStatsCache = Map<string, SeasonStats>
+
 export async function fetchSeasonStatsBatched(
   personIds: number[],
   season: number,
-  cache: Map<string, Awaited<ReturnType<typeof fetchSeasonStats>>>,
+  cache: SeasonStatsCache,
 ): Promise<void> {
   const uncached = personIds.filter((id) => !cache.has(`${id}:${season}`))
   for (let i = 0; i < uncached.length; i += STATS_CONCURRENCY) {

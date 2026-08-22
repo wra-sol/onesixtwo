@@ -3,8 +3,7 @@ import {
   buildFixtureLiveDraftSnapshot,
 } from '../../shared/live/live-fixtures'
 import { challengeDate, targetDate } from '../../shared/live/live-dates'
-import { resolveAndCacheSnapshot } from './live/resolve-snapshot'
-import { buildSim162LiveSnapshot } from './live/sim162-live-snapshot'
+import { resolveAndCacheSnapshot, resolveSim162LiveSnapshot } from './live/resolve-snapshot'
 import type { LiveModeId } from '../../shared/live/live-types'
 
 type Env = {
@@ -29,7 +28,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 type SnapshotRequestConfig = {
   mode: LiveModeId
-  fixture: (challengeDate: string, targetDate?: string) => unknown
+  fixture: (challengeDate: string, targetDate: string) => object
 }
 
 async function handleSnapshotRequest(
@@ -49,12 +48,12 @@ async function handleSnapshotRequest(
     return jsonResponse(snapshot)
   } catch (error) {
     if (context.env.USE_LIVE_FIXTURES === 'true') {
-      const snapshot = config.fixture(challengeDateParam, targetDateParam)
-      return jsonResponse({
-        ...snapshot,
-        fallback: true,
-        error: error instanceof Error ? error.message : 'Snapshot build failed',
-      })
+      return jsonResponse(
+        Object.assign({}, config.fixture(challengeDateParam, targetDateParam), {
+          fallback: true,
+          error: error instanceof Error ? error.message : 'Snapshot build failed',
+        }),
+      )
     }
     return jsonResponse(
       {
@@ -75,7 +74,7 @@ export async function onRequest(context: PagesContext): Promise<Response> {
 export async function onRequestLiveDraft(context: PagesContext): Promise<Response> {
   return handleSnapshotRequest(context, {
     mode: 'live-draft',
-    fixture: buildFixtureLiveDraftSnapshot,
+    fixture: (challengeDate) => buildFixtureLiveDraftSnapshot(challengeDate),
   })
 }
 
@@ -84,7 +83,7 @@ export async function onRequestSim162Live(context: PagesContext): Promise<Respon
     new URL(context.request.url).searchParams.get('date') ?? challengeDate()
 
   try {
-    const snapshot = await buildSim162LiveSnapshot(challengeDateParam)
+    const snapshot = await resolveSim162LiveSnapshot(challengeDateParam, context.env)
     return jsonResponse(snapshot)
   } catch (error) {
     return jsonResponse(
@@ -95,5 +94,3 @@ export async function onRequestSim162Live(context: PagesContext): Promise<Respon
     )
   }
 }
-
-export { challengeDate, targetDate }

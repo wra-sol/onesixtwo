@@ -3,11 +3,18 @@ import type { LiveModeId } from '../../../shared/live/live-types'
 /** Bump when snapshot shape or live-vs-fixture semantics change (invalidates D1 cache). */
 export const SNAPSHOT_CACHE_VERSION = 'v2'
 
+/**
+ * Snapshot kinds that get their own versioned D1 cache entry. 'sim162-live'
+ * shares its player pool with 'live-draft' but carries a different seed, so
+ * it is cached separately rather than rebuilt uncached per request.
+ */
+export type SnapshotKind = LiveModeId | 'sim162-live'
+
 export function buildSnapshotCacheKey(
-  mode: LiveModeId,
+  kind: SnapshotKind,
   challengeDate: string,
 ): string {
-  return `${mode}:${SNAPSHOT_CACHE_VERSION}:${challengeDate}`
+  return `${kind}:${SNAPSHOT_CACHE_VERSION}:${challengeDate}`
 }
 
 export async function getStoredSnapshot(

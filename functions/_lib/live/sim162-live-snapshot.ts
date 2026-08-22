@@ -1,5 +1,6 @@
 import type { Sim162Snapshot } from '../../../shared/live/sim162-snapshot'
 import { buildLiveDraftSnapshot } from './live-draft-snapshot'
+import { sim162LiveSnapshotSeed } from '../../../shared/live/seeds'
 
 export async function buildSim162LiveSnapshot(
   challengeDate: string,
@@ -8,6 +9,6 @@ export async function buildSim162LiveSnapshot(
   return {
     kind: 'sim162-live',
     players: draft.players,
-    simSeed: `${challengeDate}|sim162-live`,
+    simSeed: sim162LiveSnapshotSeed(challengeDate),
   }
 }

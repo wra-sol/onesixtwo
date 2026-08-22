@@ -13,72 +13,20 @@ import {
   fetchBoxscore,
   fetchSchedule,
   fetchSeasonStatsBatched,
-  fetchTeamRoster,
   getCachedSeasonStats,
   mapWithConcurrency,
   seasonFromDate,
   type BoxTeam,
   type MlbScheduleGame,
+  type SeasonStatsCache,
 } from './mlb-client'
+import { mapPosition, parseHitterStats, parsePitcherStats } from './mlb-parsers'
+import { buildRawFromRoster, ROSTER_CONCURRENCY } from './player-pool'
 import {
-  mapPosition,
-  parseBatSide,
-  parseHitterStats,
-  parsePitchHand,
-  parsePitcherStats,
-} from './mlb-parsers'
-
-const ROSTER_CONCURRENCY = 10
-
-async function buildRawFromRoster(
-  teamId: number,
-  teamAbbrev: string,
-  teamName: string,
-  season: number,
-  appearedIds: Set<number>,
-  isFallback: boolean,
-  statsCache: Map<string, Awaited<ReturnType<typeof import('./mlb-client').fetchSeasonStats>>>,
-): Promise<RawPlayerInput[]> {
-  const roster = await fetchTeamRoster(teamId, season)
-  const personIds = roster.roster.map((entry) => entry.person.id)
-  await fetchSeasonStatsBatched(personIds, season, statsCache)
-
-  const results: RawPlayerInput[] = []
-
-  for (const entry of roster.roster) {
-    const posAbbrev = entry.position.abbreviation
-    const isPitcher = posAbbrev === 'P' || entry.position.code === '1'
-    const { hitterSplit, pitcherSplit } = getCachedSeasonStats(
-      entry.person.id,
-      season,
-      statsCache,
-    )
-    const hitterStats = parseHitterStats(hitterSplit)
-    const pitcherStats = parsePitcherStats(pitcherSplit)
-    const pa = hitterStats?.pa ?? 0
-    const ip = pitcherStats?.ip ?? 0
-    if (!isPitcher && pa < 20 && !appearedIds.has(entry.person.id)) continue
-    if (isPitcher && ip < 5 && !appearedIds.has(entry.person.id)) continue
-
-    results.push({
-      personId: entry.person.id,
-      name: entry.person.fullName,
-      teamId,
-      teamAbbrev,
-      teamName,
-      positions: mapPosition(entry.position.code),
-      role: isPitcher ? 'pitcher' : 'hitter',
-      batSide: parseBatSide(entry.person.batSide?.code),
-      pitchHand: parsePitchHand(entry.person.pitchHand?.code),
-      hitterStats: hitterStats ?? undefined,
-      pitcherStats: pitcherStats ?? undefined,
-      appearedOnTargetDate: appearedIds.has(entry.person.id),
-      isFallback,
-    })
-  }
-
-  return results
-}
+  dailyMatchupSnapshotSeed,
+  unavailableDailySnapshotSeed,
+  erroredDailySnapshotSeed,
+} from '../../../shared/live/seeds'
 
 function buildOpponentRosterFromBox(
   boxTeam: BoxTeam,
@@ -202,7 +150,7 @@ export async function buildDailyMatchupSnapshot(
       opponent: null,
       opponentGameScore: { runs: 0, hits: 0, runDiff: 0 },
       players: [],
-      simSeed: `${challengeDate}|unavailable`,
+      simSeed: unavailableDailySnapshotSeed(challengeDate),
     }
   }
 
@@ -259,15 +207,12 @@ export async function buildDailyMatchupSnapshot(
       opponent: null,
       opponentGameScore: { runs: 0, hits: 0, runDiff: 0 },
       players: [],
-      simSeed: `${challengeDate}|error`,
+      simSeed: erroredDailySnapshotSeed(challengeDate),
     }
   }
 
   const playedTeamIds = [...new Set(teamScores.map((t) => t.teamId))]
-  const statsCache = new Map<
-    string,
-    Awaited<ReturnType<typeof import('./mlb-client').fetchSeasonStats>>
-  >()
+  const statsCache: SeasonStatsCache = new Map()
   const rawPlayers: RawPlayerInput[] = []
 
   const rosterChunks = await mapWithConcurrency(
@@ -275,16 +220,14 @@ export async function buildDailyMatchupSnapshot(
     ROSTER_CONCURRENCY,
     async (teamId) => {
       const sample = teamScores.find((t) => t.teamId === teamId)!
-      const appeared = appearedByTeam.get(teamId) ?? new Set<number>()
-      return buildRawFromRoster(
+      return buildRawFromRoster({
         teamId,
-        sample.teamAbbrev,
-        sample.teamName,
+        teamAbbrev: sample.teamAbbrev,
+        teamName: sample.teamName,
         season,
-        appeared,
-        false,
         statsCache,
-      )
+        appearedIds: appearedByTeam.get(teamId),
+      })
     },
   )
   rawPlayers.push(...rosterChunks.flat())
@@ -301,16 +244,15 @@ export async function buildDailyMatchupSnapshot(
       ROSTER_CONCURRENCY,
       async (teamId) => {
         const sample = teamScores.find((t) => t.teamId === teamId)!
-        const appeared = appearedByTeam.get(teamId) ?? new Set<number>()
-        return buildRawFromRoster(
+        return buildRawFromRoster({
           teamId,
-          sample.teamAbbrev,
-          sample.teamName,
+          teamAbbrev: sample.teamAbbrev,
+          teamName: sample.teamName,
           season,
-          appeared,
-          true,
           statsCache,
-        )
+          appearedIds: appearedByTeam.get(teamId),
+          isFallback: true,
+        })
       },
     )
     rawPlayers.push(...fallbackChunks.flat())
@@ -345,7 +287,7 @@ export async function buildDailyMatchupSnapshot(
       runDiff: topTeam.runs - topTeam.opponentRuns,
     },
     players: livePlayers,
-    simSeed: `${challengeDate}|${targetDate}|${topTeam.teamId}`,
+    simSeed: dailyMatchupSnapshotSeed(challengeDate, targetDate, topTeam.teamId),
   }
 }
 
