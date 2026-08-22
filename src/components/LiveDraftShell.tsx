@@ -11,9 +11,7 @@ import LiveLineupGrid, { BattingOrderEditor } from '@/components/LiveLineupGrid'
 import LivePlayerCard from '@/components/LivePlayerCard'
 import LiveResultScreen from '@/components/LiveResultScreen'
 import LiveLeaderboardSubmit from '@/components/LiveLeaderboardSubmit'
-import {
-  lineupPlayerIdsFromDailyLineup,
-} from '@/lib/live-api-client'
+import { lineupPlayerIdsFromDailyLineup } from '@shared/live/live-lineup-ids'
 import type { LiveShareInput } from '@shared/live/live-types'
 import {
   useLiveDraftSession,

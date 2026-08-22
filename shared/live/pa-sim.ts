@@ -1,4 +1,6 @@
 import { createSeededRandomFromString } from './rng'
+import { playSeries } from './series-sim'
+import { lineupSeriesGameSeed, rosterSeriesGameSeed } from './seeds'
 import type {
   LivePlayer,
   PaEvent,
@@ -102,48 +104,46 @@ function defenseForCatcher(lineup: DailyLineup): number {
   return catcher?.grades.defense ?? 50
 }
 
-function simulateHalfInning(
-  offense: SimTeam,
-  defense: SimTeam,
-  inning: number,
-  half: 'top' | 'bottom',
-  random: () => number,
-  events: PaEvent[],
-): number {
+/**
+ * The single half-inning engine. HOW a plate appearance's batter and pitcher
+ * are chosen lives in strategy callbacks; the baseball itself — steal
+ * attempts, outcome-to-bases rules, run scoring, event emission — exists here
+ * exactly once. Strategies must not draw from `random`; the only draws are
+ * pickOutcome and the steal roll, in that order, so seed streams stay stable.
+ */
+function playHalfInning(options: {
+  inning: number
+  half: 'top' | 'bottom'
+  random: () => number
+  events: PaEvent[]
+  catcherDefense: number
+  battingOrderLength: number
+  /** Called once per plate appearance; may substitute (pinch hit). */
+  nextBatter: (pitcher: LivePlayer) => { batter: LivePlayer }
+  /** Runs scored by this offense so far in the half are passed in. */
+  pitcherFor: (halfRunsSoFar: number) => LivePlayer
+}): number {
   let outs = 0
   let runs = 0
-  let orderIndex = 0
   const bases = [false, false, false]
 
-  const sp = getPitcher(defense.lineup, 'SP')
-  const rp = getPitcher(defense.lineup, 'RP')
-  const cl = getPitcher(defense.lineup, 'CL')
-  const catcherDefense = defenseForCatcher(defense.lineup)
-
   while (outs < 3) {
-    const batter = offense.battingOrder[orderIndex % offense.battingOrder.length]!
-    orderIndex += 1
+    const pitcher = options.pitcherFor(runs)
+    const batter = options.nextBatter(pitcher).batter
 
-    let pitcher = sp
-    if (inning >= 8 && Math.abs(runs) <= 2) {
-      pitcher = cl
-    } else if (inning >= 6) {
-      pitcher = rp
-    }
-
-    const probs = paProbabilities(batter, pitcher, catcherDefense)
-    const outcome = pickOutcome(probs, random)
+    const probs = paProbabilities(batter, pitcher, options.catcherDefense)
+    const outcome = pickOutcome(probs, options.random)
 
     if (
       outcome !== 'strikeout' &&
       outcome !== 'walk' &&
       bases[0] &&
-      random() < gradeNorm(batter.grades.speed) * 0.08
+      options.random() < gradeNorm(batter.grades.speed) * 0.08
     ) {
-      const caught = random() < catcherDefense / 200
-      events.push({
-        inning,
-        half,
+      const caught = options.random() < options.catcherDefense / 200
+      options.events.push({
+        inning: options.inning,
+        half: options.half,
         batterName: batter.name,
         pitcherName: pitcher.name,
         type: caught ? 'caught_stealing' : 'steal',
@@ -203,9 +203,9 @@ function simulateHalfInning(
 
     runs += runsScored
     if (runsScored > 0) {
-      events.push({
-        inning,
-        half,
+      options.events.push({
+        inning: options.inning,
+        half: options.half,
         batterName: batter.name,
         pitcherName: pitcher.name,
         type: 'run_scored',
@@ -214,9 +214,9 @@ function simulateHalfInning(
       })
     }
 
-    events.push({
-      inning,
-      half,
+    options.events.push({
+      inning: options.inning,
+      half: options.half,
       batterName: batter.name,
       pitcherName: pitcher.name,
       type: outcome,
@@ -226,6 +226,41 @@ function simulateHalfInning(
   }
 
   return runs
+}
+
+function simulateHalfInning(
+  offense: SimTeam,
+  defense: SimTeam,
+  inning: number,
+  half: 'top' | 'bottom',
+  random: () => number,
+  events: PaEvent[],
+): number {
+  // Classic convention: order counter resets every half-inning; bullpen is
+  // three fixed roles chosen by inning and half-inning closeness.
+  let orderIndex = 0
+  const sp = getPitcher(defense.lineup, 'SP')
+  const rp = getPitcher(defense.lineup, 'RP')
+  const cl = getPitcher(defense.lineup, 'CL')
+
+  return playHalfInning({
+    inning,
+    half,
+    random,
+    events,
+    catcherDefense: defenseForCatcher(defense.lineup),
+    battingOrderLength: offense.battingOrder.length,
+    pitcherFor: (halfRuns) => {
+      if (inning >= 8 && Math.abs(halfRuns) <= 2) return cl
+      if (inning >= 6) return rp
+      return sp
+    },
+    nextBatter: () => {
+      const batter = offense.battingOrder[orderIndex % offense.battingOrder.length]!
+      orderIndex += 1
+      return { batter }
+    },
+  })
 }
 
 export function simulateGame(
@@ -291,35 +326,17 @@ export function simulateBestOfThree(
   opponent: SimTeam,
   baseSeed: string,
 ): SimulatedSeries {
-  const games: SimulatedGame[] = []
-  let userWins = 0
-  let opponentWins = 0
-  let userRuns = 0
-  let opponentRuns = 0
-
-  for (let i = 0; i < 3 && userWins < 2 && opponentWins < 2; i += 1) {
-    const game = simulateGame(user, opponent, `${baseSeed}|game${i}`, i % 2 === 1)
-    games.push(game)
-
-    const userScore = game.userWasHome ? game.homeScore : game.awayScore
-    const oppScore = game.userWasHome ? game.awayScore : game.homeScore
-    userRuns += userScore
-    opponentRuns += oppScore
-
-    if (userScore > oppScore) userWins += 1
-    else if (oppScore > userScore) opponentWins += 1
-  }
-
-  return {
-    games,
-    userWins,
-    opponentWins,
-    userRuns,
-    opponentRuns,
-    userRunDiff: userRuns - opponentRuns,
-    wonSeries: userWins > opponentWins,
+  // Daily Matchup / Live Draft convention: user bats away first, tied games
+  // stand (a 1-1-1 series has no winner). Game seed suffix must stay stable —
+  // stored leaderboard rows re-sim from these seeds.
+  return playSeries({
+    bestOf: 3,
     seed: baseSeed,
-  }
+    userHomeParity: 'odd',
+    tiePolicy: 'stand',
+    simulateGame: (i, userIsHome) =>
+      simulateGame(user, opponent, lineupSeriesGameSeed(baseSeed, i), userIsHome),
+  })
 }
 
 export function buildSimTeam(
@@ -410,139 +427,49 @@ function simulateHalfInningRoster(
     benchUsed: Set<string>
   },
 ): number {
-  let outs = 0
-  let runs = 0
-  const bases = [false, false, false]
-
-  while (outs < 3) {
-    const dueIndex = ctx.orderIndex.i
-    ctx.orderIndex.i += 1
-    const slot = dueIndex % offense.battingOrder.length
-    const due = offense.battingOrder[slot]!
-
-    const offCurrent = ctx.offGameRuns + runs
-    const pitcher = selectRosterPitcher(
-      defense,
-      inning,
-      offCurrent,
-      ctx.defGameRuns,
-      ctx.starter,
-    )
-
-    let batter = due
-    if (inning >= 7 && slot === offense.battingOrder.length - 1) {
-      const available = offense.bench.filter((b) => !ctx.benchUsed.has(b.id))
-      if (available.length > 0) {
-        const ph = [...available].sort((a, b) => b.grades.overall - a.grades.overall)[0]!
-        ctx.benchUsed.add(ph.id)
-        batter = ph
-        events.push({
-          inning,
-          half,
-          batterName: ph.name,
-          pitcherName: pitcher.name,
-          type: 'pinch_hit',
-          description: `${ph.name} pinch-hits for ${due.name}`,
-          runsScored: 0,
-        })
-      }
-    }
-
-    const probs = paProbabilities(batter, pitcher, defense.catcherDefense)
-    const outcome = pickOutcome(probs, random)
-
-    if (
-      outcome !== 'strikeout' &&
-      outcome !== 'walk' &&
-      bases[0] &&
-      random() < gradeNorm(batter.grades.speed) * 0.08
-    ) {
-      const caught = random() < defense.catcherDefense / 200
-      events.push({
+  // Roster convention: the order persists across innings, late-inning final
+  // slots may pinch-hit from the bench, and pitching changes follow leverage.
+  return playHalfInning({
+    inning,
+    half,
+    random,
+    events,
+    catcherDefense: defense.catcherDefense,
+    battingOrderLength: offense.battingOrder.length,
+    pitcherFor: (halfRuns) =>
+      selectRosterPitcher(
+        defense,
         inning,
-        half,
-        batterName: batter.name,
-        pitcherName: pitcher.name,
-        type: caught ? 'caught_stealing' : 'steal',
-        description: caught
-          ? `${batter.name} caught stealing`
-          : `${batter.name} steals a base`,
-        runsScored: 0,
-      })
-      if (caught) {
-        outs += 1
-        bases[0] = false
-        continue
+        ctx.offGameRuns + halfRuns,
+        ctx.defGameRuns,
+        ctx.starter,
+      ),
+    nextBatter: (pitcher) => {
+      const dueIndex = ctx.orderIndex.i
+      ctx.orderIndex.i += 1
+      const slot = dueIndex % offense.battingOrder.length
+      const due = offense.battingOrder[slot]!
+
+      if (inning >= 7 && slot === offense.battingOrder.length - 1) {
+        const available = offense.bench.filter((b) => !ctx.benchUsed.has(b.id))
+        if (available.length > 0) {
+          const ph = [...available].sort((a, b) => b.grades.overall - a.grades.overall)[0]!
+          ctx.benchUsed.add(ph.id)
+          events.push({
+            inning,
+            half,
+            batterName: ph.name,
+            pitcherName: pitcher.name,
+            type: 'pinch_hit',
+            description: `${ph.name} pinch-hits for ${due.name}`,
+            runsScored: 0,
+          })
+          return { batter: ph }
+        }
       }
-    }
-
-    let runsScored = 0
-    const description = `${batter.name} ${outcome.replace('_', ' ')}`
-
-    switch (outcome) {
-      case 'strikeout':
-        outs += 1
-        break
-      case 'walk':
-        if (bases[0] && bases[1] && bases[2]) runsScored = 1
-        if (bases[0] && bases[1]) bases[2] = true
-        if (bases[0]) bases[1] = true
-        bases[0] = true
-        break
-      case 'single':
-        runsScored = (bases[2] ? 1 : 0) + (bases[1] ? 1 : 0)
-        bases[1] = bases[0]
-        bases[0] = true
-        bases[2] = false
-        break
-      case 'double':
-        runsScored = (bases[2] ? 1 : 0) + (bases[1] ? 1 : 0) + (bases[0] ? 1 : 0)
-        bases[2] = true
-        bases[1] = false
-        bases[0] = false
-        break
-      case 'triple':
-        runsScored = bases.filter(Boolean).length
-        bases[0] = true
-        bases[1] = false
-        bases[2] = false
-        break
-      case 'home_run':
-        runsScored = 1 + bases.filter(Boolean).length
-        bases[0] = false
-        bases[1] = false
-        bases[2] = false
-        break
-      default:
-        outs += 1
-        break
-    }
-
-    runs += runsScored
-    if (runsScored > 0) {
-      events.push({
-        inning,
-        half,
-        batterName: batter.name,
-        pitcherName: pitcher.name,
-        type: 'run_scored',
-        description: `${batter.name} drives in ${runsScored} run(s)`,
-        runsScored,
-      })
-    }
-
-    events.push({
-      inning,
-      half,
-      batterName: batter.name,
-      pitcherName: pitcher.name,
-      type: outcome,
-      description,
-      runsScored,
-    })
-  }
-
-  return runs
+      return { batter: due }
+    },
+  })
 }
 
 export function simulateGameRoster(
@@ -552,7 +479,7 @@ export function simulateGameRoster(
   userIsHome: boolean,
   gameIndex: number,
 ): SimulatedGame {
-  const random = createSeededRandomFromString(`${seed}|g${gameIndex}`)
+  const random = createSeededRandomFromString(rosterSeriesGameSeed(seed, gameIndex))
   const userStarter = user.rotation[gameIndex % user.rotation.length]!
   const oppStarter = opponent.rotation[gameIndex % opponent.rotation.length]!
   const away = userIsHome ? opponent : user

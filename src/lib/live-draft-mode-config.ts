@@ -12,7 +12,10 @@ import {
   startLiveDraft,
 } from '@shared/live/live-draft'
 import { liveDraftPlayerListMessage } from '@shared/live/live-draft-display'
-import { buildSimTeam, simulateBestOfThree } from '@shared/live/pa-sim'
+import {
+  resolveLiveShareOpponent,
+  simulateLineupSeries,
+} from '@shared/live/live-share-sim'
 import type { LiveDraftState, LivePlayer } from '@shared/live/live-types'
 
 const AI_REVEAL_MS = 600
@@ -99,19 +102,24 @@ export function buildLiveDraftConfig(
         throw new Error('Invalid state')
       }
       const confirmed = setLiveDraftBattingOrder(state, state.userBattingOrder)
-      const userTeam = buildSimTeam(
-        'You',
-        confirmed.userLineup,
-        confirmed.userBattingOrder,
-        true,
+      const opponent = resolveLiveShareOpponent(snapshot, {
+        mode: 'live-draft',
+        aiPlayerIds: Object.values(confirmed.aiLineup)
+          .filter((p): p is LivePlayer => Boolean(p))
+          .map((p) => p.id),
+      })
+      if (!opponent) {
+        throw new Error('AI lineup is unavailable.')
+      }
+      return simulateLineupSeries(
+        {
+          name: 'You',
+          lineup: confirmed.userLineup,
+          battingOrder: confirmed.userBattingOrder,
+        },
+        opponent,
+        snapshot.simSeed,
       )
-      const opponentTeam = buildSimTeam(
-        'AI',
-        confirmed.aiLineup,
-        confirmed.aiBattingOrder,
-        false,
-      )
-      return simulateBestOfThree(userTeam, opponentTeam, snapshot.simSeed)
     },
     opponentName: () => 'AI',
   }

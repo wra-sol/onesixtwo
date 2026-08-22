@@ -189,3 +189,32 @@ export function roster25ToSeed(roster: Roster25): string {
     return player ? `${slot}:${player.id}` : `${slot}:empty`
   }).join('|')
 }
+
+/**
+ * Encodes a roster as positionally ordered player ids (share-link format).
+ * The slot↔index mapping is owned here so encode and decode can never drift.
+ */
+export function roster25ToPlayerIds(roster: Roster25): string[] {
+  return ROSTER25_POSITION_SLOTS.map((slot) => roster[slot]?.id).filter(
+    (id): id is string => Boolean(id),
+  )
+}
+
+/**
+ * Decodes positionally ordered player ids back into a roster. Unknown ids
+ * leave their slot empty; check roster25IsComplete before simulating.
+ */
+export function roster25FromPlayerIds(
+  playerIds: readonly string[],
+  playersById: Map<string, LivePlayer>,
+): Roster25 {
+  const roster = createEmptyRoster25()
+  playerIds.forEach((id, index) => {
+    const slot = ROSTER25_POSITION_SLOTS[index]
+    const player = playersById.get(id)
+    if (slot && player) {
+      roster[slot] = player
+    }
+  })
+  return roster
+}

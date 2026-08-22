@@ -20,9 +20,9 @@ import {
   isUserTurn,
   requestUserReroll,
   resolveRoundSpin,
-  snakeDraftSide,
   startLiveDraft,
 } from './live-draft'
+import { snakeDraftSide } from './live-draft-snake'
 import { buildSimTeam, simulateBestOfThree } from './pa-sim'
 import type { LiveDraftState, LivePlayer } from './live-types'
 

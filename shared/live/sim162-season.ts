@@ -1,4 +1,4 @@
-import { createSeededRandomFromString, hashSeed } from './rng'
+import { createSeededRandomFromString } from './rng'
 import {
   buildLeagueStrengths,
   buildPlayoffField,
@@ -12,20 +12,20 @@ import {
   type Standings,
   type TeamRecord,
 } from './league-standings'
-import { buildRosterSimTeam, simulateGameRoster, type RosterSimTeam } from './pa-sim'
+import { simulateGameRoster, type RosterSimTeam } from './pa-sim'
+import { playSeries, coinFlipTieWinner } from './series-sim'
 import {
-  roster25BattingOrder,
-  roster25Bench,
-  roster25Bullpen,
-  roster25Rotation,
-  type Roster25,
-} from './roster25'
+  regularSeasonGameSeed,
+  rosterSeriesGameSeed,
+} from './seeds'
+import {
+  buildOpponentRoster25SimTeam,
+  buildRoster25SimTeam,
+} from './sim162-team'
 import { filterSim162PlayersByTeam, type Sim162Snapshot } from './sim162-snapshot'
-import { heuristicAiBattingOrder } from './live-draft'
+import type { Roster25 } from './roster25'
 import type {
   LivePlayer,
-  LivePlayerPosition,
-  PitcherRoleSlot,
   SimulatedGame,
   SimulatedSeries,
 } from './live-types'
@@ -105,24 +105,13 @@ export function buildSim162Season(
     }
   })
 
-  const userBatting =
-    battingOrder.length === 9 ? battingOrder : roster25BattingOrder(roster)
-  const userRotation =
-    rotationOrder.length > 0 ? rotationOrder : roster25Rotation(roster)
-  const userBullpen = roster25Bullpen(roster)
-  const userBench = roster25Bench(roster)
-  const catcherDefense = roster.C1?.grades.defense ?? 50
-  const userTeam = buildRosterSimTeam(
-    'You',
-    userBatting,
-    userBench,
-    userRotation,
-    userBullpen,
-    catcherDefense,
-    true,
-  )
+  const userTeam = buildRoster25SimTeam(roster, {
+    name: 'You',
+    battingOrder,
+    rotationOrder,
+  })
 
-  const aceTeamId = userRotation[0]?.teamId
+  const aceTeamId = userTeam.rotation[0]?.teamId
   const aceFranchise =
     aceTeamId != null ? franchiseByPoolTeamId.get(aceTeamId) : undefined
   const userFranchise = aceFranchise ?? leagueTeams[0]!.teamId
@@ -132,7 +121,7 @@ export function buildSim162Season(
   const getOpponent = (franchiseId: string): RosterSimTeam => {
     const cached = opponentCache.get(franchiseId)
     if (cached) return cached
-    const built = buildOpponentSimTeam(
+    const built = buildOpponentRoster25SimTeam(
       franchiseId,
       franchiseName.get(franchiseId) ?? franchiseId,
       pool,
@@ -145,10 +134,10 @@ export function buildSim162Season(
   const strengthByTeamId: Record<string, number> = {}
   for (const t of leagueTeams) strengthByTeamId[t.teamId] = 50
   const userRosterPlayers = [
-    ...userBatting,
-    ...userBench,
-    ...userRotation,
-    ...userBullpen,
+    ...userTeam.battingOrder,
+    ...userTeam.bench,
+    ...userTeam.rotation,
+    ...userTeam.bullpen,
   ]
   strengthByTeamId[userFranchise] = avgOverall(userRosterPlayers)
   for (const t of leagueTeams) {
@@ -177,7 +166,7 @@ export function buildSim162Season(
     const game = simulateGameRoster(
       userTeam,
       oppTeam,
-      `${seasonSeed}|reg${idx}`,
+      regularSeasonGameSeed(seasonSeed, idx),
       userIsHome,
       idx,
     )
@@ -186,7 +175,7 @@ export function buildSim162Season(
     const oppScore = userIsHome ? game.awayScore : game.homeScore
     if (userScore > oppScore) wins += 1
     else if (oppScore > userScore) losses += 1
-    else if (hashSeed(`${seasonSeed}|tie|${idx}`) % 2 === 0) wins += 1
+    else if (coinFlipTieWinner(seasonSeed, idx)) wins += 1
     else losses += 1
   })
 
@@ -270,137 +259,6 @@ function mergeStandings(
   return { records, byDivision, byLeague }
 }
 
-function makeFallbackHitter(
-  id: string,
-  name: string,
-  pos: LivePlayerPosition,
-): LivePlayer {
-  return {
-    id,
-    personId: (Math.abs(hashSeed(id)) % 900000) + 100000,
-    name,
-    teamId: 0,
-    teamAbbrev: 'FB',
-    teamName: 'Fallback',
-    positions: [pos],
-    role: 'hitter',
-    batSide: 'R',
-    grades: { contact: 50, power: 50, speed: 50, defense: 50, overall: 50 },
-    appearedOnTargetDate: true,
-    isFallback: true,
-  }
-}
-
-function makeFallbackPitcher(
-  id: string,
-  name: string,
-  roles: PitcherRoleSlot[],
-): LivePlayer {
-  return {
-    id,
-    personId: (Math.abs(hashSeed(id)) % 900000) + 100000,
-    name,
-    teamId: 0,
-    teamAbbrev: 'FB',
-    teamName: 'Fallback',
-    positions: ['SP'],
-    role: 'pitcher',
-    pitchHand: 'R',
-    grades: { stuff: 50, command: 50, stamina: 50, defense: 50, overall: 50 },
-    appearedOnTargetDate: true,
-    isFallback: true,
-    pitcherRoles: roles,
-  }
-}
-
-function buildOpponentSimTeam(
-  franchiseId: string,
-  franchiseName: string,
-  pool: LivePlayer[],
-  poolTeamId: number | null,
-): RosterSimTeam {
-  const teamPlayers =
-    poolTeamId == null ? [] : filterSim162PlayersByTeam(pool, poolTeamId)
-  const hitters = teamPlayers
-    .filter((p) => p.role === 'hitter')
-    .sort((a, b) => b.grades.overall - a.grades.overall)
-  const pitchers = teamPlayers
-    .filter((p) => p.role === 'pitcher')
-    .sort((a, b) => b.grades.overall - a.grades.overall)
-
-  let battingOrder = heuristicAiBattingOrder(hitters.slice(0, 9))
-  let bench = hitters.slice(9, 12)
-
-  const sps = pitchers.filter((p) => p.pitcherRoles?.includes('SP') ?? false)
-  const rotation = sps.slice(0, 5)
-  const usedRotIds = new Set(rotation.map((p) => p.id))
-  const rps = pitchers.filter(
-    (p) =>
-      !usedRotIds.has(p.id) &&
-      ((p.pitcherRoles?.includes('RP') ?? false) ||
-        (p.pitcherRoles?.includes('CL') ?? false)),
-  )
-  const bullpen = rps.slice(0, 7)
-
-  const fbHitterSlots: LivePlayerPosition[] = [
-    'C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH',
-  ]
-  while (battingOrder.length < 9) {
-    const pos = fbHitterSlots[battingOrder.length % fbHitterSlots.length]!
-    battingOrder = [
-      ...battingOrder,
-      makeFallbackHitter(
-        `fb-h-${franchiseId}-${battingOrder.length}`,
-        `${franchiseName} Hitter ${battingOrder.length}`,
-        pos,
-      ),
-    ]
-  }
-  while (bench.length < 3) {
-    bench = [
-      ...bench,
-      makeFallbackHitter(
-        `fb-bench-${franchiseId}-${bench.length}`,
-        `${franchiseName} Bench ${bench.length}`,
-        'DH',
-      ),
-    ]
-  }
-
-  const rotationPadded = [...rotation]
-  while (rotationPadded.length < 5) {
-    rotationPadded.push(
-      makeFallbackPitcher(
-        `fb-sp-${franchiseId}-${rotationPadded.length}`,
-        `${franchiseName} SP ${rotationPadded.length}`,
-        ['SP'],
-      ),
-    )
-  }
-  const bullpenPadded = [...bullpen]
-  while (bullpenPadded.length < 7) {
-    bullpenPadded.push(
-      makeFallbackPitcher(
-        `fb-rp-${franchiseId}-${bullpenPadded.length}`,
-        `${franchiseName} RP ${bullpenPadded.length}`,
-        ['RP'],
-      ),
-    )
-  }
-
-  const catcher = battingOrder.find((p) => p.positions.includes('C'))
-  const catcherDefense = catcher?.grades.defense ?? 50
-  return buildRosterSimTeam(
-    franchiseName,
-    battingOrder,
-    bench,
-    rotationPadded,
-    bullpenPadded,
-    catcherDefense,
-    false,
-  )
-}
-
 function paSimUserSeries(
   userTeam: RosterSimTeam,
   oppTeam: RosterSimTeam,
@@ -412,46 +270,19 @@ function paSimUserSeries(
   series: SimulatedSeries
   winnerIsUser: boolean
 } {
-  const needed = bestOf === 3 ? 2 : bestOf === 5 ? 3 : 4
-  const games: SimulatedGame[] = []
-  let userWins = 0
-  let opponentWins = 0
-  let userRuns = 0
-  let opponentRuns = 0
-  for (
-    let i = 0;
-    i < bestOf && userWins < needed && opponentWins < needed;
-    i += 1
-  ) {
-    const userIsHome = userIsHomeTeam ? i % 2 === 0 : i % 2 === 1
-    const game = simulateGameRoster(
-      userTeam,
-      oppTeam,
-      `${seed}|g${i}`,
-      userIsHome,
-      i,
-    )
-    games.push(game)
-    const u = game.userWasHome ? game.homeScore : game.awayScore
-    const o = game.userWasHome ? game.awayScore : game.homeScore
-    userRuns += u
-    opponentRuns += o
-    if (u > o) userWins += 1
-    else if (o > u) opponentWins += 1
-    else if (hashSeed(`${seed}|tie|${i}`) % 2 === 0) userWins += 1
-    else opponentWins += 1
-  }
-  const series: SimulatedSeries = {
-    games,
-    userWins,
-    opponentWins,
-    userRuns,
-    opponentRuns,
-    userRunDiff: userRuns - opponentRuns,
-    wonSeries: userWins > opponentWins,
+  // Sim 162 convention: higher seed (or season-schedule home team) hosts game
+  // 0, and tied playoff games are decided by a seeded coin flip so a series
+  // always advances someone. Game seed suffix must stay stable — share URLs
+  // re-sim from these seeds.
+  const series = playSeries({
+    bestOf,
     seed,
-  }
-  return { games, series, winnerIsUser: userWins > opponentWins }
+    userHomeParity: userIsHomeTeam ? 'even' : 'odd',
+    tiePolicy: 'coin-flip',
+    simulateGame: (i, userIsHome) =>
+      simulateGameRoster(userTeam, oppTeam, rosterSeriesGameSeed(seed, i), userIsHome, i),
+  })
+  return { games: series.games, series, winnerIsUser: series.wonSeries }
 }
 
 function coarseSeries(
@@ -657,7 +488,7 @@ function selectMarqueeGames(
     let won: boolean
     if (userScore > oppScore) won = true
     else if (oppScore > userScore) won = false
-    else won = hashSeed(`${seasonSeed}|tie|${i}`) % 2 === 0
+    else won = coinFlipTieWinner(seasonSeed, i)
     return { i, won }
   })
 

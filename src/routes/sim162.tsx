@@ -19,7 +19,7 @@ import { trackEvent } from '@/lib/analytics'
 import type { Sim162ShareInput } from '@/lib/sim162-share-url'
 import type { Sim162Pool } from '@/lib/sim162-snapshot'
 import { challengeDate } from '@shared/live/live-dates'
-import { ROSTER25_POSITION_SLOTS } from '@shared/live/roster25'
+import { roster25ToPlayerIds } from '@shared/live/roster25'
 
 const POOL_OPTIONS: Array<{ id: Sim162Pool; label: string; description: string }> = [
   {
@@ -150,9 +150,7 @@ export default function Sim162Route() {
   }
 
   if (seasonResult) {
-    const playerIds = ROSTER25_POSITION_SLOTS.map(
-      (slot) => draftState?.roster[slot]?.id,
-    ).filter((id): id is string => Boolean(id))
+    const playerIds = roster25ToPlayerIds(draftState.roster)
     const battingOrderIds = battingOrder.map((p) => p.id)
     const rotationOrderIds = rotationOrder.map((p) => p.id)
     const currentChallengeDate = challengeDate()

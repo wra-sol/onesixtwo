@@ -11,7 +11,6 @@ import type {
   LiveDraftSnapshot,
   LivePlayer,
   LiveSubmitPayload,
-  LiveSnapshot,
 } from './live-types'
 
 export type LiveSubmitValidationError = { ok: false; error: string }
@@ -222,6 +221,3 @@ export function validateLiveDraftSubmission(
   }
 }
 
-export function resolveLeaderboardSimSeed(snapshot: LiveSnapshot): string {
-  return snapshot.simSeed
-}

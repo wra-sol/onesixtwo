@@ -1,6 +1,7 @@
 import type { DailyMatchupSnapshot, LiveDraftSnapshot } from './live-types'
 import { mapRawPlayersToLive, type RawPlayerInput } from './live-mlb-mapper'
 import type { DailyLineupPosition } from './daily-roster'
+import { dailyMatchupSnapshotSeed, liveDraftSnapshotSeed } from './seeds'
 
 function sampleHitters(teamId: number, abbrev: string, name: string, baseId: number): RawPlayerInput[] {
   const positions = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'] as const
@@ -152,7 +153,7 @@ export function buildFixtureDailyMatchupSnapshot(
     },
     opponentGameScore: { runs: 12, hits: 15, runDiff: 5 },
     players,
-    simSeed: `${challengeDate}|${targetDate}|119`,
+    simSeed: dailyMatchupSnapshotSeed(challengeDate, targetDate, 119),
   }
 }
 
@@ -186,6 +187,6 @@ export function buildFixtureLiveDraftSnapshot(challengeDate: string): LiveDraftS
     challengeDate,
     players: mapRawPlayersToLive(raw),
     coinFlipUserFirst: challengeDate.charCodeAt(0) % 2 === 0,
-    simSeed: `${challengeDate}|live-draft`,
+    simSeed: liveDraftSnapshotSeed(challengeDate),
   }
 }

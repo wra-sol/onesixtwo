@@ -30,7 +30,6 @@ import type {
 export const LIVE_DRAFT_TOTAL_ROUNDS = 12
 const TOTAL_PICKS = LIVE_DRAFT_TOTAL_ROUNDS * 2
 
-export { snakeDraftSide }
 
 export function startLiveDraft(snapshot: LiveDraftSnapshot): LiveDraftState {
   return {
@@ -56,11 +55,6 @@ export function startLiveDraft(snapshot: LiveDraftSnapshot): LiveDraftState {
     roundTeams: [],
     pendingRerollSide: null,
   }
-}
-
-/** @deprecated Use startLiveDraft — kept for tests. */
-export function createLiveDraftState(snapshot: LiveDraftSnapshot): LiveDraftState {
-  return startLiveDraft(snapshot)
 }
 
 export function createDailyMatchupDraftState(
@@ -581,15 +575,6 @@ export function draftLiveUserPlayer(
   let next = applySidePick(state, player, 'user', state.currentPick, slot)
   next = afterPickAdvance(next)
   return next
-}
-
-/** @deprecated Use advanceLiveDraftTurns. */
-export function advanceLiveDraftAfterPick(
-  state: LiveDraftState,
-  players: LivePlayer[],
-  simSeed?: string,
-): LiveDraftState {
-  return advanceLiveDraftTurns(state, players, simSeed ?? state.challengeDate)
 }
 
 export function isUserTurn(state: LiveDraftState): boolean {

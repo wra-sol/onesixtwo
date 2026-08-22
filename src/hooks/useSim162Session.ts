@@ -15,9 +15,9 @@ import {
 import {
   roster25BattingOrder,
   roster25Rotation,
-  roster25ToSeed,
   type Roster25Slot,
 } from '@shared/live/roster25'
+import { sim162SeasonSeed } from '@shared/live/seeds'
 import { buildSim162Season } from '@shared/live/sim162-season'
 import type { Sim162SeasonResult } from '@shared/live/sim162-season'
 import type { LivePlayer } from '@shared/live/live-types'
@@ -218,7 +218,7 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
   const handleSimulate = useCallback(() => {
     if (!draftState || !snapshot || isSimulating) return
     setIsSimulating(true)
-    const seasonSeed = `${roster25ToSeed(draftState.roster)}::${snapshot.simSeed}`
+    const seasonSeed = sim162SeasonSeed(draftState.roster, snapshot.simSeed)
     window.setTimeout(() => {
       const result = buildSim162Season(
         draftState.roster,

@@ -4,13 +4,13 @@ import {
   createDailyMatchupDraftState,
   draftDailyMatchupPlayer,
   getDailyMatchupDisabledReason,
-  heuristicAiBattingOrder,
   setDailyMatchupBattingOrder,
 } from '@shared/live/live-draft'
-import { createEmptyDailyLineup, type DailyLineupPosition } from '@shared/live/daily-roster'
 import { playerStarCost } from '@shared/live/daily-star-budget'
-import { buildSimTeam, simulateBestOfThree } from '@shared/live/pa-sim'
-import type { LivePlayer } from '@shared/live/live-types'
+import {
+  resolveLiveShareOpponent,
+  simulateLineupSeries,
+} from '@shared/live/live-share-sim'
 
 export const dailyMatchupConfig: LiveModeConfig = {
   mode: 'daily-matchup',
@@ -44,26 +44,19 @@ export const dailyMatchupConfig: LiveModeConfig = {
       throw new Error('Invalid state')
     }
     const confirmed = setDailyMatchupBattingOrder(state, state.battingOrder)
-    const opponentLineup = createEmptyDailyLineup()
-    for (const [pos, player] of Object.entries(snapshot.opponent!.lineup)) {
-      if (player) opponentLineup[pos as DailyLineupPosition] = player
+    const opponent = resolveLiveShareOpponent(snapshot, { mode: 'daily-matchup' })
+    if (!opponent) {
+      throw new Error('Daily Matchup is unavailable today.')
     }
-    const opponentOrder =
-      snapshot.opponent!.battingOrder.length > 0
-        ? snapshot.opponent!.battingOrder
-        : heuristicAiBattingOrder(
-            Object.values(snapshot.opponent!.lineup).filter(
-              (p): p is LivePlayer => Boolean(p),
-            ),
-          )
-    const userTeam = buildSimTeam('You', confirmed.lineup, confirmed.battingOrder, true)
-    const opponentTeam = buildSimTeam(
-      snapshot.opponent!.teamName,
-      opponentLineup,
-      opponentOrder,
-      false,
+    return simulateLineupSeries(
+      {
+        name: 'You',
+        lineup: confirmed.lineup,
+        battingOrder: confirmed.battingOrder,
+      },
+      opponent,
+      snapshot.simSeed,
     )
-    return simulateBestOfThree(userTeam, opponentTeam, snapshot.simSeed)
   },
   opponentName: (snapshot) =>
     snapshot.kind === 'daily-matchup' && snapshot.opponent

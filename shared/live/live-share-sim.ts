@@ -31,10 +31,53 @@ export function lineupFromPlayerIds(
   return lineup
 }
 
+export type LineupTeam = {
+  name: string
+  lineup: DailyLineup
+  battingOrder: LivePlayer[]
+}
+
+/**
+ * Single owner of the opponent batting-order rule: use the provided order
+ * when present, otherwise derive heuristically from the lineup.
+ */
+export function opponentBattingOrder(
+  lineup: DailyLineup,
+  battingOrder: LivePlayer[] | undefined | null,
+): LivePlayer[] {
+  return battingOrder && battingOrder.length > 0
+    ? battingOrder
+    : heuristicAiBattingOrder(
+        Object.values(lineup).filter(
+          (player): player is LivePlayer => Boolean(player),
+        ),
+      )
+}
+
+/**
+ * Assembles both SimTeams from lineups and plays the best-of-3 series.
+ * Submission verification, share rendering, and draft completion all resolve
+ * through this one interface so they can never diverge.
+ */
+export function simulateLineupSeries(
+  user: LineupTeam,
+  opponent: LineupTeam,
+  simSeed: string,
+): SimulatedSeries {
+  const userTeam = buildSimTeam(user.name, user.lineup, user.battingOrder, true)
+  const opponentTeam = buildSimTeam(
+    opponent.name,
+    opponent.lineup,
+    opponent.battingOrder,
+    false,
+  )
+  return simulateBestOfThree(userTeam, opponentTeam, simSeed)
+}
+
 export function resolveLiveShareOpponent(
   snapshot: LiveSnapshot,
-  input: LiveShareInput,
-): { name: string; lineup: DailyLineup; battingOrder: LivePlayer[] } | null {
+  input: Pick<LiveShareInput, 'mode' | 'aiPlayerIds'>,
+): LineupTeam | null {
   const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
 
   switch (input.mode) {
@@ -48,18 +91,10 @@ export function resolveLiveShareOpponent(
           lineup[position as DailyLineupPosition] = player
         }
       }
-      const battingOrder =
-        snapshot.opponent.battingOrder.length > 0
-          ? snapshot.opponent.battingOrder
-          : heuristicAiBattingOrder(
-              Object.values(snapshot.opponent.lineup).filter(
-                (player): player is LivePlayer => Boolean(player),
-              ),
-            )
       return {
         name: snapshot.opponent.teamName,
         lineup,
-        battingOrder,
+        battingOrder: opponentBattingOrder(lineup, snapshot.opponent.battingOrder),
       }
     }
     case 'live-draft': {
@@ -101,14 +136,11 @@ export function simulateLiveShare(
     return null
   }
 
-  const userTeam = buildSimTeam('You', userLineup, battingOrder, true)
-  const opponentTeam = buildSimTeam(
-    opponent.name,
-    opponent.lineup,
-    opponent.battingOrder,
-    false,
+  const series = simulateLineupSeries(
+    { name: 'You', lineup: userLineup, battingOrder },
+    opponent,
+    input.simSeed,
   )
-  const series = simulateBestOfThree(userTeam, opponentTeam, input.simSeed)
 
   return {
     series,

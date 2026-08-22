@@ -18,11 +18,10 @@ import {
 import { buildSim162Season } from '@shared/live/sim162-season'
 import type { Sim162SeasonResult } from '@shared/live/sim162-season'
 import {
-  createEmptyRoster25,
-  roster25ToSeed,
-  ROSTER25_POSITION_SLOTS,
-  type Roster25,
+  roster25FromPlayerIds,
+  roster25IsComplete,
 } from '@shared/live/roster25'
+import { sim162SeasonSeed } from '@shared/live/seeds'
 import type { LivePlayer } from '@shared/live/live-types'
 import type { Sim162Snapshot } from '@shared/live/sim162-snapshot'
 
@@ -36,21 +35,6 @@ type Sim162ShareContentState =
   | { status: 'error'; message: string }
   | { status: 'ready'; resolved: ResolvedSim162Share }
 
-function reconstructRoster25(
-  playerIds: string[],
-  playersById: Map<string, LivePlayer>,
-): Roster25 {
-  const roster = createEmptyRoster25()
-  playerIds.forEach((id, index) => {
-    const slot = ROSTER25_POSITION_SLOTS[index]
-    const player = playersById.get(id)
-    if (slot && player) {
-      roster[slot] = player
-    }
-  })
-  return roster
-}
-
 async function resolveSim162Share(
   input: Sim162ShareInput,
 ): Promise<ResolvedSim162Share | null> {
@@ -59,7 +43,10 @@ async function resolveSim162Share(
     input.challengeDate,
   )
   const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
-  const roster = reconstructRoster25(input.playerIds, playersById)
+  const roster = roster25FromPlayerIds(input.playerIds, playersById)
+  if (!roster25IsComplete(roster)) {
+    return null
+  }
   const battingOrder = input.battingOrderIds
     .map((id) => playersById.get(id))
     .filter((player): player is LivePlayer => Boolean(player))
@@ -71,7 +58,7 @@ async function resolveSim162Share(
     return null
   }
 
-  const seasonSeed = `${roster25ToSeed(roster)}::${input.simSeed}`
+  const seasonSeed = sim162SeasonSeed(roster, input.simSeed)
   const result = buildSim162Season(
     roster,
     battingOrder,

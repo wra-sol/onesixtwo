@@ -11,16 +11,19 @@ import {
   roster25Bench,
   roster25BattingOrder,
   roster25IsComplete,
-  roster25ToSeed,
   playerEligibleForRoster25Slot,
   ROSTER25_POSITION_SLOTS,
 } from '../shared/live/roster25'
+import { sim162SeasonSeed } from '../shared/live/seeds'
 import { buildSim162Season } from '../shared/live/sim162-season'
 import { buildLegendsSnapshotForSim162 } from '../src/lib/classic-live-adapter'
-import { filterSim162PlayersByTeam } from '../shared/live/sim162-snapshot'
-import { simulateGameRoster, buildRosterSimTeam } from '../shared/live/pa-sim'
+import {
+  buildOpponentRoster25SimTeam,
+  buildRoster25SimTeam,
+} from '../shared/live/sim162-team'
+import { simulateGameRoster } from '../shared/live/pa-sim'
 import { heuristicAiBattingOrder } from '../shared/live/live-draft'
-import { hashSeed } from '../shared/live/rng'
+import { coinFlipTieWinner } from '../shared/live/series-sim'
 import type { LivePlayer, SimulatedGame, SimulatedSeries } from '../shared/live/live-types'
 import type { Sim162SeasonResult } from '../shared/live/sim162-season'
 
@@ -54,28 +57,6 @@ function check(label: string, fn: () => void): void {
   fn()
   passed++
   console.log(`  ✓ ${label}`)
-}
-
-function buildOpponentRoster(pool: LivePlayer[], teamId: number): {
-  battingOrder: LivePlayer[]
-  rotation: LivePlayer[]
-  bullpen: LivePlayer[]
-  bench: LivePlayer[]
-  catcherDefense: number
-} {
-  const teamPlayers = filterSim162PlayersByTeam(pool, teamId)
-  const hitters = teamPlayers
-    .filter((p) => p.role === 'hitter')
-    .sort((a, b) => b.grades.overall - a.grades.overall)
-  const pitchers = teamPlayers
-    .filter((p) => p.role === 'pitcher')
-    .sort((a, b) => (b.grades.stuff ?? 0) - (a.grades.stuff ?? 0))
-  const battingOrder = heuristicAiBattingOrder(hitters.slice(0, 9))
-  const rotation = pitchers.filter((p) => p.pitcherRoles?.includes('SP')).slice(0, 5)
-  const bullpen = pitchers.filter((p) => p.pitcherRoles?.includes('RP') || p.pitcherRoles?.includes('CL')).slice(0, 7)
-  const bench = hitters.slice(9, 12)
-  const catcherDefense = battingOrder[0]?.grades.defense ?? 50
-  return { battingOrder, rotation, bullpen, bench, catcherDefense }
 }
 
 function runSeasonQa(
@@ -134,7 +115,7 @@ function runSeasonQa(
   })
 
   battingOrder = heuristicAiBattingOrder(battingOrder)
-  const seasonSeed = `${roster25ToSeed(draftState.roster)}::${simSeed}`
+  const seasonSeed = sim162SeasonSeed(draftState.roster, simSeed)
 
   let result: Sim162SeasonResult
   const start = Date.now()
@@ -155,7 +136,7 @@ function runSeasonQa(
       const oppScore = g.userWasHome ? g.awayScore : g.homeScore
       if (userScore > oppScore) strictWins++
       else if (userScore === oppScore) {
-        if (hashSeed(`${seasonSeed}|tie|${i}`) % 2 === 0) tieBreakWins++
+        if (coinFlipTieWinner(seasonSeed, i)) tieBreakWins++
       }
     }
     const totalWins = strictWins + tieBreakWins
@@ -304,13 +285,12 @@ function runRotationCyclingQa(): void {
   state = autoFillRemaining(state)
   const rotation = roster25Rotation(state.roster)
   const battingOrder = heuristicAiBattingOrder(roster25BattingOrder(state.roster))
-  const bullpen = roster25Bullpen(state.roster)
-  const bench = roster25Bench(state.roster)
-  const catcherDefense = battingOrder[0]?.grades.defense ?? 50
-
-  const userTeam = buildRosterSimTeam('User', battingOrder, bench, rotation, bullpen, catcherDefense, true)
-  const oppRoster = buildOpponentRoster(pool, 2)
-  const oppTeam = buildRosterSimTeam('Opp', oppRoster.battingOrder, oppRoster.bench, oppRoster.rotation, oppRoster.bullpen, oppRoster.catcherDefense, false)
+  const userTeam = buildRoster25SimTeam(state.roster, {
+    name: 'User',
+    battingOrder,
+    rotationOrder: rotation,
+  })
+  const oppTeam = buildOpponentRoster25SimTeam('qa-franchise', 'QA Opp', pool, 2)
 
   check('game 0 uses SP1 (rotation[0])', () => {
     const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 0)
