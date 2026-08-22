@@ -2,7 +2,8 @@ import { createSeededRandomFromString } from './rng'
 import { playSeries } from './series-sim'
 import { lineupSeriesGameSeed, rosterSeriesGameSeed } from './seeds'
 import { gradeNorm, type PaOutcomeType } from './pa-outcomes'
-import { resolvePlateAppearance } from './count-engine'
+import { resolvePlateAppearance, type PitcherCondition } from './count-engine'
+import { type TeamStaffState, conditionFor, advanceRest, recordAppearance } from './staff-state'
 
 export type { PaOutcomeType }
 import type {
@@ -14,6 +15,8 @@ import type {
 } from './live-types'
 import type { DailyBattingOrder, DailyLineup } from './daily-roster'
 import { DAILY_PITCHER_POSITIONS } from './daily-roster'
+
+const FRESH_CONDITION: PitcherCondition = { stuffMult: 1, commandMult: 1 }
 
 export type SimTeam = {
   name: string
@@ -54,7 +57,18 @@ function playHalfInning(options: {
   nextBatter: (pitcher: LivePlayer) => { batter: LivePlayer }
   /** Runs scored by this offense so far in the half are passed in. */
   pitcherFor: (halfRunsSoFar: number) => LivePlayer
+  /** Defensive staff state for fatigue/rest; absent = every arm fresh. */
+  defenseStaff?: TeamStaffState
+  /** Shared per-game pitch counts, keyed by pitcher id. */
+  pitchCounts?: Map<string, number>
 }): number {
+  const conditionForPitcher = (pitcher: LivePlayer): PitcherCondition =>
+    options.defenseStaff || options.pitchCounts
+      ? conditionFor(pitcher, {
+          staff: options.defenseStaff,
+          currentGamePitches: options.pitchCounts?.get(pitcher.id),
+        })
+      : FRESH_CONDITION
   let outs = 0
   let runs = 0
   const bases = [false, false, false]
@@ -67,8 +81,15 @@ function playHalfInning(options: {
       batter,
       pitcher,
       catcherDefense: options.catcherDefense,
+      condition: conditionForPitcher(pitcher),
       random: options.random,
     })
+    if (options.pitchCounts) {
+      options.pitchCounts.set(
+        pitcher.id,
+        (options.pitchCounts.get(pitcher.id) ?? 0) + resolved.pitches,
+      )
+    }
 
     if (
       resolved.outcome !== 'strikeout' &&
@@ -363,6 +384,8 @@ function simulateHalfInningRoster(
     defGameRuns: number
     orderIndex: { i: number }
     benchUsed: Set<string>
+    defenseStaff?: TeamStaffState
+    pitchCounts?: Map<string, number>
   },
 ): number {
   // Roster convention: the order persists across innings, late-inning final
@@ -374,6 +397,8 @@ function simulateHalfInningRoster(
     events,
     catcherDefense: defense.catcherDefense,
     battingOrderLength: offense.battingOrder.length,
+    defenseStaff: ctx.defenseStaff,
+    pitchCounts: ctx.pitchCounts,
     pitcherFor: (halfRuns) =>
       selectRosterPitcher(
         defense,
@@ -410,14 +435,24 @@ function simulateHalfInningRoster(
   })
 }
 
+export type GameStaffContext = {
+  user: TeamStaffState
+  opponent: TeamStaffState
+}
+
 export function simulateGameRoster(
   user: RosterSimTeam,
   opponent: RosterSimTeam,
   seed: string,
   userIsHome: boolean,
   gameIndex: number,
+  staffs?: GameStaffContext,
 ): SimulatedGame {
   const random = createSeededRandomFromString(rosterSeriesGameSeed(seed, gameIndex))
+  // Rotation slots respect rest: skip a starter who is on short rest only if
+  // an alternative has full rest (keeps the modulo-5 rhythm honest under
+  // fatigue without inventing roster moves).
+
   const userStarter = user.rotation[gameIndex % user.rotation.length]!
   const oppStarter = opponent.rotation[gameIndex % opponent.rotation.length]!
   const away = userIsHome ? opponent : user
@@ -433,6 +468,10 @@ export function simulateGameRoster(
   const benchUsedAway = new Set<string>()
   const benchUsedHome = new Set<string>()
 
+  const pitchCounts = new Map<string, number>()
+  const awayStaff = staffs ? (away === user ? staffs.user : staffs.opponent) : undefined
+  const homeStaff = staffs ? (home === user ? staffs.user : staffs.opponent) : undefined
+
   const playInning = (inning: number) => {
     const topRuns = simulateHalfInningRoster(away, home, inning, 'top', random, events, {
       starter: home === user ? userStarter : oppStarter,
@@ -440,6 +479,8 @@ export function simulateGameRoster(
       defGameRuns: homeRuns,
       orderIndex: orderIndexAway,
       benchUsed: benchUsedAway,
+      defenseStaff: homeStaff,
+      pitchCounts,
     })
     awayRuns += topRuns
     awayBox.runs += topRuns
@@ -450,6 +491,8 @@ export function simulateGameRoster(
       defGameRuns: awayRuns,
       orderIndex: orderIndexHome,
       benchUsed: benchUsedHome,
+      defenseStaff: awayStaff,
+      pitchCounts,
     })
     homeRuns += bottomRuns
     homeBox.runs += bottomRuns
@@ -460,6 +503,16 @@ export function simulateGameRoster(
   while (awayRuns === homeRuns && extra <= 20) {
     playInning(extra)
     extra += 1
+  }
+
+  if (staffs) {
+    for (const [id, pitches] of pitchCounts) {
+      const isUserArm = user.battingOrder.some((p) => p.id === id) ||
+        [...user.rotation, ...user.bullpen, ...user.bench].some((p) => p.id === id)
+      recordAppearance(isUserArm ? staffs.user : staffs.opponent, id, pitches)
+    }
+    advanceRest(staffs.user)
+    advanceRest(staffs.opponent)
   }
 
   for (const event of events) {

@@ -23,6 +23,7 @@ import {
   buildRoster25SimTeam,
 } from './sim162-team'
 import { filterSim162PlayersByTeam, type Sim162Snapshot } from './sim162-snapshot'
+import { type TeamStaffState, createStaffState } from './staff-state'
 import type { Roster25 } from './roster25'
 import type {
   LivePlayer,
@@ -118,6 +119,8 @@ export function buildSim162Season(
   const userLeague = teamLeague(userFranchise)
 
   const opponentCache = new Map<string, RosterSimTeam>()
+  const staffByFranchise = new Map<string, TeamStaffState>()
+  staffByFranchise.set('user', createStaffState())
   const getOpponent = (franchiseId: string): RosterSimTeam => {
     const cached = opponentCache.get(franchiseId)
     if (cached) return cached
@@ -129,6 +132,17 @@ export function buildSim162Season(
     )
     opponentCache.set(franchiseId, built)
     return built
+  }
+  // Staff states persist across the whole season including the playoff
+  // bracket: a bullpen that was worked hard in game 162 is tired in the
+  // Wild Card round.
+  const staffFor = (franchiseId: string): TeamStaffState => {
+    let s = staffByFranchise.get(franchiseId)
+    if (!s) {
+      s = createStaffState()
+      staffByFranchise.set(franchiseId, s)
+    }
+    return s
   }
 
   const strengthByTeamId: Record<string, number> = {}
@@ -169,6 +183,7 @@ export function buildSim162Season(
       regularSeasonGameSeed(seasonSeed, idx),
       userIsHome,
       idx,
+      { user: staffFor('user'), opponent: staffFor(oppFranchise) },
     )
     userGames.push(game)
     const userScore = userIsHome ? game.homeScore : game.awayScore
@@ -198,6 +213,7 @@ export function buildSim162Season(
     getOpponent,
     strengthByTeamId,
     seasonSeed,
+    staffFor,
   )
 
   const postseasonResult: PostseasonResult = userQualified
@@ -265,6 +281,7 @@ function paSimUserSeries(
   bestOf: number,
   seed: string,
   userIsHomeTeam: boolean,
+  staffs?: { user: TeamStaffState; opponent: TeamStaffState },
 ): {
   games: SimulatedGame[]
   series: SimulatedSeries
@@ -280,7 +297,14 @@ function paSimUserSeries(
     userHomeParity: userIsHomeTeam ? 'even' : 'odd',
     tiePolicy: 'coin-flip',
     simulateGame: (i, userIsHome) =>
-      simulateGameRoster(userTeam, oppTeam, rosterSeriesGameSeed(seed, i), userIsHome, i),
+      simulateGameRoster(
+        userTeam,
+        oppTeam,
+        rosterSeriesGameSeed(seed, i),
+        userIsHome,
+        i,
+        staffs,
+      ),
   })
   return { games: series.games, series, winnerIsUser: series.wonSeries }
 }
@@ -320,6 +344,7 @@ function buildBracket(
   getOpponent: (franchiseId: string) => RosterSimTeam,
   strengthByTeamId: Record<string, number>,
   seasonSeed: string,
+  staffFor: (franchiseId: string) => TeamStaffState,
 ): {
   bracket: PlayoffBracket
   userSeries: SimulatedSeries[]
@@ -362,6 +387,7 @@ function buildBracket(
         bestOf,
         seed,
         userIsHomeTeam,
+        { user: staffFor('user'), opponent: staffFor(opp.teamId) },
       )
       userSeries.push(series)
       const homeWins =
