@@ -30,3 +30,4 @@ data/lahman/source/
 *.njsproj
 *.sln
 *.sw?
+/CLIPBOARD.md
