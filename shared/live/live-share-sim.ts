@@ -116,16 +116,23 @@ export function resolveLiveShareOpponent(
   }
 }
 
-export function simulateLiveShare(
-  input: LiveShareInput,
-  snapshot: LiveSnapshot,
-): {
-  series: SimulatedSeries
+type LiveShareContext = {
+  opponent: LineupTeam
   opponentName: string
   userLineup: DailyLineup
+  battingOrder: LivePlayer[]
   sharePath: string
-  lineupSummary: string
-} | null {
+}
+
+/**
+ * Everything a stored submission needs resolved against its pool snapshot:
+ * opponent, user lineup, and share path. No simulation — display-only
+ * consumers (leaderboard rows) stop here; full replays continue below.
+ */
+export function resolveLiveShareContext(
+  input: LiveShareInput,
+  snapshot: LiveSnapshot,
+): LiveShareContext | null {
   const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
   const userLineup = lineupFromPlayerIds(playersById, input.playerIds)
   const battingOrder = input.battingOrderIds
@@ -136,19 +143,63 @@ export function simulateLiveShare(
     return null
   }
 
-  const series = simulateLineupSeries(
-    { name: 'You', lineup: userLineup, battingOrder },
+  return {
     opponent,
+    opponentName: opponent.name,
+    userLineup,
+    battingOrder,
+    sharePath: buildLiveSharePath(input),
+  }
+}
+
+/** Display fields for a leaderboard row: pure derivation, no series re-sim. */
+export function describeLiveShare(
+  input: LiveShareInput,
+  snapshot: LiveSnapshot,
+): {
+  sharePath: string
+  lineupSummary: string
+  opponentName: string
+} | null {
+  const context = resolveLiveShareContext(input, snapshot)
+  if (!context) return null
+  return {
+    sharePath: context.sharePath,
+    lineupSummary: formatLiveLineupSummary(context.userLineup, {
+      opponentName: context.opponentName,
+    }),
+    opponentName: context.opponentName,
+  }
+}
+
+export function simulateLiveShare(
+  input: LiveShareInput,
+  snapshot: LiveSnapshot,
+): {
+  series: SimulatedSeries
+  opponentName: string
+  userLineup: DailyLineup
+  sharePath: string
+  lineupSummary: string
+} | null {
+  const context = resolveLiveShareContext(input, snapshot)
+  if (!context) {
+    return null
+  }
+
+  const series = simulateLineupSeries(
+    { name: 'You', lineup: context.userLineup, battingOrder: context.battingOrder },
+    context.opponent,
     input.simSeed,
   )
 
   return {
     series,
-    opponentName: opponent.name,
-    userLineup,
-    sharePath: buildLiveSharePath(input),
-    lineupSummary: formatLiveLineupSummary(userLineup, {
-      opponentName: opponent.name,
+    opponentName: context.opponentName,
+    userLineup: context.userLineup,
+    sharePath: context.sharePath,
+    lineupSummary: formatLiveLineupSummary(context.userLineup, {
+      opponentName: context.opponentName,
     }),
   }
 }
@@ -177,13 +228,15 @@ export function enrichLiveLeaderboardRow(
       aiPlayerIds: payload.aiPlayerIds,
       simSeed: payload.simSeed,
     }
-    const resolved = simulateLiveShare(shareInput, snapshot)
-    if (resolved) {
+    // Display fields only — the stored row already carries the verified
+    // series result, so board rendering never re-sims.
+    const described = describeLiveShare(shareInput, snapshot)
+    if (described) {
       return {
         ...base,
-        sharePath: resolved.sharePath,
-        lineupSummary: resolved.lineupSummary,
-        opponentName: resolved.opponentName,
+        sharePath: described.sharePath,
+        lineupSummary: described.lineupSummary,
+        opponentName: described.opponentName,
       }
     }
   } catch {
