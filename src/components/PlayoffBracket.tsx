@@ -1,14 +1,24 @@
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { playoffSeriesToSimulated } from '@/lib/sim162-display'
+import GameBoxScoreModal from '@/components/GameBoxScoreModal'
 import type { SimulatedSeries } from '@shared/live/live-types'
-import type { PlayoffBracket as PlayoffBracketData } from '@shared/live/sim162-season'
+import type {
+  PlayoffBracket as PlayoffBracketData,
+  PlayoffSeries,
+} from '@shared/live/sim162-season'
 
 type PlayoffBracketProps = {
   bracket: PlayoffBracketData
   userTeamId: string
   teamNameById: Map<string, string>
-  onWatchSeries?: (series: SimulatedSeries, opponentName: string) => void
+  /** userTeamLabel is omitted for non-user series, where both sides are clubs. */
+  onWatchSeries?: (
+    series: SimulatedSeries,
+    opponentName: string,
+    userTeamLabel?: string,
+  ) => void
 }
 
 function teamLabel(
@@ -27,6 +37,22 @@ export default function PlayoffBracket({
   onWatchSeries,
 }: PlayoffBracketProps) {
   const rounds = bracket.rounds
+  const [boxTarget, setBoxTarget] = useState<{
+    roundName: string
+    series: PlayoffSeries
+  } | null>(null)
+
+  const boxEntries =
+    boxTarget?.series.games?.map((game, i) => ({
+      label: `Game ${i + 1} · ${teamNameById.get(boxTarget.series.awayTeamId) ?? boxTarget.series.awayTeamId} ${game.awayScore} – ${game.homeScore} ${teamNameById.get(boxTarget.series.homeTeamId) ?? boxTarget.series.homeTeamId}`,
+      game,
+      awayLabel:
+        teamNameById.get(boxTarget.series.awayTeamId) ??
+        boxTarget.series.awayTeamId,
+      homeLabel:
+        teamNameById.get(boxTarget.series.homeTeamId) ??
+        boxTarget.series.homeTeamId,
+    })) ?? []
 
   return (
     <div
@@ -50,6 +76,7 @@ export default function PlayoffBracket({
                     ? ps.homeTeamId
                     : ps.awayTeamId
                   : null
+              const showWatch = hasGames && onWatchSeries != null
               return (
                 <div
                   key={`${round.name}-${seriesIndex}`}
@@ -88,21 +115,58 @@ export default function PlayoffBracket({
                       {ps.homeWins}
                     </span>
                   </div>
-                  {isUser && hasGames && opponentId && onWatchSeries && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="mt-2 w-full"
-                      onClick={() => {
-                        const series = playoffSeriesToSimulated(ps, userTeamId)
-                        const opponentName =
-                          teamNameById.get(opponentId) ?? opponentId
-                        onWatchSeries(series, opponentName)
-                      }}
+                  {(showWatch || hasGames) && (
+                    <div
+                      className={cn(
+                        'mt-2 grid gap-1',
+                        showWatch && hasGames ? 'grid-cols-2' : 'grid-cols-1',
+                      )}
                     >
-                      Watch
-                    </Button>
+                      {showWatch && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const viewerTeamId = isUser
+                              ? userTeamId
+                              : ps.homeTeamId
+                            const series = playoffSeriesToSimulated(
+                              ps,
+                              viewerTeamId,
+                            )
+                            if (isUser && opponentId) {
+                              onWatchSeries!(
+                                series,
+                                teamNameById.get(opponentId) ?? opponentId,
+                              )
+                            } else {
+                              onWatchSeries!(
+                                series,
+                                teamNameById.get(ps.awayTeamId) ??
+                                  ps.awayTeamId,
+                                teamNameById.get(ps.homeTeamId) ??
+                                  ps.homeTeamId,
+                              )
+                            }
+                          }}
+                        >
+                          Watch
+                        </Button>
+                      )}
+                      {hasGames && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setBoxTarget({ roundName: round.name, series: ps })
+                          }
+                        >
+                          Box scores
+                        </Button>
+                      )}
+                    </div>
                   )}
                 </div>
               )
@@ -110,6 +174,16 @@ export default function PlayoffBracket({
           </div>
         </div>
       ))}
+
+      <GameBoxScoreModal
+        title={
+          boxTarget
+            ? `${boxTarget.roundName} · ${teamNameById.get(boxTarget.series.awayTeamId) ?? boxTarget.series.awayTeamId} vs ${teamNameById.get(boxTarget.series.homeTeamId) ?? boxTarget.series.homeTeamId}`
+            : ''
+        }
+        entries={boxEntries}
+        onClose={() => setBoxTarget(null)}
+      />
     </div>
   )
 }

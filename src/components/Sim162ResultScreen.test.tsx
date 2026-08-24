@@ -188,11 +188,53 @@ function buildChampsResult(): Sim162SeasonResult {
     userRecord: { wins: 110, losses: 52 },
     userGames: makeUserGames(162),
     standings: {
-      records: [],
+      records: [
+        { teamId: USER_TEAM, wins: 110, losses: 52 },
+        { teamId: 'red-sox', wins: 80, losses: 82 },
+        { teamId: 'dodgers', wins: 95, losses: 67 },
+      ],
       byDivision: {} as never,
-      byLeague: { AL: [], NL: [] },
+      byLeague: {
+        AL: [
+          { teamId: USER_TEAM, wins: 110, losses: 52 },
+          { teamId: 'red-sox', wins: 80, losses: 82 },
+        ],
+        NL: [{ teamId: 'dodgers', wins: 95, losses: 67 }],
+      },
     },
-    playoffField: [],
+    playoffField: [
+      {
+        league: 'AL',
+        seeds: [
+          {
+            seed: 1,
+            teamId: USER_TEAM,
+            isDivisionWinner: true,
+            isWildCard: false,
+            record: { teamId: USER_TEAM, wins: 110, losses: 52 },
+          },
+          {
+            seed: 4,
+            teamId: 'red-sox',
+            isDivisionWinner: false,
+            isWildCard: true,
+            record: { teamId: 'red-sox', wins: 80, losses: 82 },
+          },
+        ],
+      },
+      {
+        league: 'NL',
+        seeds: [
+          {
+            seed: 1,
+            teamId: 'dodgers',
+            isDivisionWinner: true,
+            isWildCard: false,
+            record: { teamId: 'dodgers', wins: 95, losses: 67 },
+          },
+        ],
+      },
+    ],
     userQualified: true,
     userPlayoffSeed: 1,
     playoffBracket: bracket,
@@ -309,6 +351,22 @@ describe('Sim162ResultScreen — qualified (World Series champs)', () => {
     },
   )
 
+  it('lets you watch a non-user series as a club-vs-club broadcast', () => {
+      const result = buildChampsResult()
+      const wildCard = result.playoffBracket.rounds[0]!.series[0]!
+      wildCard.games = makePlayoffGames(2, true)
+      render(
+        <Sim162ResultScreen result={result} onRestart={() => {}} />,
+      )
+      const watchButtons = screen.getAllByRole('button', { name: 'Watch' })
+      expect(watchButtons.length).toBe(4)
+      fireEvent.click(watchButtons[0]!)
+      screen.getByText(
+        'Cleveland Guardians vs Seattle Mariners — series broadcast',
+      )
+    },
+  )
+
   it('opens a marquee broadcast when Watch highlights is clicked', () => {
       render(
         <Sim162ResultScreen
@@ -332,6 +390,52 @@ describe('Sim162ResultScreen — qualified (World Series champs)', () => {
       const watchButtons = screen.getAllByRole('button', { name: 'Watch' })
       fireEvent.click(watchButtons[0]!)
       screen.getByText('Texas Rangers — series broadcast')
+    },
+  )
+
+  it('launches a series broadcast when a postseason summary line is clicked', () => {
+      render(
+        <Sim162ResultScreen
+          result={buildChampsResult()}
+          onRestart={() => {}}
+        />,
+      )
+      expect(screen.queryByText('Texas Rangers — series broadcast')).toBeNull()
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'Division Series: Won 3-1 vs Texas Rangers — watch series',
+        }),
+      )
+      screen.getByText('Texas Rangers — series broadcast')
+    },
+  )
+
+  it('shows the marquee final score inline', () => {
+      render(
+        <Sim162ResultScreen
+          result={buildChampsResult()}
+          onRestart={() => {}}
+        />,
+      )
+      screen.getByText('W 5–3')
+    },
+  )
+
+  it('renders final standings with playoff seeds and marks your club', () => {
+      const { container } = render(
+        <Sim162ResultScreen
+          result={buildChampsResult()}
+          onRestart={() => {}}
+        />,
+      )
+      screen.getByText('Final standings')
+      screen.getByLabelText('AL standings')
+      screen.getByLabelText('NL standings')
+      screen.getByText('(You)')
+      const seedChips = container.querySelectorAll(
+        '[title^="Playoff seed #"]',
+      )
+      expect(seedChips.length).toBe(3)
     },
   )
 

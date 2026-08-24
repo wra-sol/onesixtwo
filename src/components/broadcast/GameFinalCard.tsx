@@ -1,6 +1,11 @@
+import { useState } from 'react'
 import type { SimulatedGame, SimBoxScore } from '@shared/live/live-types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { buildGameBoxScore } from '@/lib/box-score'
+import { sideLabels } from '@/lib/sim162-display'
+import GameBoxScoreCard from '@/components/GameBoxScoreCard'
 
 type GameFinalCardProps = {
   game: SimulatedGame
@@ -27,6 +32,7 @@ export function GameFinalCard({
   seriesUserWins,
   seriesOpponentWins,
 }: GameFinalCardProps) {
+  const [showBox, setShowBox] = useState(false)
   const userScore = game.userWasHome ? game.homeScore : game.awayScore
   const oppScore = game.userWasHome ? game.awayScore : game.homeScore
   const userBox = game.userWasHome ? game.homeBox : game.awayBox
@@ -59,6 +65,26 @@ export function GameFinalCard({
             <span className="text-foreground">{opponentTeamLabel}</span> ·{' '}
             {boxLine(oppBox)}
           </p>
+        </div>
+
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-expanded={showBox}
+            onClick={() => setShowBox((v) => !v)}
+          >
+            {showBox ? 'Hide box score' : 'Box score'}
+          </Button>
+          {showBox && (
+            <div className="mt-3 rounded-lg border border-border bg-muted/20 p-2">
+              <GameBoxScoreCard
+                box={buildGameBoxScore(game)}
+                {...sideLabels(game, userTeamLabel, opponentTeamLabel)}
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-center gap-2" aria-label={`Series ${seriesUserWins}-${seriesOpponentWins}`}>

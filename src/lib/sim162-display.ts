@@ -38,6 +38,18 @@ export function userGameScore(game: SimulatedGame): {
   }
 }
 
+/** Away/home labels for a game's box score given user/opponent naming. */
+export function sideLabels(
+  game: SimulatedGame,
+  userTeamLabel: string,
+  opponentTeamLabel: string,
+): { awayLabel: string; homeLabel: string } {
+  return {
+    awayLabel: game.userWasHome ? opponentTeamLabel : userTeamLabel,
+    homeLabel: game.userWasHome ? userTeamLabel : opponentTeamLabel,
+  }
+}
+
 export function userGameOutcome(
   game: SimulatedGame,
   gameIndex: number,

@@ -4,6 +4,7 @@ import {
   buildSeriesReplay,
   headlineMoment,
   topPerformers,
+  topPitchers,
 } from './series-replay'
 import { buildSimTeam, simulateBestOfThree } from '@shared/live/pa-sim'
 import { buildFixtureDailyMatchupSnapshot } from '@shared/live/live-fixtures'
@@ -266,6 +267,108 @@ describe('topPerformers', () => {
     const performers = topPerformers(series, 'user', 5)
     const totalHits = performers.reduce((sum, p) => sum + p.hits, 0)
     expect(totalHits).toBeGreaterThan(0)
+  })
+})
+
+describe('topPitchers', () => {
+  it('attributes pitching lines to the fielding side and formats IP', () => {
+    const events: PaEvent[] = [
+      // Opponent bats top (user is home): user pitcher U1 works a clean inning.
+      pa(1, 'top', 'out', 'A', 0, 'U1'),
+      pa(1, 'top', 'strikeout', 'B', 0, 'U1'),
+      pa(1, 'top', 'out', 'C', 0, 'U1'),
+      // User bats bottom: opponent pitcher O1 allows a homer.
+      pa(1, 'bottom', 'home_run', 'X', 1, 'O1'),
+      pa(1, 'bottom', 'out', 'Y', 0, 'O1'),
+      pa(1, 'bottom', 'strikeout', 'Z', 0, 'O1'),
+    ]
+    const game = syntheticGame(events, { userWasHome: true, homeScore: 1, awayScore: 0 })
+    const series: SimulatedSeries = {
+      games: [game],
+      userWins: 1,
+      opponentWins: 0,
+      userRuns: 1,
+      opponentRuns: 0,
+      userRunDiff: 1,
+      wonSeries: true,
+      seed: 'synthetic',
+    }
+    expect(topPitchers(series, 'user', 2)).toEqual([
+      {
+        name: 'U1',
+        ip: '1.0',
+        hits: 0,
+        runs: 0,
+        strikeouts: 1,
+        pitches: 0,
+      },
+    ])
+    expect(topPitchers(series, 'opponent', 2)).toEqual([
+      {
+        name: 'O1',
+        ip: '0.2',
+        hits: 1,
+        runs: 1,
+        strikeouts: 1,
+        pitches: 0,
+      },
+    ])
+  })
+
+  it('aggregates partial innings across games', () => {
+    const halfInning = (half: 'top' | 'bottom', pitcher: string): PaEvent[] => [
+      pa(1, half, 'out', 'A', 0, pitcher),
+      pa(1, half, 'out', 'B', 0, pitcher),
+    ]
+    const gameA = syntheticGame(
+      [...halfInning('top', 'U1'), ...halfInning('bottom', 'O1')],
+      { userWasHome: true },
+    )
+    const gameB = syntheticGame(
+      [...halfInning('top', 'U1'), ...halfInning('bottom', 'O1')],
+      { userWasHome: true },
+    )
+    const series: SimulatedSeries = {
+      games: [gameA, gameB],
+      userWins: 0,
+      opponentWins: 0,
+      userRuns: 0,
+      opponentRuns: 0,
+      userRunDiff: 0,
+      wonSeries: false,
+      seed: 'synthetic',
+    }
+    expect(topPitchers(series, 'user', 2)).toEqual([
+      {
+        name: 'U1',
+        ip: '1.1',
+        hits: 0,
+        runs: 0,
+        strikeouts: 0,
+        pitches: 0,
+      },
+    ])
+  })
+
+  it('ranks by workload then strikeouts on real sims', () => {
+    const series = buildSeries('seed-c')
+    for (const side of ['user', 'opponent'] as const) {
+      const arms = topPitchers(series, side, 3)
+      expect(arms.length).toBeLessThanOrEqual(3)
+      for (const arm of arms) {
+        expect(arm.ip).toMatch(/^\d+\.\d$/)
+        expect(Number(arm.ip.split('.')[1])).toBeLessThanOrEqual(2)
+      }
+      for (let i = 1; i < arms.length; i += 1) {
+        const prevOuts =
+          Number(arms[i - 1]!.ip.split('.')[0]) * 3 +
+          Number(arms[i - 1]!.ip.split('.')[1])
+        const outs =
+          Number(arms[i]!.ip.split('.')[0]) * 3 +
+          Number(arms[i]!.ip.split('.')[1])
+        expect(prevOuts).toBeGreaterThanOrEqual(outs)
+      }
+    }
   })
 })
 

@@ -3,6 +3,7 @@ import type {
   SimulatedGame,
   SimulatedSeries,
 } from '@shared/live/live-types'
+import { buildGameBoxScore } from '@/lib/box-score'
 
 export type BaseState = {
   first: boolean
@@ -35,6 +36,15 @@ export type PerformerStat = {
   hits: number
   homeRuns: number
   rbi: number
+}
+
+export type PitcherStat = {
+  name: string
+  ip: string
+  hits: number
+  runs: number
+  strikeouts: number
+  pitches: number
 }
 
 export type HeadlineMoment = {
@@ -271,6 +281,64 @@ export function topPerformers(
         b.homeRuns - a.homeRuns || b.rbi - a.rbi || b.hits - a.hits,
     )
     .slice(0, limit)
+}
+
+function ipToOuts(ip: string): number {
+  const dot = ip.indexOf('.')
+  const whole = Number(dot === -1 ? ip : ip.slice(0, dot))
+  const frac = dot === -1 ? 0 : Number(ip.slice(dot + 1))
+  return whole * 3 + frac
+}
+
+/**
+ * Aggregates pitching lines across every game of a series, per side.
+ * Reuses buildGameBoxScore so the numbers always match the box scores
+ * shown elsewhere; ranks by workload then strikeouts.
+ */
+export function topPitchers(
+  series: SimulatedSeries,
+  side: 'user' | 'opponent',
+  limit = 2,
+): PitcherStat[] {
+  const agg = new Map<
+    string,
+    PitcherStat & { outs: number }
+  >()
+
+  for (const game of series.games) {
+    const box = buildGameBoxScore(game)
+    const rows =
+      side === 'user'
+        ? (game.userWasHome ? box.home : box.away).pitching
+        : (game.userWasHome ? box.away : box.home).pitching
+    for (const r of rows) {
+      const cur =
+        agg.get(r.name) ??
+        {
+          name: r.name,
+          ip: '0.0',
+          hits: 0,
+          runs: 0,
+          strikeouts: 0,
+          pitches: 0,
+          outs: 0,
+        }
+      cur.outs += ipToOuts(r.ip)
+      cur.hits += r.h
+      cur.runs += r.r
+      cur.strikeouts += r.so
+      cur.pitches += r.pitches
+      agg.set(r.name, cur)
+    }
+  }
+
+  return [...agg.values()]
+    .sort((a, b) => b.outs - a.outs || b.strikeouts - a.strikeouts)
+    .slice(0, limit)
+    .map(({ outs, ...rest }) => ({
+      ...rest,
+      ip: `${Math.floor(outs / 3)}.${outs % 3}`,
+    }))
 }
 
 function scoreBeforeFrame(

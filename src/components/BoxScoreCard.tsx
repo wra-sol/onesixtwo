@@ -7,6 +7,7 @@ type BoxScoreCardProps = {
   isMarquee: boolean
   opponentName?: string
   outcome: 'W' | 'L'
+  onClick?: () => void
 }
 
 export default function BoxScoreCard({
@@ -15,20 +16,13 @@ export default function BoxScoreCard({
   isMarquee,
   opponentName,
   outcome,
+  onClick,
 }: BoxScoreCardProps) {
   const userScore = game.userWasHome ? game.homeScore : game.awayScore
   const oppScore = game.userWasHome ? game.awayScore : game.homeScore
 
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-2 rounded-md border px-2 py-1 text-xs',
-        isMarquee
-          ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
-          : 'border-border bg-card/40',
-      )}
-      aria-label={`Game ${gameIndex + 1}: ${outcome} ${userScore}-${oppScore} vs ${opponentName ?? 'opponent'}`}
-    >
+  const content = (
+    <>
       <span className="w-7 shrink-0 tabular-nums text-muted-foreground">
         {gameIndex + 1}
       </span>
@@ -55,6 +49,38 @@ export default function BoxScoreCard({
           ★
         </span>
       )}
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          'flex w-full items-center gap-2 rounded-md border px-2 py-1 text-left text-xs transition-colors hover:border-primary/50 hover:bg-muted/40',
+          isMarquee
+            ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
+            : 'border-border bg-card/40',
+        )}
+        aria-label={`Game ${gameIndex + 1}: ${outcome} ${userScore}-${oppScore} vs ${opponentName ?? 'opponent'} — view box score`}
+      >
+        {content}
+      </button>
+    )
+  }
+
+  return (
+    <div
+      className={cn(
+        'flex items-center gap-2 rounded-md border px-2 py-1 text-xs',
+        isMarquee
+          ? 'border-primary/60 bg-primary/5 ring-1 ring-primary/30'
+          : 'border-border bg-card/40',
+      )}
+      aria-label={`Game ${gameIndex + 1}: ${outcome} ${userScore}-${oppScore} vs ${opponentName ?? 'opponent'}`}
+    >
+      {content}
     </div>
   )
 }

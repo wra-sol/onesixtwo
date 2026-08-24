@@ -11,13 +11,18 @@ import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import SeriesBroadcast from '@/components/SeriesBroadcast'
 import BoxScoreCard from '@/components/BoxScoreCard'
+import GameBoxScoreModal from '@/components/GameBoxScoreModal'
+import StandingsTable from '@/components/StandingsTable'
 import PlayoffBracket from '@/components/PlayoffBracket'
 import {
   buildTeamNameById,
   buildUserGameOpponents,
+  playoffSeriesToSimulated,
   postseasonLabel,
+  sideLabels,
   singleGameToSeries,
   userGameOutcome,
+  userGameScore,
 } from '@/lib/sim162-display'
 import { buildSim162SharePath, type Sim162ShareInput } from '@/lib/sim162-share-url'
 import { useShareActions } from '@/hooks/useShareActions'
@@ -70,9 +75,11 @@ export default function Sim162ResultScreen({
   )
 
   const [openMarquee, setOpenMarquee] = useState<number | null>(null)
+  const [boxScoreGame, setBoxScoreGame] = useState<number | null>(null)
   const [watchPlayoff, setWatchPlayoff] = useState<{
     series: SimulatedSeries
     opponent: string
+    userLabel?: string
   } | null>(null)
 
   const sharePath = shareInput ? buildSim162SharePath(shareInput) : null
@@ -95,12 +102,20 @@ export default function Sim162ResultScreen({
 
   const postseasonLines = useMemo(() => {
     if (!userQualified) return []
-    const lines: Array<{ round: string; text: string; won: boolean }> = []
+    const lines: Array<{
+      round: string
+      text: string
+      won: boolean
+      series: SimulatedSeries
+      opponent: string
+    }> = []
     let ui = 0
     for (const round of playoffBracket.rounds) {
       const us = round.series.find((s) => s.isUserSeries)
       if (!us) continue
-      const series = userPlayoffSeries[ui]
+      const series =
+        userPlayoffSeries[ui] ??
+        playoffSeriesToSimulated(us, playoffBracket.userTeamId)
       ui += 1
       const opponentId =
         us.awayTeamId === playoffBracket.userTeamId
@@ -108,13 +123,12 @@ export default function Sim162ResultScreen({
           : us.awayTeamId
       const opponent = teamNameById.get(opponentId) ?? opponentId
       const won = us.winnerTeamId === playoffBracket.userTeamId
-      const score = series
-        ? `${series.userWins}-${series.opponentWins}`
-        : `${us.homeWins}-${us.awayWins}`
       lines.push({
         round: round.name,
-        text: `${won ? 'Won' : 'Lost'} ${score} vs ${opponent}`,
+        text: `${won ? 'Won' : 'Lost'} ${series.userWins}-${series.opponentWins} vs ${opponent}`,
         won,
+        series,
+        opponent,
       })
     }
     return lines
@@ -124,6 +138,29 @@ export default function Sim162ResultScreen({
     userPlayoffSeries,
     teamNameById,
   ])
+
+  const playoffSeeds = useMemo(() => {
+    const seeds = new Map<string, number>()
+    for (const field of result.playoffField) {
+      for (const s of field.seeds) seeds.set(s.teamId, s.seed)
+    }
+    return seeds
+  }, [result.playoffField])
+
+  const boxScoreTarget =
+    boxScoreGame !== null ? userGames[boxScoreGame] : undefined
+  const boxScoreEntry =
+    boxScoreGame !== null && boxScoreTarget
+      ? {
+          outcome: userGameOutcome(boxScoreTarget, boxScoreGame, seasonSeed),
+          you: boxScoreTarget.userWasHome
+            ? boxScoreTarget.homeScore
+            : boxScoreTarget.awayScore,
+          them: boxScoreTarget.userWasHome
+            ? boxScoreTarget.awayScore
+            : boxScoreTarget.homeScore,
+        }
+      : null
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 py-6">
@@ -193,6 +230,8 @@ export default function Sim162ResultScreen({
             {marqueeGames.map((m) => {
               const opponent = opponents[m.gameIndex] ?? 'Opponent'
               const isOpen = openMarquee === m.gameIndex
+              const { user: you, opponent: them } = userGameScore(m.game)
+              const outcome = userGameOutcome(m.game, m.gameIndex, seasonSeed)
               return (
                 <div
                   key={m.gameIndex}
@@ -201,7 +240,15 @@ export default function Sim162ResultScreen({
                   <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                     <div className="text-left">
                       <p className="text-sm font-semibold text-foreground">
-                        {m.label}
+                        {m.label}{' '}
+                        <span
+                          className={cn(
+                            'tabular-nums',
+                            outcome === 'W' ? 'text-primary' : 'text-destructive',
+                          )}
+                        >
+                          {outcome} {you}–{them}
+                        </span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         Game {m.gameIndex + 1} · vs {opponent}
@@ -255,10 +302,35 @@ export default function Sim162ResultScreen({
                   isMarquee={marqueeIndices.has(i)}
                   opponentName={opponents[i]}
                   outcome={userGameOutcome(game, i, seasonSeed)}
+                  onClick={() => setBoxScoreGame(i)}
                 />
               ))}
             </div>
           </div>
+          <p className="mt-2 text-center text-[0.65rem] text-muted-foreground">
+            Tap any game for its full box score.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-display text-lg text-primary">
+            Final standings
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Full league results from your simulated season. Numbers mark
+            playoff seeds.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <StandingsTable
+            standings={result.standings}
+            userLeague={playoffBracket.userLeague}
+            userTeamId={playoffBracket.userTeamId}
+            playoffSeeds={playoffSeeds}
+            teamNameById={teamNameById}
+          />
         </CardContent>
       </Card>
 
@@ -274,7 +346,9 @@ export default function Sim162ResultScreen({
               <div className="rounded-lg border border-primary/40 bg-muted/30 p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-sm font-semibold text-primary">
-                    {watchPlayoff.opponent} — series broadcast
+                    {watchPlayoff.userLabel
+                      ? `${watchPlayoff.userLabel} vs ${watchPlayoff.opponent} — series broadcast`
+                      : `${watchPlayoff.opponent} — series broadcast`}
                   </p>
                   <Button
                     type="button"
@@ -288,7 +362,7 @@ export default function Sim162ResultScreen({
                 <SeriesBroadcast
                   series={watchPlayoff.series}
                   opponentName={watchPlayoff.opponent}
-                  userTeamLabel={USER_TEAM_LABEL}
+                  userTeamLabel={watchPlayoff.userLabel ?? USER_TEAM_LABEL}
                   readOnly={readOnly}
                 />
               </div>
@@ -297,9 +371,18 @@ export default function Sim162ResultScreen({
             {postseasonLines.length > 0 && (
               <div className="space-y-1.5">
                 {postseasonLines.map((line) => (
-                  <div
+                  <button
                     key={line.round}
-                    className="flex items-center justify-between rounded-md border border-border bg-card/40 px-3 py-2 text-sm"
+                    type="button"
+                    onClick={
+                      () =>
+                        setWatchPlayoff({
+                          series: line.series,
+                          opponent: line.opponent,
+                        })
+                    }
+                    className="flex w-full items-center justify-between rounded-md border border-border bg-card/40 px-3 py-2 text-sm transition-colors hover:bg-muted/40"
+                    aria-label={`${line.round}: ${line.text} — watch series`}
                   >
                     <span className="font-medium text-foreground">
                       {line.round}
@@ -311,7 +394,7 @@ export default function Sim162ResultScreen({
                     >
                       {line.text}
                     </span>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}
@@ -322,8 +405,12 @@ export default function Sim162ResultScreen({
               bracket={playoffBracket}
               userTeamId={playoffBracket.userTeamId}
               teamNameById={teamNameById}
-              onWatchSeries={(series, opponentName) =>
-                setWatchPlayoff({ series, opponent: opponentName })
+              onWatchSeries={(series, opponentName, userLabel) =>
+                setWatchPlayoff({
+                  series,
+                  opponent: opponentName,
+                  userLabel,
+                })
               }
             />
           </CardContent>
@@ -403,6 +490,30 @@ export default function Sim162ResultScreen({
           </div>
         </CardContent>
       </Card>
+
+      <GameBoxScoreModal
+        title={
+          boxScoreEntry
+            ? `Game ${boxScoreGame! + 1} · ${boxScoreEntry.outcome} ${boxScoreEntry.you}-${boxScoreEntry.them} vs ${opponents[boxScoreGame!] ?? 'opponent'}`
+            : ''
+        }
+        entries={
+          boxScoreEntry && boxScoreGame !== null
+            ? [
+                {
+                  label: 'Box score',
+                  game: userGames[boxScoreGame]!,
+                  ...sideLabels(
+                    userGames[boxScoreGame]!,
+                    'You',
+                    opponents[boxScoreGame] ?? 'Opponent',
+                  ),
+                },
+              ]
+            : []
+        }
+        onClose={() => setBoxScoreGame(null)}
+      />
     </div>
   )
 }

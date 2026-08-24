@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import type { ReactNode } from 'react'
 import type { SimulatedSeries } from '@shared/live/live-types'
-import { buildSeriesReplay, headlineMoment, topPerformers } from '@/lib/series-replay'
+import {
+  buildSeriesReplay,
+  headlineMoment,
+  topPerformers,
+  topPitchers,
+} from '@/lib/series-replay'
 import { useReducedMotion } from '@/lib/use-reduced-motion'
 import { Button } from '@/components/ui/button'
 import { Scoreboard } from './broadcast/Scoreboard'
@@ -61,6 +66,11 @@ export default function SeriesBroadcast({
   const replay = useMemo(() => buildSeriesReplay(series), [series])
   const userStars = useMemo(() => topPerformers(series, 'user', 3), [series])
   const oppStars = useMemo(() => topPerformers(series, 'opponent', 3), [series])
+  const userPitchers = useMemo(() => topPitchers(series, 'user', 2), [series])
+  const oppPitchers = useMemo(
+    () => topPitchers(series, 'opponent', 2),
+    [series],
+  )
   const headline = useMemo(() => headlineMoment(series), [series])
 
   const reducer = useMemo(
@@ -132,6 +142,8 @@ export default function SeriesBroadcast({
             opponentTeamLabel={resolvedOpponentLabel}
             userStars={userStars}
             opponentStars={oppStars}
+            userPitchers={userPitchers}
+            opponentPitchers={oppPitchers}
             headline={headline}
             readOnly={readOnly}
           />
