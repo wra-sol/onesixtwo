@@ -6,6 +6,7 @@ import {
   type DailyLineup,
 } from './daily-roster'
 import { validateLiveDraftRoundTeams } from './live-draft'
+import { indexPlayersById } from './players-index'
 import type {
   DailyMatchupSnapshot,
   LiveDraftSnapshot,
@@ -150,7 +151,7 @@ export function validateDailyMatchupSubmission(
     return { ok: false, error: 'Submission target date does not match today.' }
   }
 
-  const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
+  const playersById = indexPlayersById(snapshot.players)
   const lineupResult = validateLineupPlayerIds(
     playersById,
     payload.playerIds,
@@ -187,7 +188,7 @@ export function validateLiveDraftSubmission(
     return { ok: false, error: 'Live Draft requires aiPlayerIds.' }
   }
 
-  const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
+  const playersById = indexPlayersById(snapshot.players)
   const userResult = validateLineupPlayerIds(playersById, payload.playerIds, 'Your lineup')
   if (!userResult.ok) return userResult
 

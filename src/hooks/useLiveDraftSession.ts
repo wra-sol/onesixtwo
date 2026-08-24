@@ -19,6 +19,7 @@ import type {
   SimulatedSeries,
 } from '@shared/live/live-types'
 import type { DailyLineup, DailyLineupPosition } from '@shared/live/daily-roster'
+import { indexPlayersById } from '@shared/live/players-index'
 
 export type LiveDraftSessionState = DailyMatchupDraftState | LiveDraftState
 
@@ -131,11 +132,10 @@ export function useLiveDraftSession(config: LiveModeConfig) {
     void loadSnapshot()
   }, [loadSnapshot])
 
-  const playersById = useMemo(() => {
-    const map = new Map<string, LivePlayer>()
-    snapshot?.players.forEach((p) => map.set(p.id, p))
-    return map
-  }, [snapshot])
+  const playersById = useMemo(
+    () => indexPlayersById(snapshot?.players ?? []),
+    [snapshot],
+  )
 
   const persistenceKey = useMemo(() => {
     if (!snapshot) return null

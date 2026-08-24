@@ -24,6 +24,7 @@ import {
 import { sim162SeasonSeed } from '@shared/live/seeds'
 import type { LivePlayer } from '@shared/live/live-types'
 import type { Sim162Snapshot } from '@shared/live/sim162-snapshot'
+import { indexPlayersById } from '@shared/live/players-index'
 
 type ResolvedSim162Share = {
   result: Sim162SeasonResult
@@ -42,7 +43,7 @@ async function resolveSim162Share(
     input.pool,
     input.challengeDate,
   )
-  const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
+  const playersById = indexPlayersById(snapshot.players)
   const roster = roster25FromPlayerIds(input.playerIds, playersById)
   if (!roster25IsComplete(roster)) {
     return null

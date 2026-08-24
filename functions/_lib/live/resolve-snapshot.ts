@@ -22,7 +22,7 @@ export type ResolveSnapshotEnv = {
   USE_LIVE_FIXTURES?: string
 }
 
-function fixturesEnabled(env: ResolveSnapshotEnv): boolean {
+export function fixturesEnabled(env: ResolveSnapshotEnv): boolean {
   return env.USE_LIVE_FIXTURES === 'true'
 }
 

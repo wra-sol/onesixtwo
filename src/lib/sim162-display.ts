@@ -142,6 +142,14 @@ export function playoffSeriesToSimulated(
   }
 }
 
+/** The side a user series was played against. */
+export function playoffOpponentId(
+  ps: PlayoffSeries,
+  userTeamId: string,
+): string {
+  return ps.awayTeamId === userTeamId ? ps.homeTeamId : ps.awayTeamId
+}
+
 export function postseasonLabel(result: Sim162SeasonResult): string {
   if (result.wonWorldSeries) return 'World Series Champions!'
   return postseasonResultLabel(result.postseasonResult)

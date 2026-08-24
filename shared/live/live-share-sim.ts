@@ -6,6 +6,7 @@ import {
 } from './daily-roster'
 import { heuristicAiBattingOrder } from './live-draft'
 import { buildLiveSharePath, formatLiveLineupSummary } from './live-share-url'
+import { indexPlayersById } from './players-index'
 import { buildSimTeam, simulateBestOfThree } from './pa-sim'
 import type {
   LiveLeaderboardEntryRow,
@@ -78,7 +79,7 @@ export function resolveLiveShareOpponent(
   snapshot: LiveSnapshot,
   input: Pick<LiveShareInput, 'mode' | 'aiPlayerIds'>,
 ): LineupTeam | null {
-  const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
+  const playersById = indexPlayersById(snapshot.players)
 
   switch (input.mode) {
     case 'daily-matchup': {
@@ -133,7 +134,7 @@ export function resolveLiveShareContext(
   input: LiveShareInput,
   snapshot: LiveSnapshot,
 ): LiveShareContext | null {
-  const playersById = new Map(snapshot.players.map((player) => [player.id, player]))
+  const playersById = indexPlayersById(snapshot.players)
   const userLineup = lineupFromPlayerIds(playersById, input.playerIds)
   const battingOrder = input.battingOrderIds
     .map((id) => playersById.get(id))

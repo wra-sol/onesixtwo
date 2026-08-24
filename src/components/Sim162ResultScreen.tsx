@@ -18,6 +18,7 @@ import PlayoffBracket from '@/components/PlayoffBracket'
 import {
   buildTeamNameById,
   buildUserGameOpponents,
+  playoffOpponentId,
   playoffSeriesToSimulated,
   postseasonLabel,
   sideLabels,
@@ -107,10 +108,7 @@ export default function Sim162ResultScreen({
         userPlayoffSeries[ui] ??
         playoffSeriesToSimulated(us, playoffBracket.userTeamId)
       ui += 1
-      const opponentId =
-        us.awayTeamId === playoffBracket.userTeamId
-          ? us.homeTeamId
-          : us.awayTeamId
+      const opponentId = playoffOpponentId(us, playoffBracket.userTeamId)
       const opponent = teamNameById.get(opponentId) ?? opponentId
       const won = us.winnerTeamId === playoffBracket.userTeamId
       lines.push({

@@ -93,26 +93,29 @@ function samplePitchers(teamId: number, abbrev: string, name: string, baseId: nu
   ]
 }
 
+const FIXTURE_TEAMS = [
+  { id: 119, abbrev: 'LAD', name: 'Los Angeles Dodgers' },
+  { id: 147, abbrev: 'NYY', name: 'New York Yankees' },
+  { id: 111, abbrev: 'BOS', name: 'Boston Red Sox' },
+  { id: 121, abbrev: 'NYM', name: 'New York Mets' },
+  { id: 120, abbrev: 'WSH', name: 'Washington Nationals' },
+  { id: 110, abbrev: 'BAL', name: 'Baltimore Orioles' },
+  { id: 139, abbrev: 'TB', name: 'Tampa Bay Rays' },
+  { id: 141, abbrev: 'TOR', name: 'Toronto Blue Jays' },
+  { id: 116, abbrev: 'DET', name: 'Detroit Tigers' },
+  { id: 145, abbrev: 'CWS', name: 'Chicago White Sox' },
+  { id: 114, abbrev: 'CLE', name: 'Cleveland Guardians' },
+  { id: 142, abbrev: 'MIN', name: 'Minnesota Twins' },
+  { id: 118, abbrev: 'KC', name: 'Kansas City Royals' },
+  { id: 117, abbrev: 'HOU', name: 'Houston Astros' },
+  { id: 136, abbrev: 'SEA', name: 'Seattle Mariners' },
+]
+
 export function buildFixtureDailyMatchupSnapshot(
   challengeDate: string,
   targetDate: string,
 ): DailyMatchupSnapshot {
-  const teams = [
-    { id: 119, abbrev: 'LAD', name: 'Los Angeles Dodgers' },
-    { id: 147, abbrev: 'NYY', name: 'New York Yankees' },
-    { id: 111, abbrev: 'BOS', name: 'Boston Red Sox' },
-    { id: 121, abbrev: 'NYM', name: 'New York Mets' },
-    { id: 120, abbrev: 'WSH', name: 'Washington Nationals' },
-    { id: 110, abbrev: 'BAL', name: 'Baltimore Orioles' },
-    { id: 139, abbrev: 'TB', name: 'Tampa Bay Rays' },
-    { id: 141, abbrev: 'TOR', name: 'Toronto Blue Jays' },
-    { id: 116, abbrev: 'DET', name: 'Detroit Tigers' },
-    { id: 145, abbrev: 'CWS', name: 'Chicago White Sox' },
-    { id: 114, abbrev: 'CLE', name: 'Cleveland Guardians' },
-    { id: 142, abbrev: 'MIN', name: 'Minnesota Twins' },
-    { id: 118, abbrev: 'KC', name: 'Kansas City Royals' },
-    { id: 117, abbrev: 'HOU', name: 'Houston Astros' },
-  ]
+  const teams = FIXTURE_TEAMS.slice(0, 14)
 
   const raw: RawPlayerInput[] = []
   teams.forEach((team, teamIndex) => {
@@ -158,23 +161,7 @@ export function buildFixtureDailyMatchupSnapshot(
 }
 
 export function buildFixtureLiveDraftSnapshot(challengeDate: string): LiveDraftSnapshot {
-  const teams = [
-    { id: 119, abbrev: 'LAD', name: 'Los Angeles Dodgers' },
-    { id: 147, abbrev: 'NYY', name: 'New York Yankees' },
-    { id: 111, abbrev: 'BOS', name: 'Boston Red Sox' },
-    { id: 121, abbrev: 'NYM', name: 'New York Mets' },
-    { id: 120, abbrev: 'WSH', name: 'Washington Nationals' },
-    { id: 110, abbrev: 'BAL', name: 'Baltimore Orioles' },
-    { id: 139, abbrev: 'TB', name: 'Tampa Bay Rays' },
-    { id: 141, abbrev: 'TOR', name: 'Toronto Blue Jays' },
-    { id: 116, abbrev: 'DET', name: 'Detroit Tigers' },
-    { id: 145, abbrev: 'CWS', name: 'Chicago White Sox' },
-    { id: 114, abbrev: 'CLE', name: 'Cleveland Guardians' },
-    { id: 142, abbrev: 'MIN', name: 'Minnesota Twins' },
-    { id: 118, abbrev: 'KC', name: 'Kansas City Royals' },
-    { id: 117, abbrev: 'HOU', name: 'Houston Astros' },
-    { id: 136, abbrev: 'SEA', name: 'Seattle Mariners' },
-  ]
+  const teams = FIXTURE_TEAMS
 
   const raw: RawPlayerInput[] = []
   teams.forEach((team, teamIndex) => {

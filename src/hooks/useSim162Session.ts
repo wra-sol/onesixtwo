@@ -22,6 +22,7 @@ import { buildSim162Season } from '@shared/live/sim162-season'
 import type { Sim162SeasonResult } from '@shared/live/sim162-season'
 import type { LivePlayer } from '@shared/live/live-types'
 import type { Sim162Snapshot } from '@shared/live/sim162-snapshot'
+import { indexPlayersById } from '@shared/live/players-index'
 
 export type { Sim162SeasonResult }
 
@@ -110,11 +111,10 @@ export function useSim162Session(initialPool?: Sim162Pool): Sim162Session {
     setPoolState(nextPool)
   }, [])
 
-  const playersById = useMemo(() => {
-    const map = new Map<string, LivePlayer>()
-    snapshot?.players.forEach((p) => map.set(p.id, p))
-    return map
-  }, [snapshot])
+  const playersById = useMemo(
+    () => indexPlayersById(snapshot?.players ?? []),
+    [snapshot],
+  )
 
   const teamOptions = useMemo(
     () => (snapshot ? deriveTeamOptions(snapshot.players) : []),

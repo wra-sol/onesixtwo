@@ -7,6 +7,7 @@ import {
 import { sim162SeasonSeed } from '../../shared/live/seeds'
 import { buildSim162Season, type PostseasonResult } from '../../shared/live/sim162-season'
 import { POSTSEASON_RANK, type Sim162Pool } from './sim162-leaderboard'
+import { indexPlayersById } from '../../shared/live/players-index'
 
 export type Sim162VerifyInput = {
   pool: Sim162Pool
@@ -49,7 +50,7 @@ export async function verifySim162Submission(
       ? await resolveSim162LiveSnapshot(input.challengeDate, env)
       : buildLegendsSnapshotForSim162()
 
-  const playersById = new Map(snapshot.players.map((p) => [p.id, p]))
+  const playersById = indexPlayersById(snapshot.players)
 
   const roster = roster25FromPlayerIds(input.playerIds, playersById)
   if (!roster25IsComplete(roster)) {

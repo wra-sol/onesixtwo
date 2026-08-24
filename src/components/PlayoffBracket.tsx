@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { playoffSeriesToSimulated } from '@/lib/sim162-display'
+import { playoffOpponentId, playoffSeriesToSimulated } from '@/lib/sim162-display'
 import GameBoxScoreModal from '@/components/GameBoxScoreModal'
 import type { SimulatedSeries } from '@shared/live/live-types'
 import type {
@@ -71,11 +71,7 @@ export default function PlayoffBracket({
               const homeWon = ps.winnerTeamId === ps.homeTeamId
               const hasGames = Boolean(ps.games?.length)
               const opponentId =
-                isUser && hasGames
-                  ? ps.awayTeamId === userTeamId
-                    ? ps.homeTeamId
-                    : ps.awayTeamId
-                  : null
+                isUser && hasGames ? playoffOpponentId(ps, userTeamId) : null
               const showWatch = hasGames && onWatchSeries != null
               return (
                 <div
