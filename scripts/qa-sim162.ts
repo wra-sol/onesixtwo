@@ -21,7 +21,7 @@ import {
   buildOpponentRoster25SimTeam,
   buildRoster25SimTeam,
 } from '../shared/live/sim162-team'
-import { simulateGameRoster } from '../shared/live/pa-sim'
+import { freshGameStaffContext, simulateGameRoster } from '../shared/live/pa-sim'
 import { heuristicAiBattingOrder } from '../shared/live/live-draft'
 import { coinFlipTieWinner } from '../shared/live/series-sim'
 import type { LivePlayer, SimulatedGame, SimulatedSeries } from '../shared/live/live-types'
@@ -293,21 +293,21 @@ function runRotationCyclingQa(): void {
   const oppTeam = buildOpponentRoster25SimTeam('qa-franchise', 'QA Opp', pool, 2)
 
   check('game 0 uses SP1 (rotation[0])', () => {
-    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 0)
+    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 0, freshGameStaffContext())
     const firstEvent = game.events.find((e) => e.inning === 1 && e.half === 'top')
     assert(firstEvent !== undefined, 'has top-1 event (user pitching at home)')
     assertEqual(firstEvent!.pitcherName, rotation[0]!.name, 'SP1 pitches top 1')
   })
 
   check('game 4 uses SP5 (rotation[4])', () => {
-    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 4)
+    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 4, freshGameStaffContext())
     const firstEvent = game.events.find((e) => e.inning === 1 && e.half === 'top')
     assert(firstEvent !== undefined, 'has top-1 event')
     assertEqual(firstEvent!.pitcherName, rotation[4]!.name, 'SP5 pitches top 1')
   })
 
   check('game 5 wraps to SP1 (rotation[0])', () => {
-    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 5)
+    const game = simulateGameRoster(userTeam, oppTeam, 'qa-rotation', true, 5, freshGameStaffContext())
     const firstEvent = game.events.find((e) => e.inning === 1 && e.half === 'top')
     assert(firstEvent !== undefined, 'has top-1 event')
     assertEqual(firstEvent!.pitcherName, rotation[0]!.name, 'SP1 wraps')
@@ -315,7 +315,7 @@ function runRotationCyclingQa(): void {
 
   check('score invariants: box score matches event reconstruction', () => {
     for (let g = 0; g < 5; g++) {
-      const game = simulateGameRoster(userTeam, oppTeam, `qa-inv-${g}`, g % 2 === 1, g)
+      const game = simulateGameRoster(userTeam, oppTeam, `qa-inv-${g}`, g % 2 === 1, g, freshGameStaffContext())
       assert(game.homeBox.runs === game.homeScore, `game ${g} home box runs`)
       assert(game.awayBox.runs === game.awayScore, `game ${g} away box runs`)
     }

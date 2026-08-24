@@ -5,7 +5,7 @@ import {
   createSim162DraftState,
   autoFillRemaining,
 } from './sim162-draft'
-import { simulateGameRoster } from './pa-sim'
+import { freshGameStaffContext, simulateGameRoster } from './pa-sim'
 import type { PaEvent } from './live-types'
 
 /**
@@ -39,7 +39,7 @@ describe('count-engine league calibration', () => {
 
     for (let i = 0; i < GAMES; i++) {
       const opp = opponents[i % opponents.length]!
-      const game = simulateGameRoster(user, opp, `calib-${i}`, i % 2 === 0, i)
+      const game = simulateGameRoster(user, opp, `calib-${i}`, i % 2 === 0, i, freshGameStaffContext())
       totalRuns += game.homeScore + game.awayScore
       for (const event of game.events) {
         if (

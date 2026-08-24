@@ -170,7 +170,7 @@ export function buildSim162Season(
       regularSeasonGameSeed(seasonSeed, idx),
       false,
       idx,
-      { user: staffFor(g.away), opponent: staffFor(g.home) },
+      { away: staffFor(g.away), home: staffFor(g.home) },
     )
     if (awayIsUser || homeIsUser) userGames.push(game)
 
@@ -268,7 +268,8 @@ function paSimUserSeries(
   bestOf: number,
   seed: string,
   userIsHomeTeam: boolean,
-  staffs?: { user: TeamStaffState; opponent: TeamStaffState },
+  staffForUser: TeamStaffState,
+  staffForOpponent: TeamStaffState,
 ): {
   games: SimulatedGame[]
   series: SimulatedSeries
@@ -290,7 +291,9 @@ function paSimUserSeries(
         rosterSeriesGameSeed(seed, i),
         userIsHome,
         i,
-        staffs,
+        userIsHome
+          ? { away: staffForUser, home: staffForOpponent }
+          : { away: staffForOpponent, home: staffForUser },
       ),
   })
   return { games: series.games, series, winnerIsUser: series.wonSeries }
@@ -350,7 +353,8 @@ function buildBracket(
         bestOf,
         seed,
         userIsHomeTeam,
-        { user: staffFor(userFranchise), opponent: staffFor(opp.teamId) },
+        staffFor(userFranchise),
+        staffFor(opp.teamId),
       )
       userSeries.push(series)
       const homeWins =
@@ -385,7 +389,8 @@ function buildBracket(
       bestOf,
       seed,
       true,
-      { user: staffFor(home.teamId), opponent: staffFor(away.teamId) },
+      staffFor(home.teamId),
+      staffFor(away.teamId),
     )
     const winnerTeamId = winnerIsHome ? home.teamId : away.teamId
     const advance = winnerIsHome ? home : away

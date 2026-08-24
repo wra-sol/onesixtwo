@@ -3,7 +3,7 @@ import { playSeries } from './series-sim'
 import { lineupSeriesGameSeed, rosterSeriesGameSeed } from './seeds'
 import { gradeNorm, type PaOutcomeType } from './pa-outcomes'
 import { resolvePlateAppearance, type PitcherCondition } from './count-engine'
-import { type TeamStaffState, conditionFor, advanceRest, recordAppearance } from './staff-state'
+import { type TeamStaffState, conditionFor, advanceRest, createStaffState, recordAppearance } from './staff-state'
 
 export type { PaOutcomeType }
 import type {
@@ -432,9 +432,21 @@ function simulateHalfInningRoster(
   })
 }
 
+/**
+ * Staff state for both sides of one game, keyed by field side — not by
+ * "user", since AI-vs-AI games have no user. Every roster-convention game
+ * states its fatigue regime explicitly through this parameter: pass live,
+ * season-persisted states, or `freshGameStaffContext()` when fatigue is
+ * intentionally out of scope.
+ */
 export type GameStaffContext = {
-  user: TeamStaffState
-  opponent: TeamStaffState
+  away: TeamStaffState
+  home: TeamStaffState
+}
+
+/** Explicit everyone-fresh regime for callers that opt out of fatigue. */
+export function freshGameStaffContext(): GameStaffContext {
+  return { away: createStaffState(), home: createStaffState() }
 }
 
 export function simulateGameRoster(
@@ -443,7 +455,7 @@ export function simulateGameRoster(
   seed: string,
   userIsHome: boolean,
   gameIndex: number,
-  staffs?: GameStaffContext,
+  staffs: GameStaffContext,
 ): SimulatedGame {
   const random = createSeededRandomFromString(rosterSeriesGameSeed(seed, gameIndex))
   // Rotation slot is plain modulo-5 by game index; rest/fatigue penalties
@@ -465,8 +477,11 @@ export function simulateGameRoster(
   const benchUsedHome = new Set<string>()
 
   const pitchCounts = new Map<string, number>()
-  const awayStaff = staffs ? (away === user ? staffs.user : staffs.opponent) : undefined
-  const homeStaff = staffs ? (home === user ? staffs.user : staffs.opponent) : undefined
+  const awayStaff = staffs.away
+  const homeStaff = staffs.home
+  const awayArmIds = new Set(
+    [...away.rotation, ...away.bullpen].map((p) => p.id),
+  )
 
   const playInning = (inning: number) => {
     const topRuns = simulateHalfInningRoster(away, home, inning, 'top', random, events, {
@@ -501,15 +516,13 @@ export function simulateGameRoster(
     extra += 1
   }
 
-  if (staffs) {
-    for (const [id, pitches] of pitchCounts) {
-      const isUserArm = user.battingOrder.some((p) => p.id === id) ||
-        [...user.rotation, ...user.bullpen, ...user.bench].some((p) => p.id === id)
-      recordAppearance(isUserArm ? staffs.user : staffs.opponent, id, pitches)
-    }
-    advanceRest(staffs.user)
-    advanceRest(staffs.opponent)
+  for (const [id, pitches] of pitchCounts) {
+    // Attribution by side, not by scanning the user team first: an arm is on
+    // the away staff iff his id is in the away pitching staff.
+    recordAppearance(awayArmIds.has(id) ? awayStaff : homeStaff, id, pitches)
   }
+  advanceRest(staffs.away)
+  advanceRest(staffs.home)
 
   for (const event of events) {
     const box = event.half === 'top' ? awayBox : homeBox

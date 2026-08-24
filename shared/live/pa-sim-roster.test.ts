@@ -4,6 +4,7 @@ import {
   buildSimTeam,
   simulateBestOfThree,
   simulateGame,
+  freshGameStaffContext,
   simulateGameRoster,
   type RosterSimTeam,
 } from './pa-sim'
@@ -254,17 +255,17 @@ describe('simulateGameRoster — rotation cycling', () => {
   const seed = 'rot-cycle'
 
   it('game 0 uses rotation[0] (SP1)', () => {
-    const game = simulateGameRoster(user, opp, seed, true, 0)
+    const game = simulateGameRoster(user, opp, seed, true, 0, freshGameStaffContext())
     expect(inningOnePitcher(game, 'top')).toBe('USR SP1')
   })
 
   it('game 4 uses rotation[4] (SP5)', () => {
-    const game = simulateGameRoster(user, opp, seed, true, 4)
+    const game = simulateGameRoster(user, opp, seed, true, 4, freshGameStaffContext())
     expect(inningOnePitcher(game, 'top')).toBe('USR SP5')
   })
 
   it('game 5 wraps to rotation[0] (SP1)', () => {
-    const game = simulateGameRoster(user, opp, seed, true, 5)
+    const game = simulateGameRoster(user, opp, seed, true, 5, freshGameStaffContext())
     expect(inningOnePitcher(game, 'top')).toBe('USR SP1')
   })
 })
@@ -274,13 +275,13 @@ describe('simulateGameRoster — starter is the defense\'s starter', () => {
   const opp = buildTeam('OPP', false)
 
   it('user is home: user SP pitches TOP (opp bats), opp SP pitches BOTTOM (user bats)', () => {
-    const game = simulateGameRoster(user, opp, 'defense', true, 0)
+    const game = simulateGameRoster(user, opp, 'defense', true, 0, freshGameStaffContext())
     expect(inningOnePitcher(game, 'top')).toBe('USR SP1')
     expect(inningOnePitcher(game, 'bottom')).toBe('OPP SP1')
   })
 
   it('user is away: user SP pitches BOTTOM (opp bats), opp SP pitches TOP (user bats)', () => {
-    const game = simulateGameRoster(user, opp, 'defense', false, 0)
+    const game = simulateGameRoster(user, opp, 'defense', false, 0, freshGameStaffContext())
     expect(inningOnePitcher(game, 'top')).toBe('OPP SP1')
     expect(inningOnePitcher(game, 'bottom')).toBe('USR SP1')
   })
@@ -293,7 +294,7 @@ describe('simulateGameRoster — score + pitcher invariants', () => {
   for (let g = 0; g < 10; g += 1) {
     const userIsHome = g % 2 === 1
     it(`game ${g} (userIsHome=${userIsHome}): reconstructed score matches box, pitcher rule holds, outs <= 3`, () => {
-      const game = simulateGameRoster(user, opp, `inv-${g}`, userIsHome, g)
+      const game = simulateGameRoster(user, opp, `inv-${g}`, userIsHome, g, freshGameStaffContext())
       const { rows, awayRuns, homeRuns } = replayGame(game, user, opp, userIsHome, g)
 
       expect(awayRuns).toBe(game.awayScore)
@@ -353,7 +354,7 @@ describe('simulateGameRoster — bullpen by leverage', () => {
     let foundBlowoutLate = false
 
     for (let g = 0; g < 30; g += 1) {
-      const game = simulateGameRoster(evenUser, evenOpp, `lev-even-${g}`, g % 2 === 1, g)
+      const game = simulateGameRoster(evenUser, evenOpp, `lev-even-${g}`, g % 2 === 1, g, freshGameStaffContext())
       const { rows } = replayGame(game, evenUser, evenOpp, g % 2 === 1, g)
       for (const { event: e, gameDiff, defense } of rows) {
         if (e.inning < 8) continue
@@ -365,7 +366,7 @@ describe('simulateGameRoster — bullpen by leverage', () => {
     }
 
     for (let g = 0; g < 30; g += 1) {
-      const game = simulateGameRoster(strongUser, weakOpp, `lev-blow-${g}`, g % 2 === 1, g)
+      const game = simulateGameRoster(strongUser, weakOpp, `lev-blow-${g}`, g % 2 === 1, g, freshGameStaffContext())
       const { rows } = replayGame(game, strongUser, weakOpp, g % 2 === 1, g)
       for (const { event: e, gameDiff, defense } of rows) {
         if (e.inning < 8) continue
@@ -385,7 +386,7 @@ describe('simulateGameRoster — bullpen by leverage', () => {
     const opp = buildTeam('OPP', false, 0)
     let foundMiddle = false
     for (let g = 0; g < 20; g += 1) {
-      const game = simulateGameRoster(user, opp, `mid-${g}`, g % 2 === 1, g)
+      const game = simulateGameRoster(user, opp, `mid-${g}`, g % 2 === 1, g, freshGameStaffContext())
       const { rows } = replayGame(game, user, opp, g % 2 === 1, g)
       for (const { event: e, defense } of rows) {
         if (e.inning === 6 || e.inning === 7) {
@@ -409,7 +410,7 @@ describe('simulateGameRoster — bench pinch-hitting', () => {
 
     let phCount = 0
     for (let g = 0; g < 40; g += 1) {
-      const game = simulateGameRoster(user, opp, `ph-${g}`, true, g)
+      const game = simulateGameRoster(user, opp, `ph-${g}`, true, g, freshGameStaffContext())
       for (const e of game.events) {
         if (e.type !== 'pinch_hit') continue
         expect(e.inning).toBeGreaterThanOrEqual(7)
@@ -428,7 +429,7 @@ describe('simulateGameRoster — bench pinch-hitting', () => {
     const user = buildTeam('USR', true)
     const opp = buildTeam('OPP', false)
     for (let g = 0; g < 20; g += 1) {
-      const game = simulateGameRoster(user, opp, `ph-unique-${g}`, true, g)
+      const game = simulateGameRoster(user, opp, `ph-unique-${g}`, true, g, freshGameStaffContext())
       const perGame = new Map<string, Set<string>>()
       for (const e of game.events) {
         if (e.type !== 'pinch_hit') continue
@@ -445,7 +446,7 @@ describe('simulateGameRoster — bench pinch-hitting', () => {
     const user = buildTeam('USR', true)
     const opp = buildTeam('OPP', false)
     for (let g = 0; g < 20; g += 1) {
-      const game = simulateGameRoster(user, opp, `ph-late-${g}`, true, g)
+      const game = simulateGameRoster(user, opp, `ph-late-${g}`, true, g, freshGameStaffContext())
       for (const e of game.events) {
         if (e.type === 'pinch_hit') {
           expect(e.inning).toBeGreaterThanOrEqual(7)
@@ -459,16 +460,16 @@ describe('simulateGameRoster — determinism', () => {
   it('same seed + teams + gameIndex produce identical SimulatedGame', () => {
     const user = buildTeam('USR', true)
     const opp = buildTeam('OPP', false)
-    const a = simulateGameRoster(user, opp, 'determ', true, 3)
-    const b = simulateGameRoster(user, opp, 'determ', true, 3)
+    const a = simulateGameRoster(user, opp, 'determ', true, 3, freshGameStaffContext())
+    const b = simulateGameRoster(user, opp, 'determ', true, 3, freshGameStaffContext())
     expect(a).toEqual(b)
   })
 
   it('different gameIndex produces a different game (different starter + RNG)', () => {
     const user = buildTeam('USR', true)
     const opp = buildTeam('OPP', false)
-    const a = simulateGameRoster(user, opp, 'determ', true, 0)
-    const b = simulateGameRoster(user, opp, 'determ', true, 1)
+    const a = simulateGameRoster(user, opp, 'determ', true, 0, freshGameStaffContext())
+    const b = simulateGameRoster(user, opp, 'determ', true, 1, freshGameStaffContext())
     expect(inningOnePitcher(a, 'top')).toBe('USR SP1')
     expect(inningOnePitcher(b, 'top')).toBe('USR SP2')
     expect(a).not.toEqual(b)
@@ -481,7 +482,7 @@ describe('simulateGameRoster — extra innings', () => {
     const opp = buildTeam('OPP', false, 0)
     let reached = 0
     for (let g = 0; g < 40; g += 1) {
-      const game = simulateGameRoster(user, opp, `extra-${g}`, g % 2 === 1, g)
+      const game = simulateGameRoster(user, opp, `extra-${g}`, g % 2 === 1, g, freshGameStaffContext())
       const maxInning = game.events.reduce((m, e) => Math.max(m, e.inning), 0)
       expect(maxInning).toBeLessThanOrEqual(20)
       if (maxInning > 9) reached += 1

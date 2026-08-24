@@ -75,3 +75,9 @@ A pitcher's pitch mix. Real mixes ride the snapshot for live pitchers where MLB 
 ## Staff State
 
 Per-team pitching data that persists across games: rest counters and last-outing pitch totals per arm. Stuff and command decay within an outing past a stamina-driven soft cap, and relievers on short rest after heavy work are diminished. States persist through the playoff bracket.
+
+Every roster-convention game states its fatigue regime explicitly: Sim 162 passes live, season-persisted Staff State; best-of-3 modes pass an explicit everyone-fresh regime because a short series has no off-days to model.
+
+## Fatigue Regime
+
+The choice, made at each game-simulation call site, between persistent Staff State (Sim 162 seasons and playoff brackets) and an explicit fresh regime (best-of-3 modes). There is no silent default: omitting fatigue is always a visible decision.
