@@ -37,11 +37,6 @@ export type PlayoffField = { league: League; seeds: PlayoffSeed[] }
 
 export const LEAGUE_SCHEDULE_LENGTH = 162
 
-const PER_GAME_VARIANCE = 0.08
-const INITIAL_SEASON_VARIANCE = 12
-const ELITE_SEASON_VARIANCE = 16
-const PERFECT_SEASON_THRESHOLD = 95
-const PERFECT_SEASON_MIN_SCORE = 93
 
 const ALL_DIVISIONS: Division[] = [
   'AL-East',
@@ -133,80 +128,6 @@ export function buildLeagueStrengths(
   }))
 }
 
-function projectWins(teamScore: number): { wins: number; losses: number } {
-  let wins: number
-  if (teamScore < 50) {
-    wins = Math.round(teamScore * 1.62)
-  } else if (teamScore < 75) {
-    wins = Math.round(81 + ((teamScore - 50) / 25) * 24)
-  } else if (teamScore < 90) {
-    wins = Math.round(105 + ((teamScore - 75) / 15) * 20)
-  } else if (teamScore < 100) {
-    wins = Math.round(128 + ((teamScore - 90) / 10) * 44)
-  } else {
-    wins = LEAGUE_SCHEDULE_LENGTH
-  }
-  wins = Math.min(LEAGUE_SCHEDULE_LENGTH, Math.max(0, wins))
-  return { wins, losses: LEAGUE_SCHEDULE_LENGTH - wins }
-}
-
-function baselineWinProbability(teamScore: number): number {
-  return projectWins(teamScore).wins / LEAGUE_SCHEDULE_LENGTH
-}
-
-function winProbabilityCeiling(teamScore: number): number {
-  if (teamScore >= 98) return 0.99
-  if (teamScore >= 95) return 0.98
-  if (teamScore >= 90) return 0.94
-  return 0.92
-}
-
-function gameWinProbability(teamScore: number, random: () => number): number {
-  const base = baselineWinProbability(teamScore)
-  const swing = (random() - 0.5) * PER_GAME_VARIANCE
-  const ceiling = winProbabilityCeiling(teamScore)
-  return Math.min(ceiling, Math.max(0.08, base + swing))
-}
-
-function seasonVarianceCap(teamScore: number): number {
-  if (teamScore >= 95) return ELITE_SEASON_VARIANCE
-  if (teamScore >= 90) return INITIAL_SEASON_VARIANCE + 2
-  return INITIAL_SEASON_VARIANCE
-}
-
-function clampWins(wins: number, teamScore: number, expectedWins: number): number {
-  let clamped = Math.min(
-    LEAGUE_SCHEDULE_LENGTH,
-    Math.max(0, wins),
-  )
-  const cap = seasonVarianceCap(teamScore)
-  const minWins = Math.max(0, expectedWins - cap)
-  const maxWins = Math.min(LEAGUE_SCHEDULE_LENGTH, expectedWins + cap)
-  clamped = Math.min(maxWins, Math.max(minWins, clamped))
-
-  if (teamScore < PERFECT_SEASON_MIN_SCORE && clamped === LEAGUE_SCHEDULE_LENGTH) {
-    clamped = LEAGUE_SCHEDULE_LENGTH - 1
-  }
-  if (
-    teamScore < PERFECT_SEASON_THRESHOLD &&
-    clamped >= LEAGUE_SCHEDULE_LENGTH - 5
-  ) {
-    clamped = Math.min(clamped, LEAGUE_SCHEDULE_LENGTH - 6)
-  }
-  return clamped
-}
-
-function simulateTeamSeason(teamId: string, teamScore: number, seed: string): number {
-  const random = createSeededRandomFromString(`${seed}|season|${teamId}`)
-  const expected = projectWins(teamScore).wins
-  let wins = 0
-  for (let i = 0; i < LEAGUE_SCHEDULE_LENGTH; i += 1) {
-    const winProb = gameWinProbability(teamScore, random)
-    if (random() < winProb) wins += 1
-  }
-  return clampWins(wins, teamScore, expected)
-}
-
 function tiebreakSort(records: TeamRecord[]): TeamRecord[] {
   return [...records].sort((a, b) => {
     if (b.wins !== a.wins) return b.wins - a.wins
@@ -214,43 +135,6 @@ function tiebreakSort(records: TeamRecord[]): TeamRecord[] {
     const hb = hashSeed(b.teamId)
     return hb - ha
   })
-}
-
-export function simulateCoarseSeason(
-  strengths: TeamStrength[],
-  seed: string,
-): Standings {
-  const byId = new Map(strengths.map((s) => [s.teamId, s]))
-  const records: TeamRecord[] = TEAMS.map((meta) => {
-    const entry = byId.get(meta.teamId)
-    const strength = entry?.strength ?? 50
-    const wins = simulateTeamSeason(meta.teamId, strength, seed)
-    return {
-      teamId: meta.teamId,
-      wins,
-      losses: LEAGUE_SCHEDULE_LENGTH - wins,
-    }
-  })
-
-  const byDivision = {} as Record<Division, TeamRecord[]>
-  for (const div of ALL_DIVISIONS) {
-    byDivision[div] = tiebreakSort(
-      records.filter((r) => teamDivision(r.teamId) === div),
-    )
-  }
-
-  const byLeague = { AL: [] as TeamRecord[], NL: [] as TeamRecord[] }
-  for (const meta of TEAMS) {
-    byLeague[meta.league].push(records.find((r) => r.teamId === meta.teamId)!)
-  }
-  byLeague.AL = tiebreakSort(byLeague.AL)
-  byLeague.NL = tiebreakSort(byLeague.NL)
-
-  return {
-    records: tiebreakSort(records),
-    byDivision,
-    byLeague,
-  }
 }
 
 export function generateSchedule(

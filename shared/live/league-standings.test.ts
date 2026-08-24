@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  buildLeagueStrengths,
   buildPlayoffField,
   generateSchedule,
   LEAGUE_SCHEDULE_LENGTH,
-  simulateCoarseSeason,
   teamDivision,
   teamLeague,
 } from './league-standings'
@@ -13,7 +11,6 @@ import type {
   PlayoffField,
   Standings,
   TeamRecord,
-  TeamStrength,
 } from './league-standings'
 
 const ALL_TEAM_IDS = [
@@ -25,17 +22,9 @@ const ALL_TEAM_IDS = [
   'dodgers', 'giants', 'padres', 'rockies', 'diamondbacks',
 ]
 
-function sampleStrengths(): TeamStrength[] {
-  const map: Record<string, number> = {}
-  let i = 0
-  for (const id of ALL_TEAM_IDS) {
-    map[id] = 55 + ((i * 7) % 45)
-    i += 1
-  }
-  map['dodgers'] = 96
-  map['yankees'] = 94
-  map['rockies'] = 38
-  return buildLeagueStrengths(map)
+function sampleStandings(): Standings {
+  const rows = ALL_TEAM_IDS.map((id, i) => ({ teamId: id, wins: 95 - (i % 30) }))
+  return makeStandings(rows)
 }
 
 function makeStandings(rows: Array<{ teamId: string; wins: number }>): Standings {
@@ -107,72 +96,9 @@ describe('generateSchedule', () => {
   })
 })
 
-describe('simulateCoarseSeason', () => {
-  it('is deterministic: same seed + strengths => identical standings', () => {
-    const strengths = sampleStrengths()
-    const a = simulateCoarseSeason(strengths, 'season-xyz')
-    const b = simulateCoarseSeason(strengths, 'season-xyz')
-    expect(a).toEqual(b)
-  })
-
-  it('produces a 162-game record for all 30 teams', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
-    expect(standings.records).toHaveLength(30)
-    for (const r of standings.records) {
-      expect(r.wins + r.losses).toBe(162)
-      expect(r.wins).toBeGreaterThanOrEqual(0)
-      expect(r.wins).toBeLessThanOrEqual(162)
-    }
-  })
-
-  it('sorts teams within each division by wins descending', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
-    const divisions: Division[] = [
-      'AL-East', 'AL-Central', 'AL-West',
-      'NL-East', 'NL-Central', 'NL-West',
-    ]
-    for (const div of divisions) {
-      const teams = standings.byDivision[div]
-      expect(teams).toHaveLength(5)
-      for (let i = 1; i < teams.length; i += 1) {
-        expect(teams[i]!.wins).toBeLessThanOrEqual(teams[i - 1]!.wins)
-      }
-    }
-  })
-
-  it('keeps each league at 15 teams sorted by wins', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
-    expect(standings.byLeague.AL).toHaveLength(15)
-    expect(standings.byLeague.NL).toHaveLength(15)
-    for (let i = 1; i < 15; i += 1) {
-      expect(standings.byLeague.AL[i]!.wins).toBeLessThanOrEqual(
-        standings.byLeague.AL[i - 1]!.wins,
-      )
-    }
-  })
-
-  it('runs in under 10ms for all 30 teams', () => {
-    const strengths = sampleStrengths()
-    const start = performance.now()
-    simulateCoarseSeason(strengths, 'perf-seed')
-    const elapsed = performance.now() - start
-    expect(elapsed).toBeLessThan(10)
-  })
-
-  it('a league of equal-strength teams still produces valid records', () => {
-    const strengths = buildLeagueStrengths(
-      Object.fromEntries(ALL_TEAM_IDS.map((id) => [id, 50])) as Record<string, number>,
-    )
-    const standings = simulateCoarseSeason(strengths, 'equal-seed')
-    for (const r of standings.records) {
-      expect(r.wins + r.losses).toBe(162)
-    }
-  })
-})
-
 describe('buildPlayoffField', () => {
   it('produces 12 total seeds: 6 per league, 3 division winners + 3 wild cards', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
+    const standings = sampleStandings()
     const fields = buildPlayoffField(standings)
     expect(fields).toHaveLength(2)
     const al = fields.find((f) => f.league === 'AL') as PlayoffField
@@ -186,7 +112,7 @@ describe('buildPlayoffField', () => {
   })
 
   it('seeds #1-3 as division winners and #4-6 as wild cards', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
+    const standings = sampleStandings()
     const fields = buildPlayoffField(standings)
     for (const field of fields) {
       for (const seed of field.seeds) {
@@ -197,7 +123,7 @@ describe('buildPlayoffField', () => {
   })
 
   it('makes the #1 seed the best record in its league', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
+    const standings = sampleStandings()
     const fields = buildPlayoffField(standings)
     for (const field of fields) {
       const top = field.seeds[0]!
@@ -209,7 +135,7 @@ describe('buildPlayoffField', () => {
 
   it('does not include a wild card with a worse record than a division winner seed ahead of it... ' +
     'actually only checks that division winners are the best of their division', () => {
-    const standings = simulateCoarseSeason(sampleStrengths(), 'season-xyz')
+    const standings = sampleStandings()
     const fields = buildPlayoffField(standings)
     for (const field of fields) {
       const winnerIds = new Set(

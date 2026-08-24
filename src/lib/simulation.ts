@@ -11,7 +11,7 @@ import {
   VOLATILITY_MODIFIER,
 } from './calibration'
 import { calculateRunPrevention } from './run-prevention'
-import { projectWins } from './game'
+import { projectWins } from './win-curve'
 import { lineupPlayers, lineupToSeed as buildLineupSeed, getActiveLineupPositions } from './roster-format'
 import { getBattingRatings } from './player-ratings'
 import { blendedPitchingRating } from './pitching-contributors'

@@ -99,12 +99,12 @@ A deep season-simulation mode where the user drafts a **25-man roster** (current
 
 **Route:** `/sim162` · **Plan:** `docs/plans/sim162-mode.md` · **Migration:** `0003_sim162.sql`
 
-### Architecture — hybrid compute
+### Architecture — all-PA seasons (ADR-0003)
 
-- **User's 162 games** → roster-aware PA-sim (`simulateGameRoster` in `shared/live/pa-sim.ts`) → real box scores + marquee broadcasts. ~70ms.
-- **Other 29 teams' seasons** → coarse win-prob sim (`shared/live/league-standings.ts`) → standings only. <10ms.
-- **Playoff bracket** → 12-team field derived from standings; user's series PA-simmed, others advanced coarsely.
+- **All 2,430 games** → PA-sim through the count-based pitch engine (`buildSim162Season` in `shared/live/sim162-season.ts`); standings come from real results. ~350 ms per season.
+- **Playoff bracket** → 12-team field from those standings; every series, user or not, is PA-simmed with full box scores.
 - **Opponent rosters** built from the same player pool filtered by franchise.
+- `shared/live/league-standings.ts` now only owns the team registry, schedule generation, and playoff seeding — its coarse win-probability model was removed once all-PA seasons landed.
 
 ### Key modules
 
@@ -113,7 +113,7 @@ A deep season-simulation mode where the user drafts a **25-man roster** (current
 | `shared/live/roster25.ts` | 25-man roster format + eligibility |
 | `shared/live/sim162-draft.ts` | Solo draft state (quota-enforced, no AI) |
 | `shared/live/pa-sim.ts` | Extended with `RosterSimTeam`, `simulateGameRoster` (rotation, bullpen-by-leverage, bench PH) |
-| `shared/live/league-standings.ts` | Coarse 30-team standings + playoff seeding |
+| `shared/live/league-standings.ts` | Team registry + schedule generation + playoff seeding |
 | `shared/live/sim162-season.ts` | `buildSim162Season` — 162 PA-sim games + standings + bracket + marquee selection |
 | `src/lib/classic-live-adapter.ts` | `Player → LivePlayer` adapter for the legends pool |
 | `src/lib/sim162-snapshot.ts` | Pool chooser (live MLB / legends) |
