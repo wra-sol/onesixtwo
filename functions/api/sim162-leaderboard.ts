@@ -4,122 +4,16 @@ import {
   fetchSim162LeaderboardEntries,
   hasSim162SubmissionForIp,
   insertSim162LeaderboardEntry,
+  parseSim162SubmitPayload,
   SIM162_LEADERBOARD_MAX,
-  type Sim162Pool,
 } from '../_lib/sim162-leaderboard'
-import {
-  normalizeInitials,
-  SUBMIT_ERROR_MESSAGES,
-} from '../_lib/leaderboard'
+import { newEntryIdentity, leaderboardGet, routeLeaderboard, submissionPost } from '../_lib/submission-pipeline'
 import { verifySim162Submission } from '../_lib/sim162-verify'
 import { seasonSeedSimSeed } from '../../shared/live/seeds'
-import {
-  SIM162_BATTING_ORDER_SIZE,
-  SIM162_ROTATION_SIZE,
-  SIM162_ROSTER_SIZE,
-} from '../../src/lib/sim162-share-url'
-import { jsonResponse, clientIp, type PagesContext } from '../_lib/http'
+import { jsonResponse, type PagesContext } from '../_lib/http'
 
 
-type Sim162SubmitBody = {
-  pool: unknown
-  initials: unknown
-  challengeDate: unknown
-  playerIds: unknown
-  battingOrderIds: unknown
-  rotationOrderIds: unknown
-}
-
-type ParsedSim162Submit =
-  | {
-      ok: true
-      pool: Sim162Pool
-      challengeDate: string
-      playerIds: string[]
-      battingOrderIds: string[]
-      rotationOrderIds: string[]
-    }
-  | { ok: false; error: string }
-
-/**
- * Structural validation only. Claimed results (wins/losses/postseason) are
- * not part of the submission contract — the server derives them by re-sim.
- */
-function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
-  if (!body || typeof body !== 'object') {
-    return { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json }
-  }
-
-  const record = body as Sim162SubmitBody
-
-  const pool = record.pool
-  if (pool !== 'live' && pool !== 'legends') {
-    return { ok: false, error: 'Invalid pool.' }
-  }
-
-  const challengeDate =
-    typeof record.challengeDate === 'string' ? record.challengeDate.trim() : ''
-  if (!challengeDate) {
-    return { ok: false, error: 'Missing challenge date.' }
-  }
-
-  const playerIds = record.playerIds
-  if (
-    !Array.isArray(playerIds) ||
-    playerIds.length !== SIM162_ROSTER_SIZE ||
-    !playerIds.every((id) => typeof id === 'string' && id.length > 0)
-  ) {
-    return { ok: false, error: `Roster must include ${SIM162_ROSTER_SIZE} players.` }
-  }
-
-  const seen = new Set<string>()
-  for (const id of playerIds) {
-    if (seen.has(id)) {
-      return { ok: false, error: 'Roster has duplicate players.' }
-    }
-    seen.add(id)
-  }
-
-  const battingOrderIds = record.battingOrderIds
-  if (
-    !Array.isArray(battingOrderIds) ||
-    battingOrderIds.length !== SIM162_BATTING_ORDER_SIZE ||
-    !battingOrderIds.every((id) => typeof id === 'string' && id.length > 0)
-  ) {
-    return {
-      ok: false,
-      error: `Batting order must include ${SIM162_BATTING_ORDER_SIZE} players.`,
-    }
-  }
-
-  const rotationOrderIds = record.rotationOrderIds
-  if (
-    !Array.isArray(rotationOrderIds) ||
-    rotationOrderIds.length !== SIM162_ROTATION_SIZE ||
-    !rotationOrderIds.every((id) => typeof id === 'string' && id.length > 0)
-  ) {
-    return {
-      ok: false,
-      error: `Rotation must include ${SIM162_ROTATION_SIZE} pitchers.`,
-    }
-  }
-
-  return {
-    ok: true,
-    pool,
-    challengeDate,
-    playerIds: playerIds as string[],
-    battingOrderIds: battingOrderIds as string[],
-    rotationOrderIds: rotationOrderIds as string[],
-  }
-}
-
-async function handleGet(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ error: 'Leaderboard unavailable.' }, 503)
-  }
-
+async function handleGet(db: D1Database): Promise<Response> {
   const entries = await fetchSim162LeaderboardEntries(
     db,
     SIM162_LEADERBOARD_MAX,
@@ -127,38 +21,19 @@ async function handleGet(context: PagesContext): Promise<Response> {
   return jsonResponse({ entries })
 }
 
-async function handlePost(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ ok: false, error: 'Leaderboard unavailable.' }, 503)
-  }
-
-  let body: unknown
-  try {
-    body = await context.request.json()
-  } catch {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json },
-      400,
-    )
-  }
-
-  const parsed = parseSim162SubmitPayload(body)
-  if (!parsed.ok) {
-    return jsonResponse({ ok: false, error: parsed.error }, 400)
-  }
-
-  const initials = normalizeInitials(
-    (body as { initials?: unknown }).initials,
-  )
-  if (!initials) {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_initials },
-      400,
-    )
-  }
-
-  const submitterIp = clientIp(context.request)
+async function handlePost(
+  db: D1Database,
+  context: PagesContext,
+  payload: {
+    pool: 'live' | 'legends'
+    challengeDate: string
+    playerIds: string[]
+    battingOrderIds: string[]
+    rotationOrderIds: string[]
+  },
+  initials: string,
+  submitterIp: string,
+): Promise<Response> {
   const alreadySubmitted = await hasSim162SubmissionForIp(db, submitterIp)
   if (alreadySubmitted) {
     return jsonResponse(
@@ -176,11 +51,11 @@ async function handlePost(context: PagesContext): Promise<Response> {
   // never stored.
   const verified = await verifySim162Submission(
     {
-      pool: parsed.pool,
-      challengeDate: parsed.challengeDate,
-      playerIds: parsed.playerIds,
-      battingOrderIds: parsed.battingOrderIds,
-      rotationOrderIds: parsed.rotationOrderIds,
+      pool: payload.pool,
+      challengeDate: payload.challengeDate,
+      playerIds: payload.playerIds,
+      battingOrderIds: payload.battingOrderIds,
+      rotationOrderIds: payload.rotationOrderIds,
     },
     context.env,
   )
@@ -188,22 +63,22 @@ async function handlePost(context: PagesContext): Promise<Response> {
     return jsonResponse({ ok: false, error: verified.error }, 400)
   }
 
-  const lineupKey = buildSim162LineupKey(parsed.pool, parsed.playerIds)
-  const createdAt = Date.now()
+  const lineupKey = buildSim162LineupKey(payload.pool, payload.playerIds)
+  const identity = newEntryIdentity()
 
-  const payloadJson = JSON.stringify({
-    pool: parsed.pool,
-    challengeDate: parsed.challengeDate,
-    playerIds: parsed.playerIds,
-    battingOrderIds: parsed.battingOrderIds,
-    rotationOrderIds: parsed.rotationOrderIds,
+  const storedPayload = JSON.stringify({
+    pool: payload.pool,
+    challengeDate: payload.challengeDate,
+    playerIds: payload.playerIds,
+    battingOrderIds: payload.battingOrderIds,
+    rotationOrderIds: payload.rotationOrderIds,
     simSeed: seasonSeedSimSeed(verified.seasonSeed),
     initials,
   })
 
   await insertSim162LeaderboardEntry(db, {
-    id: crypto.randomUUID(),
-    pool: parsed.pool,
+    id: identity.id,
+    pool: payload.pool,
     initials,
     wins: verified.wins,
     losses: verified.losses,
@@ -212,16 +87,16 @@ async function handlePost(context: PagesContext): Promise<Response> {
     wonWorldSeries: verified.wonWorldSeries,
     userQualified: verified.userQualified,
     lineupKey,
-    payloadJson,
+    payloadJson: storedPayload,
     submitterIp,
-    createdAt,
+    createdAt: identity.createdAt,
   })
 
   const rank = await computeSim162Rank(db, {
     wonWorldSeries: verified.wonWorldSeries,
     wins: verified.wins,
     postseasonRank: verified.postseasonRank,
-    createdAt,
+    createdAt: identity.createdAt,
   })
 
   return jsonResponse({
@@ -237,11 +112,22 @@ async function handlePost(context: PagesContext): Promise<Response> {
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {
-  if (context.request.method === 'GET') {
-    return handleGet(context)
-  }
-  if (context.request.method === 'POST') {
-    return handlePost(context)
-  }
-  return new Response('Method not allowed', { status: 405 })
+  return routeLeaderboard(context, {
+    get: () => leaderboardGet(context, handleGet),
+    post: () =>
+      submissionPost(context, {
+        parsePayload: (body) => {
+          const parsed = parseSim162SubmitPayload(body)
+          return parsed.ok
+            ? { ok: true as const, value: parsed }
+            : { ok: false as const, error: parsed.error }
+        },
+        initialsOf: (_, body) =>
+          typeof (body as { initials?: unknown }).initials === 'string'
+            ? ((body as { initials: string }).initials)
+            : '',
+        process: ({ db, context, payload, initials, submitterIp }) =>
+          handlePost(db, context, payload, initials, submitterIp),
+      }),
+  })
 }

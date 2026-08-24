@@ -14,16 +14,17 @@ import {
   startOfUtcDayMs,
   SUBMIT_ERROR_MESSAGES,
 } from '../_lib/leaderboard'
+import { newEntryIdentity, leaderboardGet, routeLeaderboard, submissionPost } from '../_lib/submission-pipeline'
 import type { ParsedShare } from '../../src/lib/share-url'
-import { jsonResponse, clientIp, type PagesContext } from '../_lib/http'
+import { jsonResponse, type PagesContext } from '../_lib/http'
+
+type ClassicSubmitPayload = Exclude<
+  ReturnType<typeof parseSubmitPayload>,
+  string
+>
 
 
-async function handleGet(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ error: 'Leaderboard unavailable.' }, 503)
-  }
-
+async function handleGet(db: D1Database, context: PagesContext): Promise<Response> {
   const url = new URL(context.request.url)
   const period = parseLeaderboardPeriod(url.searchParams.get('period'))
   if (!period) {
@@ -39,30 +40,11 @@ async function handleGet(context: PagesContext): Promise<Response> {
   })
 }
 
-async function handlePost(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ ok: false, error: 'Leaderboard unavailable.' }, 503)
-  }
-
-  let body: unknown
-  try {
-    body = await context.request.json()
-  } catch {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json },
-      400,
-    )
-  }
-
-  const payload = parseSubmitPayload(body)
-  if (typeof payload === 'string') {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES[payload] },
-      400,
-    )
-  }
-
+async function handlePost(
+  db: D1Database,
+  payload: ClassicSubmitPayload,
+  submitterIp: string,
+): Promise<Response> {
   const parsed: ParsedShare = {
     playerIds: payload.playerIds,
     rosterFormatId: payload.rosterFormatId,
@@ -80,7 +62,6 @@ async function handlePost(context: PagesContext): Promise<Response> {
   }
 
   const now = Date.now()
-  const submitterIp = clientIp(context.request)
   const dayStart = startOfUtcDayMs(now)
 
   const submissionCount = await countSubmissionsSince(db, submitterIp, dayStart)
@@ -104,9 +85,8 @@ async function handlePost(context: PagesContext): Promise<Response> {
   }
 
   const { result } = resolved
-  const createdAt = now
   const entry = {
-    id: crypto.randomUUID(),
+    ...newEntryIdentity(),
     initials: payload.initials,
     wins: result.wins,
     losses: result.losses,
@@ -116,7 +96,6 @@ async function handlePost(context: PagesContext): Promise<Response> {
     lineupKey,
     sharePath: buildSharePath(parsed),
     submitterIp,
-    createdAt,
   }
 
   await insertLeaderboardEntry(db, entry)
@@ -126,7 +105,7 @@ async function handlePost(context: PagesContext): Promise<Response> {
     losses: entry.losses,
     teamScore: entry.teamScore,
     createdAt: entry.createdAt,
-  }, now)
+  }, entry.createdAt)
 
   return jsonResponse({
     ok: true,
@@ -136,11 +115,19 @@ async function handlePost(context: PagesContext): Promise<Response> {
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {
-  if (context.request.method === 'GET') {
-    return handleGet(context)
-  }
-  if (context.request.method === 'POST') {
-    return handlePost(context)
-  }
-  return new Response('Method not allowed', { status: 405 })
+  return routeLeaderboard(context, {
+    get: () => leaderboardGet(context, handleGet),
+    post: () =>
+      submissionPost(context, {
+        parsePayload: (body) => {
+          const parsed = parseSubmitPayload(body)
+          if (typeof parsed === 'string') {
+            return { ok: false as const, error: SUBMIT_ERROR_MESSAGES[parsed] }
+          }
+          return { ok: true as const, value: parsed }
+        },
+        process: async ({ db, payload, submitterIp }) =>
+          handlePost(db, payload, submitterIp),
+      }),
+  })
 }

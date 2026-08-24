@@ -7,31 +7,22 @@ import {
   LIVE_LEADERBOARD_MAX,
 } from '../_lib/live-leaderboard'
 import {
-  normalizeInitials,
-  SUBMIT_ERROR_MESSAGES,
-} from '../_lib/leaderboard'
-import {
   assertDailyMatchupSnapshot,
   assertLiveDraftSnapshot,
   parseLiveSubmitPayload,
-  resolveSnapshot,
 } from '../_lib/live/leaderboard-orchestration'
+import { resolveAndCacheSnapshot } from '../_lib/live/resolve-snapshot'
+import { newEntryIdentity, leaderboardGet, routeLeaderboard, submissionPost } from '../_lib/submission-pipeline'
 import { simulateLineupSeries, resolveLiveShareOpponent } from '../../shared/live/live-share-sim'
+import type { LiveSubmitPayload } from '../../shared/live/live-types'
 import {
   validateDailyMatchupSubmission,
   validateLiveDraftSubmission,
 } from '../../shared/live/live-submit-validation'
-import { jsonResponse, clientIp, type PagesContext } from '../_lib/http'
+import { jsonResponse, type PagesContext } from '../_lib/http'
 
 
-
-
-async function handleGet(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ error: 'Leaderboard unavailable.' }, 503)
-  }
-
+async function handleGet(db: D1Database, context: PagesContext): Promise<Response> {
   const url = new URL(context.request.url)
   const mode = url.searchParams.get('mode')
   const challengeDate = url.searchParams.get('date')
@@ -44,7 +35,10 @@ async function handleGet(context: PagesContext): Promise<Response> {
 
   let snapshot
   try {
-    snapshot = await resolveSnapshot(mode, challengeDate, db, context.env)
+    snapshot = await resolveAndCacheSnapshot(mode, challengeDate, {
+      ...context.env,
+      DB: db,
+    })
   } catch {
     return jsonResponse({ error: 'Could not load snapshot.' }, 503)
   }
@@ -59,44 +53,19 @@ async function handleGet(context: PagesContext): Promise<Response> {
   return jsonResponse({ mode, challengeDate, entries })
 }
 
-async function handlePost(context: PagesContext): Promise<Response> {
-  const db = context.env.DB
-  if (!db) {
-    return jsonResponse({ ok: false, error: 'Leaderboard unavailable.' }, 503)
-  }
-
-  let body: unknown
-  try {
-    body = await context.request.json()
-  } catch {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json },
-      400,
-    )
-  }
-
-  const parsed = parseLiveSubmitPayload(body)
-  if ('error' in parsed) {
-    return jsonResponse({ ok: false, error: parsed.error }, 400)
-  }
-
-  const payload = parsed
-  const initials = normalizeInitials(payload.initials)
-  if (!initials) {
-    return jsonResponse(
-      { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_initials },
-      400,
-    )
-  }
-
+async function handlePost(
+  db: D1Database,
+  context: PagesContext,
+  payload: LiveSubmitPayload,
+  initials: string,
+  submitterIp: string,
+): Promise<Response> {
   let snapshot
   try {
-    snapshot = await resolveSnapshot(
-      payload.mode,
-      payload.challengeDate,
-      db,
-      context.env,
-    )
+    snapshot = await resolveAndCacheSnapshot(payload.mode, payload.challengeDate, {
+      ...context.env,
+      DB: db,
+    })
   } catch {
     return jsonResponse(
       { ok: false, error: 'Could not load snapshot for validation.' },
@@ -151,7 +120,6 @@ async function handlePost(context: PagesContext): Promise<Response> {
     simSeed,
   )
 
-  const submitterIp = clientIp(context.request)
   const alreadySubmitted = await hasLiveSubmissionForIp(
     db,
     submitterIp,
@@ -174,9 +142,8 @@ async function handlePost(context: PagesContext): Promise<Response> {
     payload.challengeDate,
     payload.playerIds,
   )
-  const createdAt = Date.now()
   const entry = {
-    id: crypto.randomUUID(),
+    ...newEntryIdentity(),
     mode: payload.mode,
     challengeDate: payload.challengeDate,
     targetDate: payload.targetDate,
@@ -190,7 +157,6 @@ async function handlePost(context: PagesContext): Promise<Response> {
     lineupKey,
     payloadJson: JSON.stringify({ ...payload, initials, simSeed }),
     submitterIp,
-    createdAt,
   }
 
   await insertLiveLeaderboardEntry(db, entry)
@@ -201,18 +167,26 @@ async function handlePost(context: PagesContext): Promise<Response> {
     seriesWins: series.userWins,
     runDiff: series.userRunDiff,
     userRuns: series.userRuns,
-    createdAt,
+    createdAt: entry.createdAt,
   })
 
   return jsonResponse({ ok: true, rank, series, ranked: true })
 }
 
 export async function onRequest(context: PagesContext): Promise<Response> {
-  if (context.request.method === 'GET') {
-    return handleGet(context)
-  }
-  if (context.request.method === 'POST') {
-    return handlePost(context)
-  }
-  return new Response('Method not allowed', { status: 405 })
+  return routeLeaderboard(context, {
+    get: () => leaderboardGet(context, handleGet),
+    post: () =>
+      submissionPost(context, {
+        parsePayload: (body) => {
+          const parsed = parseLiveSubmitPayload(body)
+          return 'error' in parsed
+            ? { ok: false as const, error: parsed.error }
+            : { ok: true as const, value: parsed }
+        },
+        initialsOf: (payload) => payload.initials,
+        process: ({ db, context, payload, initials, submitterIp }) =>
+          handlePost(db, context, payload, initials, submitterIp),
+      }),
+  })
 }

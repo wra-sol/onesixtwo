@@ -168,41 +168,7 @@ export function parseSubmitPayload(
   }
 }
 
-export function compareLeaderboardRows(
-  a: Pick<
-    LeaderboardEntryRow,
-    'wins' | 'losses' | 'teamScore' | 'createdAt'
-  >,
-  b: Pick<
-    LeaderboardEntryRow,
-    'wins' | 'losses' | 'teamScore' | 'createdAt'
-  >,
-): number {
-  if (a.wins !== b.wins) return b.wins - a.wins
-  if (a.losses !== b.losses) return a.losses - b.losses
-  if (a.teamScore !== b.teamScore) return b.teamScore - a.teamScore
-  return a.createdAt - b.createdAt
-}
-
 export const CLASSIC_ORDER_BY = orderBySql(CLASSIC_RANK_KEYS)
-
-export function rankForEntry(
-  entry: Pick<
-    LeaderboardEntryRow,
-    'wins' | 'losses' | 'teamScore' | 'createdAt'
-  >,
-  entries: Array<
-    Pick<LeaderboardEntryRow, 'wins' | 'losses' | 'teamScore' | 'createdAt'>
-  >,
-): number {
-  let rank = 1
-  for (const other of entries) {
-    if (compareLeaderboardRows(entry, other) > 0) {
-      rank += 1
-    }
-  }
-  return rank
-}
 
 type DbRow = {
   initials: string

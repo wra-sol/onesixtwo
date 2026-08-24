@@ -1,6 +1,9 @@
 import type { PostseasonResult } from '../../shared/live/sim162-season'
 import {
   buildSim162SharePath,
+  SIM162_BATTING_ORDER_SIZE,
+  SIM162_ROTATION_SIZE,
+  SIM162_ROSTER_SIZE,
   type Sim162LeaderboardEntryRow,
   type Sim162Pool,
   type Sim162ShareInput,
@@ -12,6 +15,7 @@ import {
   orderBySql,
   type RankKey,
 } from './leaderboard-core'
+import { SUBMIT_ERROR_MESSAGES } from './leaderboard'
 
 export type { Sim162LeaderboardEntryRow, Sim162Pool, Sim162ShareInput }
 
@@ -183,4 +187,97 @@ export async function computeSim162Rank(
     entry,
     createdAt: entry.createdAt,
   })
+}
+
+type Sim162SubmitBody = {
+  pool: unknown
+  initials: unknown
+  challengeDate: unknown
+  playerIds: unknown
+  battingOrderIds: unknown
+  rotationOrderIds: unknown
+}
+
+export type ParsedSim162Submit =
+  | {
+      ok: true
+      pool: Sim162Pool
+      challengeDate: string
+      playerIds: string[]
+      battingOrderIds: string[]
+      rotationOrderIds: string[]
+    }
+  | { ok: false; error: string }
+
+/**
+ * Structural validation only. Claimed results (wins/losses/postseason) are
+ * not part of the submission contract — the server derives them by re-sim.
+ */
+export function parseSim162SubmitPayload(body: unknown): ParsedSim162Submit {
+  if (!body || typeof body !== 'object') {
+    return { ok: false, error: SUBMIT_ERROR_MESSAGES.invalid_json }
+  }
+
+  const record = body as Sim162SubmitBody
+
+  const pool = record.pool
+  if (pool !== 'live' && pool !== 'legends') {
+    return { ok: false, error: 'Invalid pool.' }
+  }
+
+  const challengeDate =
+    typeof record.challengeDate === 'string' ? record.challengeDate.trim() : ''
+  if (!challengeDate) {
+    return { ok: false, error: 'Missing challenge date.' }
+  }
+
+  const playerIds = record.playerIds
+  if (
+    !Array.isArray(playerIds) ||
+    playerIds.length !== SIM162_ROSTER_SIZE ||
+    !playerIds.every((id) => typeof id === 'string' && id.length > 0)
+  ) {
+    return { ok: false, error: `Roster must include ${SIM162_ROSTER_SIZE} players.` }
+  }
+
+  const seen = new Set<string>()
+  for (const id of playerIds) {
+    if (seen.has(id)) {
+      return { ok: false, error: 'Roster has duplicate players.' }
+    }
+    seen.add(id)
+  }
+
+  const battingOrderIds = record.battingOrderIds
+  if (
+    !Array.isArray(battingOrderIds) ||
+    battingOrderIds.length !== SIM162_BATTING_ORDER_SIZE ||
+    !battingOrderIds.every((id) => typeof id === 'string' && id.length > 0)
+  ) {
+    return {
+      ok: false,
+      error: `Batting order must include ${SIM162_BATTING_ORDER_SIZE} players.`,
+    }
+  }
+
+  const rotationOrderIds = record.rotationOrderIds
+  if (
+    !Array.isArray(rotationOrderIds) ||
+    rotationOrderIds.length !== SIM162_ROTATION_SIZE ||
+    !rotationOrderIds.every((id) => typeof id === 'string' && id.length > 0)
+  ) {
+    return {
+      ok: false,
+      error: `Rotation must include ${SIM162_ROTATION_SIZE} pitchers.`,
+    }
+  }
+
+  return {
+    ok: true,
+    pool,
+    challengeDate,
+    playerIds: playerIds as string[],
+    battingOrderIds: battingOrderIds as string[],
+    rotationOrderIds: rotationOrderIds as string[],
+  }
 }

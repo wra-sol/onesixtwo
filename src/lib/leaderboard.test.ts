@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildLineupKey,
-  compareLeaderboardRows,
   normalizeInitials,
   parseLeaderboardPeriod,
   parseLimit,
   parseSubmitPayload,
   periodStartMs,
-  rankForEntry,
   startOfRollingDayMs,
   startOfUtcDayMs,
   startOfUtcWeekMs,
@@ -95,20 +93,6 @@ describe('leaderboard server helpers', () => {
     expect(buildLineupKey(parsed.playerIds, 'classic')).toBe(
       buildLineupKey(reversed, 'classic'),
     )
-  })
-
-  it('ranks entries by wins, losses, rating, then time', () => {
-    const entries = [
-      { wins: 120, losses: 42, teamScore: 88, createdAt: 10 },
-      { wins: 130, losses: 32, teamScore: 90, createdAt: 20 },
-      { wins: 130, losses: 32, teamScore: 90, createdAt: 5 },
-    ]
-
-    expect(
-      compareLeaderboardRows(entries[1]!, entries[0]!),
-    ).toBeLessThan(0)
-    expect(rankForEntry(entries[2]!, entries)).toBe(1)
-    expect(rankForEntry(entries[1]!, entries)).toBe(2)
   })
 })
 
