@@ -9,10 +9,12 @@ import {
 import { buildDailyMatchupSnapshot } from './daily-matchup-snapshot'
 import { buildLiveDraftSnapshot } from './live-draft-snapshot'
 import { buildSim162LiveSnapshot } from './sim162-live-snapshot'
+import { httpMlbSource } from './mlb-source'
 import {
   buildSnapshotCacheKey,
   getStoredSnapshot,
   storeSnapshot,
+  type SnapshotKind,
 } from './snapshot-cache'
 
 export type ResolveSnapshotEnv = {
@@ -20,22 +22,31 @@ export type ResolveSnapshotEnv = {
   USE_LIVE_FIXTURES?: string
 }
 
-export async function resolveAndCacheSnapshot(
-  mode: LiveModeId,
+function fixturesEnabled(env: ResolveSnapshotEnv): boolean {
+  return env.USE_LIVE_FIXTURES === 'true'
+}
+
+/**
+ * The one read-through cache body: cache key → stored snapshot → build →
+ * store. Every snapshot kind resolves through this single implementation.
+ */
+async function readThroughCache<T>(
+  kind: SnapshotKind,
   challengeDate: string,
   env: ResolveSnapshotEnv,
-): Promise<LiveSnapshot> {
+  build: () => Promise<T>,
+): Promise<T> {
   const db = env.DB
-  const key = buildSnapshotCacheKey(mode, challengeDate)
+  const key = buildSnapshotCacheKey(kind, challengeDate)
 
   if (db) {
     const stored = await getStoredSnapshot(db, key)
     if (stored) {
-      return JSON.parse(stored) as LiveSnapshot
+      return JSON.parse(stored) as T
     }
   }
 
-  const snapshot = await buildSnapshotForMode(mode, challengeDate, env)
+  const snapshot = await build()
 
   if (db) {
     await storeSnapshot(db, key, JSON.stringify(snapshot))
@@ -44,22 +55,25 @@ export async function resolveAndCacheSnapshot(
   return snapshot
 }
 
-async function buildSnapshotForMode(
+export function resolveAndCacheSnapshot(
   mode: LiveModeId,
   challengeDate: string,
   env: ResolveSnapshotEnv,
 ): Promise<LiveSnapshot> {
-  if (env.USE_LIVE_FIXTURES === 'true') {
-    if (mode === 'daily-matchup') {
-      return buildFixtureDailyMatchupSnapshot(challengeDate, targetDate())
+  return readThroughCache(mode, challengeDate, env, async () => {
+    if (fixturesEnabled(env)) {
+      if (mode === 'daily-matchup') {
+        return buildFixtureDailyMatchupSnapshot(challengeDate, targetDate())
+      }
+      return buildFixtureLiveDraftSnapshot(challengeDate)
     }
-    return buildFixtureLiveDraftSnapshot(challengeDate)
-  }
 
-  if (mode === 'daily-matchup') {
-    return buildDailyMatchupSnapshot(challengeDate, targetDate())
-  }
-  return buildLiveDraftSnapshot(challengeDate)
+    const source = httpMlbSource()
+    if (mode === 'daily-matchup') {
+      return buildDailyMatchupSnapshot(challengeDate, targetDate(), source)
+    }
+    return buildLiveDraftSnapshot(challengeDate, source)
+  })
 }
 
 /**
@@ -67,35 +81,19 @@ async function buildSnapshotForMode(
  * live pool. It shares its player pool with the live-draft snapshot but
  * carries its own seed, so it is cached under its own key.
  */
-export async function resolveSim162LiveSnapshot(
+export function resolveSim162LiveSnapshot(
   challengeDate: string,
   env: ResolveSnapshotEnv,
 ): Promise<Sim162Snapshot> {
-  const db = env.DB
-  const key = buildSnapshotCacheKey('sim162-live', challengeDate)
-
-  if (db) {
-    const stored = await getStoredSnapshot(db, key)
-    if (stored) {
-      return JSON.parse(stored) as Sim162Snapshot
+  return readThroughCache('sim162-live', challengeDate, env, async () => {
+    if (fixturesEnabled(env)) {
+      const draft = buildFixtureLiveDraftSnapshot(challengeDate)
+      return {
+        kind: 'sim162-live',
+        players: draft.players,
+        simSeed: sim162LiveSnapshotSeed(challengeDate),
+      }
     }
-  }
-
-  let snapshot: Sim162Snapshot
-  if (env.USE_LIVE_FIXTURES === 'true') {
-    const draft = buildFixtureLiveDraftSnapshot(challengeDate)
-    snapshot = {
-      kind: 'sim162-live',
-      players: draft.players,
-      simSeed: sim162LiveSnapshotSeed(challengeDate),
-    }
-  } else {
-    snapshot = await buildSim162LiveSnapshot(challengeDate)
-  }
-
-  if (db) {
-    await storeSnapshot(db, key, JSON.stringify(snapshot))
-  }
-
-  return snapshot
+    return buildSim162LiveSnapshot(challengeDate, httpMlbSource())
+  })
 }

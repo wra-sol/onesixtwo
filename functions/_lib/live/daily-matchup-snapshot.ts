@@ -9,19 +9,11 @@ import {
   selectHighestScoringTeam,
   type RawPlayerInput,
 } from '../../../shared/live/live-mlb-mapper'
-import {
-  fetchBoxscore,
-  fetchSchedule,
-  fetchSeasonStatsBatched,
-  getCachedSeasonStats,
-  mapWithConcurrency,
-  seasonFromDate,
-  type BoxTeam,
-  type MlbScheduleGame,
-  type SeasonStatsCache,
-} from './mlb-client'
-import { mapPosition, parseHitterStats, parsePitcherStats } from './mlb-parsers'
-import { buildRawFromRoster, ROSTER_CONCURRENCY } from './player-pool'
+import type { BoxTeam, SeasonStatsCache } from './mlb-client'
+import { mapWithConcurrency, seasonFromDate } from './mlb-client'
+import { batchSeasonStats, type MlbDataSource } from './mlb-source'
+import { mapPosition } from './mlb-parsers'
+import { buildRawFromRoster, ROSTER_CONCURRENCY, statsFromCache } from './player-pool'
 import {
   dailyMatchupSnapshotSeed,
   unavailableDailySnapshotSeed,
@@ -77,23 +69,24 @@ function buildOpponentRosterFromBox(
 }
 
 async function buildOpponentRawFromBox(
+  source: MlbDataSource,
   opponentSide: BoxTeam,
   topTeam: { teamId: number; teamAbbrev: string; teamName: string },
   season: number,
-  statsCache: Map<string, Awaited<ReturnType<typeof import('./mlb-client').fetchSeasonStats>>>,
+  statsCache: SeasonStatsCache,
 ): Promise<RawPlayerInput[]> {
   const ids = [
     ...(opponentSide.batters ?? []),
     ...(opponentSide.pitchers ?? []),
   ]
-  await fetchSeasonStatsBatched(ids, season, statsCache)
+  await batchSeasonStats(source, ids, season, statsCache)
 
   const opponentRaw: RawPlayerInput[] = []
   for (const id of opponentSide.batters ?? []) {
     const entry = opponentSide.players[`ID${id}`]
     if (!entry) continue
-    const { hitterSplit, pitcherSplit } = getCachedSeasonStats(id, season, statsCache)
     const isPitcher = entry.position.abbreviation === 'P'
+    const { hitterStats, pitcherStats } = statsFromCache(id, season, statsCache)
     opponentRaw.push({
       personId: id,
       name: entry.person.fullName,
@@ -102,8 +95,8 @@ async function buildOpponentRawFromBox(
       teamName: topTeam.teamName,
       positions: mapPosition(entry.position.code),
       role: isPitcher ? 'pitcher' : 'hitter',
-      hitterStats: parseHitterStats(hitterSplit) ?? undefined,
-      pitcherStats: parsePitcherStats(pitcherSplit) ?? undefined,
+      hitterStats,
+      pitcherStats,
       appearedOnTargetDate: true,
       isFallback: false,
     })
@@ -112,7 +105,7 @@ async function buildOpponentRawFromBox(
     if (opponentRaw.some((p) => p.personId === id)) continue
     const entry = opponentSide.players[`ID${id}`]
     if (!entry) continue
-    const { pitcherSplit } = getCachedSeasonStats(id, season, statsCache)
+    const { pitcherStats } = statsFromCache(id, season, statsCache)
     opponentRaw.push({
       personId: id,
       name: entry.person.fullName,
@@ -121,7 +114,7 @@ async function buildOpponentRawFromBox(
       teamName: topTeam.teamName,
       positions: ['P'],
       role: 'pitcher',
-      pitcherStats: parsePitcherStats(pitcherSplit) ?? undefined,
+      pitcherStats,
       appearedOnTargetDate: true,
       isFallback: false,
     })
@@ -132,9 +125,10 @@ async function buildOpponentRawFromBox(
 export async function buildDailyMatchupSnapshot(
   challengeDate: string,
   targetDate: string,
+  source: MlbDataSource,
 ): Promise<DailyMatchupSnapshot> {
   const season = seasonFromDate(targetDate)
-  const schedule = await fetchSchedule(targetDate)
+  const schedule = await source.schedule(targetDate)
   const games =
     schedule.dates?.[0]?.games?.filter(
       (g) => g.status.abstractGameState === 'Final',
@@ -166,10 +160,10 @@ export async function buildDailyMatchupSnapshot(
   }> = []
 
   const appearedByTeam = new Map<number, Set<number>>()
-  const boxscoreByGame = new Map<number, Awaited<ReturnType<typeof fetchBoxscore>>>()
+  const boxscoreByGame = new Map<number, Awaited<ReturnType<typeof source.boxscore>>>()
 
   for (const game of games) {
-    const box = await fetchBoxscore(game.gamePk)
+    const box = await source.boxscore(game.gamePk)
     boxscoreByGame.set(game.gamePk, box)
     for (const [side, teamBox] of [
       ['away', box.teams.away] as const,
@@ -221,6 +215,7 @@ export async function buildDailyMatchupSnapshot(
     async (teamId) => {
       const sample = teamScores.find((t) => t.teamId === teamId)!
       return buildRawFromRoster({
+        source,
         teamId,
         teamAbbrev: sample.teamAbbrev,
         teamName: sample.teamName,
@@ -245,6 +240,7 @@ export async function buildDailyMatchupSnapshot(
       async (teamId) => {
         const sample = teamScores.find((t) => t.teamId === teamId)!
         return buildRawFromRoster({
+          source,
           teamId,
           teamAbbrev: sample.teamAbbrev,
           teamName: sample.teamName,
@@ -267,6 +263,7 @@ export async function buildDailyMatchupSnapshot(
     : opponentBox.teams.away
 
   const opponentRaw = await buildOpponentRawFromBox(
+    source,
     opponentSide,
     topTeam,
     season,
@@ -290,5 +287,3 @@ export async function buildDailyMatchupSnapshot(
     simSeed: dailyMatchupSnapshotSeed(challengeDate, targetDate, topTeam.teamId),
   }
 }
-
-export type { MlbScheduleGame }

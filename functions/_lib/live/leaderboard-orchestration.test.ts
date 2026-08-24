@@ -3,8 +3,8 @@ import {
   assertDailyMatchupSnapshot,
   assertLiveDraftSnapshot,
   parseLiveSubmitPayload,
-  resolveSnapshot,
 } from './leaderboard-orchestration'
+import { resolveAndCacheSnapshot } from './resolve-snapshot'
 
 describe('parseLiveSubmitPayload', () => {
   it('accepts daily-matchup payload with targetDate', () => {
@@ -73,23 +73,17 @@ describe('parseLiveSubmitPayload', () => {
   })
 })
 
-describe('resolveSnapshot', () => {
+describe('resolveAndCacheSnapshot', () => {
   it('returns fixture snapshots when USE_LIVE_FIXTURES is true', async () => {
-    const daily = await resolveSnapshot(
-      'daily-matchup',
-      '2026-06-25',
-      undefined,
-      { USE_LIVE_FIXTURES: 'true' },
-    )
+    const daily = await resolveAndCacheSnapshot('daily-matchup', '2026-06-25', {
+      USE_LIVE_FIXTURES: 'true',
+    })
     expect(daily.kind).toBe('daily-matchup')
     expect(assertDailyMatchupSnapshot(daily)).toBe(true)
 
-    const draft = await resolveSnapshot(
-      'live-draft',
-      '2026-06-25',
-      undefined,
-      { USE_LIVE_FIXTURES: 'true' },
-    )
+    const draft = await resolveAndCacheSnapshot('live-draft', '2026-06-25', {
+      USE_LIVE_FIXTURES: 'true',
+    })
     expect(draft.kind).toBe('live-draft')
     expect(assertLiveDraftSnapshot(draft)).toBe(true)
   })
@@ -117,12 +111,9 @@ describe('resolveSnapshot', () => {
       }),
     } as unknown as D1Database
 
-    const snapshot = await resolveSnapshot(
-      'daily-matchup',
-      '2026-06-25',
-      db,
-      {},
-    )
+    const snapshot = await resolveAndCacheSnapshot('daily-matchup', '2026-06-25', {
+      DB: db,
+    })
     expect(snapshot).toEqual(JSON.parse(payload))
   })
 })

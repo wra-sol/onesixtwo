@@ -5,21 +5,6 @@ import type {
   LiveSnapshot,
   LiveSubmitPayload,
 } from '../../../shared/live/live-types'
-import { resolveAndCacheSnapshot } from './resolve-snapshot'
-
-type SnapshotEnv = {
-  DB?: D1Database
-  USE_LIVE_FIXTURES?: string
-}
-
-export async function resolveSnapshot(
-  mode: LiveModeId,
-  challengeDate: string,
-  db: D1Database | undefined,
-  env: SnapshotEnv,
-): Promise<LiveSnapshot> {
-  return resolveAndCacheSnapshot(mode, challengeDate, { ...env, DB: db })
-}
 
 export type LiveSubmitValidationError = { ok: false; error: string }
 

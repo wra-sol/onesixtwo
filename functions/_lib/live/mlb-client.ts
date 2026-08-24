@@ -1,5 +1,32 @@
 const MLB_API = 'https://statsapi.mlb.com/api/v1'
 
+export type MlbScheduleResponse = {
+  dates?: Array<{ games?: MlbScheduleGame[] }>
+}
+
+export type MlbBoxscoreResponse = {
+  teams: {
+    away: BoxTeam
+    home: BoxTeam
+  }
+}
+
+export type MlbRosterEntry = {
+  person: {
+    id: number
+    fullName: string
+    batSide?: { code: string }
+    pitchHand?: { code: string }
+  }
+  position: { abbreviation: string; code: string }
+}
+
+export type MlbRosterResponse = { roster: MlbRosterEntry[] }
+
+export type MlbTeamsResponse = {
+  teams: Array<{ id: number; abbreviation: string; name: string }>
+}
+
 export type MlbScheduleGame = {
   gamePk: number
   status: { abstractGameState: string }
@@ -37,33 +64,25 @@ export async function fetchJson<T>(url: string): Promise<T> {
   return (await response.json()) as T
 }
 
-export async function fetchSchedule(date: string) {
-  return fetchJson<{ dates?: Array<{ games?: MlbScheduleGame[] }> }>(
+export async function fetchSchedule(date: string): Promise<MlbScheduleResponse> {
+  return fetchJson<MlbScheduleResponse>(
     `${MLB_API}/schedule?sportId=1&date=${date}`,
   )
 }
 
-export async function fetchBoxscore(gamePk: number) {
-  return fetchJson<{
-    teams: {
-      away: BoxTeam
-      home: BoxTeam
-    }
-  }>(`${MLB_API}/game/${gamePk}/boxscore`)
+export async function fetchBoxscore(gamePk: number): Promise<MlbBoxscoreResponse> {
+  return fetchJson<MlbBoxscoreResponse>(
+    `${MLB_API}/game/${gamePk}/boxscore`,
+  )
 }
 
-export async function fetchTeamRoster(teamId: number, season: number) {
-  return fetchJson<{
-    roster: Array<{
-      person: {
-        id: number
-        fullName: string
-        batSide?: { code: string }
-        pitchHand?: { code: string }
-      }
-      position: { abbreviation: string; code: string }
-    }>
-  }>(`${MLB_API}/teams/${teamId}/roster?rosterType=active&season=${season}`)
+export async function fetchTeamRoster(
+  teamId: number,
+  season: number,
+): Promise<MlbRosterResponse> {
+  return fetchJson<MlbRosterResponse>(
+    `${MLB_API}/teams/${teamId}/roster?rosterType=active&season=${season}`,
+  )
 }
 
 export async function fetchSeasonStats(personId: number, season: number) {
@@ -80,10 +99,10 @@ export async function fetchSeasonStats(personId: number, season: number) {
   return { hitterSplit, pitcherSplit }
 }
 
-export async function fetchAllTeams(season: number) {
-  return fetchJson<{
-    teams: Array<{ id: number; abbreviation: string; name: string }>
-  }>(`${MLB_API}/teams?sportId=1&season=${season}`)
+export async function fetchAllTeams(season: number): Promise<MlbTeamsResponse> {
+  return fetchJson<MlbTeamsResponse>(
+    `${MLB_API}/teams?sportId=1&season=${season}`,
+  )
 }
 
 export function seasonFromDate(date: string): number {
@@ -91,31 +110,9 @@ export function seasonFromDate(date: string): number {
   return month && month >= 3 ? year! : (year ?? new Date().getFullYear()) - 1
 }
 
-const STATS_CONCURRENCY = 10
-
 export type SeasonStats = Awaited<ReturnType<typeof fetchSeasonStats>>
 
 export type SeasonStatsCache = Map<string, SeasonStats>
-
-export async function fetchSeasonStatsBatched(
-  personIds: number[],
-  season: number,
-  cache: SeasonStatsCache,
-): Promise<void> {
-  const uncached = personIds.filter((id) => !cache.has(`${id}:${season}`))
-  for (let i = 0; i < uncached.length; i += STATS_CONCURRENCY) {
-    const batch = uncached.slice(i, i + STATS_CONCURRENCY)
-    const results = await Promise.all(
-      batch.map(async (personId) => {
-        const stats = await fetchSeasonStats(personId, season)
-        return { personId, stats }
-      }),
-    )
-    for (const { personId, stats } of results) {
-      cache.set(`${personId}:${season}`, stats)
-    }
-  }
-}
 
 export function getCachedSeasonStats(
   personId: number,
