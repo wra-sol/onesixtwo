@@ -15,6 +15,7 @@ import { BattingOrderEditor } from '@/components/LiveLineupGrid'
 import Sim162ResultScreen from '@/components/Sim162ResultScreen'
 import Sim162LeaderboardSubmit from '@/components/Sim162LeaderboardSubmit'
 import { useSim162Session } from '@/hooks/useSim162Session'
+import { useScrollToBrowserOnDeselect } from '@/hooks/useScrollToBrowserOnDeselect'
 import { trackEvent } from '@/lib/analytics'
 import type { Sim162ShareInput } from '@/lib/sim162-share-url'
 import type { Sim162Pool } from '@/lib/sim162-snapshot'
@@ -70,6 +71,8 @@ export default function Sim162Route() {
     getDisabledReason,
     retry,
   } = session
+
+  useScrollToBrowserOnDeselect(selectedPlayer?.id ?? null)
 
   useEffect(() => {
     if (!seasonResult || !pool) return
@@ -249,7 +252,10 @@ export default function Sim162Route() {
                     Auto-fill
                   </Button>
                 </div>
-                <div className="divide-y divide-border rounded-lg border border-border">
+                <div
+                  className="max-h-[28rem] divide-y divide-border overflow-y-auto rounded-lg border border-border"
+                  data-player-browser="true"
+                >
                   {filteredPlayers.length === 0 && (
                     <p className="px-3 py-4 text-sm text-muted-foreground">
                       No players match.

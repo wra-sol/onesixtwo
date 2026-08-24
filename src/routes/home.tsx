@@ -10,6 +10,7 @@ import StuckDraft from '../components/StuckDraft'
 import { DRAFT_BUCKETS, PLAYER_BY_ID } from '../data'
 import { PLAYABLE_ERAS } from '../data/franchises'
 import { trackEvent } from '../lib/analytics'
+import { useScrollToBrowserOnDeselect } from '../hooks/useScrollToBrowserOnDeselect'
 import {
   assignPlayer,
   calculateSeasonResult,
@@ -61,6 +62,8 @@ export default function HomeRoute() {
   const [simulationReroll, setSimulationReroll] = useState(0)
   const [isSimulating, setIsSimulating] = useState(false)
   const lineupRef = useRef<HTMLElement>(null)
+
+  useScrollToBrowserOnDeselect(gameState.selectedPlayerId)
 
   const teamPreview = useMemo(() => {
     if (TEAM_REEL.length === 0) return ''
@@ -246,7 +249,7 @@ export default function HomeRoute() {
             />
             {(gameState.status === 'picking' ||
               gameState.status === 'assigning') && (
-              <>
+              <div className="space-y-4" data-player-browser="true">
                 <hr className="border-border" />
                 <PlayerChoices
                   players={gameState.availablePlayers}
@@ -254,7 +257,7 @@ export default function HomeRoute() {
                   selectedPlayerId={gameState.selectedPlayerId}
                   onSelect={handleSelect}
                 />
-              </>
+              </div>
             )}
             <DraftHistory history={gameState.history} />
           </CardContent>

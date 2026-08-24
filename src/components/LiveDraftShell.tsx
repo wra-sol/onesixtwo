@@ -17,6 +17,7 @@ import {
   useLiveDraftSession,
   type LiveModeConfig,
 } from '@/hooks/useLiveDraftSession'
+import { useScrollToBrowserOnDeselect } from '@/hooks/useScrollToBrowserOnDeselect'
 
 type LiveDraftSession = ReturnType<typeof useLiveDraftSession>
 
@@ -77,6 +78,8 @@ export default function LiveDraftShell({
     getDisabledReason,
     getPlayerBadge,
   } = session
+
+  useScrollToBrowserOnDeselect(selectedPlayer?.id ?? null)
 
   if (error) {
     return (
@@ -216,7 +219,10 @@ export default function LiveDraftShell({
                     placeholder="Search players"
                     disabled={!canSelect}
                   />
-                  <div className="divide-y divide-border rounded-lg border border-border">
+                  <div
+                    className="divide-y divide-border rounded-lg border border-border"
+                    data-player-browser="true"
+                  >
                     {filteredPlayers.length === 0 && playerListMessage ? (
                       <p className="px-3 py-4 text-sm text-muted-foreground">
                         {playerListMessage}

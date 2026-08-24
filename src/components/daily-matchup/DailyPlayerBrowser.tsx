@@ -74,7 +74,7 @@ export default function DailyPlayerBrowser({
   }, [players, positionFilter, hideUnavailable, sortBy, getDisabledReason, effectiveTeam, searching])
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-player-browser="true">
       <TeamFilter
         options={teamOptions}
         value={effectiveTeam}
@@ -97,7 +97,7 @@ export default function DailyPlayerBrowser({
             type="button"
             onClick={() => setPositionFilter(pos)}
             className={cn(
-              'rounded px-1.5 py-0.5 text-[0.65rem] font-semibold tracking-wide uppercase transition-colors',
+              'min-h-8 rounded px-2 text-[0.7rem] font-semibold tracking-wide uppercase transition-colors',
               positionFilter === pos
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:bg-muted/70',
@@ -109,12 +109,12 @@ export default function DailyPlayerBrowser({
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <label className="flex min-h-8 items-center gap-1.5 text-xs text-muted-foreground">
           <input
             type="checkbox"
             checked={hideUnavailable}
             onChange={(e) => setHideUnavailable(e.target.checked)}
-            className="h-3.5 w-3.5"
+            className="size-4"
           />
           Hide unavailable
         </label>
@@ -123,7 +123,8 @@ export default function DailyPlayerBrowser({
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="h-7 rounded border border-border bg-background px-1 text-xs"
+            aria-label="Sort players"
+            className="h-8 rounded border border-border bg-background px-1 text-base md:text-sm"
           >
             <option value="overall">Overall</option>
             <option value="name">Name</option>
