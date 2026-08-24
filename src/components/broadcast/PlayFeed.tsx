@@ -70,8 +70,7 @@ export function PlayFeed({
               {arrow}
             </span>
             <span className="font-semibold text-foreground">{sideLabel}</span>
-            <span className="text-muted-foreground">{frame.batterName}</span>
-            <span className="flex-1 text-foreground">{frame.description}</span>
+            <span className="min-w-0 flex-1 text-foreground">{frame.description}</span>
             {frame.runsScoredOnPlay > 0 && (
               <span className="font-bold text-primary">
                 +{frame.runsScoredOnPlay} RBI

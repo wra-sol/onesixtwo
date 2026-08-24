@@ -72,7 +72,7 @@ function Slot({
           type="button"
           size="sm"
           variant="secondary"
-          className="mt-1 h-7 w-full scroll-mt-24 text-xs"
+          className="mt-1 h-8 w-full scroll-mt-24 text-xs"
           data-roster25-assign="true"
           onClick={() => onAssign(slot)}
         >

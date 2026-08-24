@@ -62,18 +62,19 @@ function SortableRow({
         </button>
         <span className="font-medium tabular-nums text-muted-foreground">{index + 1}.</span>
         <span>{player.name}</span>
-        <span className="text-xs text-muted-foreground">{player.teamAbbrev}</span>
+        <span className="hidden min-[420px]:inline text-xs text-muted-foreground">{player.teamAbbrev}</span>
       </div>
       <div className="flex items-center gap-2">
-        <span className="text-[0.65rem] tabular-nums text-primary">
-          {overall} {GRADE_LABELS[overall]}
+        <span className="whitespace-nowrap text-[0.65rem] tabular-nums text-primary">
+          {overall}{' '}
+          <span className="hidden sm:inline">{GRADE_LABELS[overall]}</span>
         </span>
         <span className="flex gap-0.5">
           <Button
             type="button"
             size="sm"
             variant="outline"
-            className="h-7 px-1.5"
+            className="h-8 w-8 px-0"
             disabled={index === 0}
             onClick={() => onMove(index, -1)}
             aria-label={`Move ${player.name} up`}
@@ -84,7 +85,7 @@ function SortableRow({
             type="button"
             size="sm"
             variant="outline"
-            className="h-7 px-1.5"
+            className="h-8 w-8 px-0"
             disabled={index === total - 1}
             onClick={() => onMove(index, 1)}
             aria-label={`Move ${player.name} down`}

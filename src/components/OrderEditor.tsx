@@ -40,7 +40,7 @@ export function OrderEditor({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 px-2"
+                className="h-8 w-9 px-0"
                 disabled={index === 0}
                 onClick={() => move(index, -1)}
               >
@@ -50,7 +50,7 @@ export function OrderEditor({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-7 px-2"
+                className="h-8 w-9 px-0"
                 disabled={index === order.length - 1}
                 onClick={() => move(index, 1)}
               >

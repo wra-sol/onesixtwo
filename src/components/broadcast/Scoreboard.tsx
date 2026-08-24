@@ -79,12 +79,12 @@ export function Scoreboard({
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          {pitcherName}
-          <span className="broadcast-chip">{pitcherRole}</span>
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground">
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <span className="truncate">{pitcherName}</span>
+          <span className="broadcast-chip shrink-0">{pitcherRole}</span>
         </span>
-        <span>At bat: {batterName}</span>
+        <span className="min-w-0 truncate">At bat: {batterName}</span>
       </div>
     </div>
   )

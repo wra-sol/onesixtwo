@@ -39,7 +39,7 @@ export default function TeamFilter({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled || (!hasTeams && !includeAllOption)}
-        className="h-8 min-w-0 flex-1 rounded border border-border bg-background px-2 text-sm"
+        className="h-9 min-w-0 flex-1 rounded border border-border bg-background px-2 text-base md:text-sm"
       >
         {includeAllOption && <option value="">{allOptionLabel}</option>}
         {!hasTeams && !includeAllOption ? (
