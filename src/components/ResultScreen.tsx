@@ -2,13 +2,12 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
-import { useShareActions } from '@/hooks/useShareActions'
+import ShareResultPanel from './ShareResultPanel'
 import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { buildShareUrl } from '../lib/share-url'
@@ -49,16 +48,6 @@ export default function ResultScreen({
   const shareTitle = `${BRAND.name}: ${result.record}`
   const shareText = `${shareTitle}\n${result.tier.label}\n${shareUrl}`
   const formatLabel = getRosterFormat(result.rosterFormatId).label
-
-  const {
-    canNativeShare,
-    copied,
-    showShareText,
-    share: handleShare,
-    copy: handleCopy,
-  } = useShareActions(shareUrl, shareTitle, shareText, {
-    record: result.record,
-  })
 
   return (
     <Card
@@ -107,74 +96,39 @@ export default function ResultScreen({
           <SeasonRecap result={result} />
         </div>
         <RatingBreakdown result={result} lineup={lineup} />
-        <details className="group rounded-lg border border-border bg-muted/30 text-left">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-primary marker:content-none [&::-webkit-details-marker]:hidden">
-            <span className="inline-flex items-center gap-2">
-              <span
-                className="text-muted-foreground transition group-open:rotate-90"
-                aria-hidden
-              >
-                ▸
-              </span>
-              Preview share text
-            </span>
-          </summary>
-          <pre className="max-h-40 overflow-y-auto border-t border-border/60 px-3 py-2 font-mono text-[0.7rem] leading-relaxed whitespace-pre-wrap text-muted-foreground">
-            {shareText}
-          </pre>
-        </details>
-        {showShareText && (
-          <div className="space-y-2 text-left">
-            <p className="text-xs text-muted-foreground">
-              Copy did not work in this browser. Select the text below:
-            </p>
-            <textarea
-              readOnly
-              className="h-28 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-xs leading-relaxed"
-              value={shareText}
-              onFocus={(e) => e.target.select()}
+        <ShareResultPanel
+          shareUrl={shareUrl}
+          shareTitle={shareTitle}
+          shareText={shareText}
+          trackProps={{ record: result.record }}
+          restartLabel={readOnly ? 'Draft your own' : 'Draft again'}
+          onRestart={onRestart}
+        >
+          {!readOnly && (
+            <LeaderboardSubmit
+              lineup={lineup}
+              rosterFormatId={result.rosterFormatId}
+              rerollIndex={rerollIndex}
             />
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex-col gap-3 border-t-0 bg-transparent">
-        {!readOnly && (
-          <LeaderboardSubmit
-            lineup={lineup}
-            rosterFormatId={result.rosterFormatId}
-            rerollIndex={rerollIndex}
-          />
-        )}
-        {!readOnly && onSimulateAgain && (
-          <div className="w-full space-y-1.5 text-center">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full"
-              disabled={isSimulating}
-              onClick={onSimulateAgain}
-            >
-              {isSimulating ? 'Simulating season…' : 'Simulate again'}
-            </Button>
-            <p className="text-[0.65rem] text-muted-foreground">
-              {SIMULATION_EXPLANATION}
-            </p>
-          </div>
-        )}
-        <div className="flex flex-wrap justify-center gap-3">
-          {canNativeShare && (
-            <Button type="button" variant="outline" onClick={handleShare}>
-              Share
-            </Button>
           )}
-          <Button type="button" variant="outline" onClick={handleCopy}>
-            {copied ? 'Copied!' : 'Copy link'}
-          </Button>
-          <Button type="button" onClick={onRestart}>
-            {readOnly ? 'Draft your own' : 'Draft again'}
-          </Button>
-        </div>
-      </CardFooter>
+          {!readOnly && onSimulateAgain && (
+            <div className="w-full space-y-1.5 text-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full"
+                disabled={isSimulating}
+                onClick={onSimulateAgain}
+              >
+                {isSimulating ? 'Simulating season…' : 'Simulate again'}
+              </Button>
+              <p className="text-[0.65rem] text-muted-foreground">
+                {SIMULATION_EXPLANATION}
+              </p>
+            </div>
+          )}
+        </ShareResultPanel>
+      </CardContent>
     </Card>
   )
 }

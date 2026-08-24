@@ -2,9 +2,10 @@ import {
   buildLeagueStrengths,
   generateSchedule,
 } from '@shared/live/league-standings'
-import { hashSeed } from '@shared/live/rng'
+import { coinFlipTieWinner } from '@shared/live/series-sim'
 import type { PlayoffSeries } from '@shared/live/sim162-season'
 import type { SimulatedGame, SimulatedSeries } from '@shared/live/live-types'
+import type { SimBoxScore } from '@shared/live/live-types'
 import type { PostseasonResult, Sim162SeasonResult } from '@shared/live/sim162-season'
 
 export function buildTeamNameById(): Map<string, string> {
@@ -32,9 +33,23 @@ export function userGameScore(game: SimulatedGame): {
   user: number
   opponent: number
 } {
+  return userGameSides(game).score
+}
+
+/** User/opponent view of a game's score and box score, resolved from userWasHome. */
+export function userGameSides(game: SimulatedGame): {
+  score: { user: number; opponent: number }
+  box: { user: SimBoxScore; opponent: SimBoxScore }
+} {
   return {
-    user: game.userWasHome ? game.homeScore : game.awayScore,
-    opponent: game.userWasHome ? game.awayScore : game.homeScore,
+    score: {
+      user: game.userWasHome ? game.homeScore : game.awayScore,
+      opponent: game.userWasHome ? game.awayScore : game.homeScore,
+    },
+    box: {
+      user: game.userWasHome ? game.homeBox : game.awayBox,
+      opponent: game.userWasHome ? game.awayBox : game.homeBox,
+    },
   }
 }
 
@@ -58,7 +73,26 @@ export function userGameOutcome(
   const { user, opponent } = userGameScore(game)
   if (user > opponent) return 'W'
   if (opponent > user) return 'L'
-  return hashSeed(`${seasonSeed}|tie|${gameIndex}`) % 2 === 0 ? 'W' : 'L'
+  return coinFlipTieWinner(seasonSeed, gameIndex) ? 'W' : 'L'
+}
+
+/**
+ * Per-game W/L/T letter for a series recap, honoring the series tie policy:
+ * when the series credits ties (every game resolved to a side) the seeded
+ * coin flip decides the letter; otherwise a tied game stands as 'T'.
+ */
+export function seriesGameLetter(
+  series: SimulatedSeries,
+  game: SimulatedGame,
+  gameIndex: number,
+): 'W' | 'L' | 'T' {
+  const { user, opponent } = userGameScore(game)
+  if (user > opponent) return 'W'
+  if (opponent > user) return 'L'
+  const tiesCredited =
+    series.userWins + series.opponentWins === series.games.length
+  if (!tiesCredited) return 'T'
+  return coinFlipTieWinner(series.seed, gameIndex) ? 'W' : 'L'
 }
 
 export function singleGameToSeries(

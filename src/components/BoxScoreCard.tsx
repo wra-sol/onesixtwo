@@ -1,5 +1,6 @@
 import type { SimulatedGame } from '@shared/live/live-types'
 import { cn } from '@/lib/utils'
+import { userGameScore } from '@/lib/sim162-display'
 
 type BoxScoreCardProps = {
   game: SimulatedGame
@@ -18,8 +19,7 @@ export default function BoxScoreCard({
   outcome,
   onClick,
 }: BoxScoreCardProps) {
-  const userScore = game.userWasHome ? game.homeScore : game.awayScore
-  const oppScore = game.userWasHome ? game.awayScore : game.homeScore
+  const { user: userScore, opponent: oppScore } = userGameScore(game)
 
   const content = (
     <>

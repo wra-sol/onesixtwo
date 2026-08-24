@@ -5,10 +5,13 @@ import {
   postseasonLabel,
   postseasonResultLabel,
   playoffSeriesToSimulated,
+  seriesGameLetter,
   singleGameToSeries,
   userGameOutcome,
+  userGameSides,
 } from './sim162-display'
-import type { SimulatedGame } from '@shared/live/live-types'
+import { coinFlipTieWinner } from '@shared/live/series-sim'
+import type { SimulatedGame, SimulatedSeries } from '@shared/live/live-types'
 import type {
   PlayoffBracket,
   PlayoffSeries,
@@ -82,6 +85,78 @@ describe('userGameOutcome', () => {
     const b = userGameOutcome(game, 3, 'season-x')
     expect(a).toBe(b)
     expect(a === 'W' || a === 'L').toBe(true)
+  })
+
+  it('resolves ties exactly as the engine coin flip does', () => {
+    for (let i = 0; i < 20; i += 1) {
+      const expected = coinFlipTieWinner('season-x', i) ? 'W' : 'L'
+      expect(userGameOutcome(makeGame(4, 4, true), i, 'season-x')).toBe(
+        expected,
+      )
+    }
+  })
+})
+
+describe('userGameSides', () => {
+  it('maps score and box to user/opponent sides when user is home', () => {
+    const game: SimulatedGame = {
+      ...makeGame(5, 3, true),
+      homeBox: { runs: 5, hits: 9, errors: 0, homeRuns: 2 },
+      awayBox: { runs: 3, hits: 6, errors: 1, homeRuns: 0 },
+    }
+    const sides = userGameSides(game)
+    expect(sides.score).toEqual({ user: 5, opponent: 3 })
+    expect(sides.box.user.runs).toBe(5)
+    expect(sides.box.opponent.runs).toBe(3)
+  })
+})
+
+describe('seriesGameLetter', () => {
+  const tie = makeGame(4, 4, true)
+
+  function makeSeries(
+    games: SimulatedGame[],
+    userWins: number,
+    opponentWins: number,
+    seed: string,
+  ): SimulatedSeries {
+    return {
+      games,
+      userWins,
+      opponentWins,
+      userRuns: 0,
+      opponentRuns: 0,
+      userRunDiff: 0,
+      wonSeries: userWins > opponentWins,
+      seed,
+    }
+  }
+
+  it('returns W/L for decided games regardless of tie policy', () => {
+    const series = makeSeries([makeGame(5, 3, true), tie], 2, 0, 's')
+    expect(seriesGameLetter(series, series.games[0], 0)).toBe('W')
+    const lost = makeSeries([makeGame(6, 2, false), tie], 0, 2, 's')
+    expect(seriesGameLetter(lost, lost.games[0], 0)).toBe('L')
+  })
+
+  it('stands ties as T when the series does not credit them', () => {
+    // Best-of-3 'stand' series ended 1-1-1: game 3's tie resolves for nobody.
+    const series = makeSeries(
+      [makeGame(5, 3, true), makeGame(2, 6, false), tie],
+      1,
+      1,
+      's',
+    )
+    expect(seriesGameLetter(series, tie, 2)).toBe('T')
+  })
+
+  it('credits ties via the engine coin flip when every game resolves', () => {
+    // All games tied but tallies account for all of them → flips credited.
+    const series = makeSeries([tie, tie], 1, 1, 'coin-seed')
+    for (let i = 0; i < 2; i += 1) {
+      const expected = coinFlipTieWinner('coin-seed', i) ? 'W' : 'L'
+      expect(seriesGameLetter(series, tie, i)).toBe(expected)
+    }
   })
 })
 

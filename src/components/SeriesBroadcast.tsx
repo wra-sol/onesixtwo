@@ -1,12 +1,8 @@
 import { useEffect, useMemo, useReducer } from 'react'
 import type { ReactNode } from 'react'
 import type { SimulatedSeries } from '@shared/live/live-types'
-import {
-  buildSeriesReplay,
-  headlineMoment,
-  topPerformers,
-  topPitchers,
-} from '@/lib/series-replay'
+import { buildSeriesReplay } from '@/lib/series-replay'
+import { seriesGameLetter } from '@/lib/sim162-display'
 import { useReducedMotion } from '@/lib/use-reduced-motion'
 import { Button } from '@/components/ui/button'
 import { Scoreboard } from './broadcast/Scoreboard'
@@ -36,22 +32,6 @@ function nextSpeed(speed: number): Speed {
   return 1
 }
 
-function userWonGame(
-  userWasHome: boolean,
-  homeScore: number,
-  awayScore: number,
-): boolean {
-  return userWasHome ? homeScore > awayScore : awayScore > homeScore
-}
-
-function opponentWonGame(
-  userWasHome: boolean,
-  homeScore: number,
-  awayScore: number,
-): boolean {
-  return userWasHome ? homeScore < awayScore : awayScore < homeScore
-}
-
 export default function SeriesBroadcast({
   series,
   opponentName,
@@ -64,14 +44,6 @@ export default function SeriesBroadcast({
   const reducedMotion = useReducedMotion()
 
   const replay = useMemo(() => buildSeriesReplay(series), [series])
-  const userStars = useMemo(() => topPerformers(series, 'user', 3), [series])
-  const oppStars = useMemo(() => topPerformers(series, 'opponent', 3), [series])
-  const userPitchers = useMemo(() => topPitchers(series, 'user', 2), [series])
-  const oppPitchers = useMemo(
-    () => topPitchers(series, 'opponent', 2),
-    [series],
-  )
-  const headline = useMemo(() => headlineMoment(series), [series])
 
   const reducer = useMemo(
     () => createPlaybackReducer(replay.map((g) => g.length), !reducedMotion),
@@ -124,12 +96,13 @@ export default function SeriesBroadcast({
   const frame =
     state.frameIndex < gameFrames.length ? gameFrames[state.frameIndex] : null
 
-  const cumulativeUserWins = series.games
-    .slice(0, state.gameIndex + 1)
-    .filter((g) => userWonGame(g.userWasHome, g.homeScore, g.awayScore)).length
-  const cumulativeOppWins = series.games
-    .slice(0, state.gameIndex + 1)
-    .filter((g) => opponentWonGame(g.userWasHome, g.homeScore, g.awayScore)).length
+  const playedGames = series.games.slice(0, state.gameIndex + 1)
+  const cumulativeUserWins = playedGames.filter(
+    (g, i) => seriesGameLetter(series, g, i) === 'W',
+  ).length
+  const cumulativeOppWins = playedGames.filter(
+    (g, i) => seriesGameLetter(series, g, i) === 'L',
+  ).length
 
   return (
     <div className="mx-auto max-w-3xl space-y-3">
@@ -140,11 +113,6 @@ export default function SeriesBroadcast({
             opponentName={opponentName}
             userTeamLabel={userTeamLabel}
             opponentTeamLabel={resolvedOpponentLabel}
-            userStars={userStars}
-            opponentStars={oppStars}
-            userPitchers={userPitchers}
-            opponentPitchers={oppPitchers}
-            headline={headline}
             readOnly={readOnly}
           />
           {actions}

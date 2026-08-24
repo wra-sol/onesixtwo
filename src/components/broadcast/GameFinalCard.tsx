@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { buildGameBoxScore } from '@/lib/box-score'
-import { sideLabels } from '@/lib/sim162-display'
+import { sideLabels, userGameSides } from '@/lib/sim162-display'
 import GameBoxScoreCard from '@/components/GameBoxScoreCard'
 
 type GameFinalCardProps = {
@@ -33,10 +33,11 @@ export function GameFinalCard({
   seriesOpponentWins,
 }: GameFinalCardProps) {
   const [showBox, setShowBox] = useState(false)
-  const userScore = game.userWasHome ? game.homeScore : game.awayScore
-  const oppScore = game.userWasHome ? game.awayScore : game.homeScore
-  const userBox = game.userWasHome ? game.homeBox : game.awayBox
-  const oppBox = game.userWasHome ? game.awayBox : game.homeBox
+  const { score, box } = userGameSides(game)
+  const userScore = score.user
+  const oppScore = score.opponent
+  const userBox = box.user
+  const oppBox = box.opponent
 
   const tally = Array.from({ length: TOTAL_GAMES }, (_, i) => {
     if (i < seriesUserWins) return 'user' as const

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import SeriesBroadcast from '@/components/SeriesBroadcast'
 import BoxScoreCard from '@/components/BoxScoreCard'
 import GameBoxScoreModal from '@/components/GameBoxScoreModal'
+import ShareResultPanel from '@/components/ShareResultPanel'
 import StandingsTable from '@/components/StandingsTable'
 import PlayoffBracket from '@/components/PlayoffBracket'
 import {
@@ -25,7 +26,6 @@ import {
   userGameScore,
 } from '@/lib/sim162-display'
 import { buildSim162SharePath, type Sim162ShareInput } from '@/lib/sim162-share-url'
-import { useShareActions } from '@/hooks/useShareActions'
 import { BRAND } from '@/lib/brand'
 import type { SimulatedSeries } from '@shared/live/live-types'
 import type { Sim162SeasonResult } from '@shared/live/sim162-season'
@@ -90,16 +90,6 @@ export default function Sim162ResultScreen({
   const shareTitle = `${BRAND.name}: Sim 162 ${userRecord.wins}-${userRecord.losses} · ${label}`
   const shareText = shareUrl ? `${shareTitle}\n${shareUrl}` : shareTitle
 
-  const {
-    canNativeShare,
-    copied,
-    showShareText,
-    share: handleShare,
-    copy: handleCopy,
-  } = useShareActions(shareUrl, shareTitle, shareText, {
-    record: `${userRecord.wins}-${userRecord.losses}`,
-  })
-
   const postseasonLines = useMemo(() => {
     if (!userQualified) return []
     const lines: Array<{
@@ -153,12 +143,7 @@ export default function Sim162ResultScreen({
     boxScoreGame !== null && boxScoreTarget
       ? {
           outcome: userGameOutcome(boxScoreTarget, boxScoreGame, seasonSeed),
-          you: boxScoreTarget.userWasHome
-            ? boxScoreTarget.homeScore
-            : boxScoreTarget.awayScore,
-          them: boxScoreTarget.userWasHome
-            ? boxScoreTarget.awayScore
-            : boxScoreTarget.homeScore,
+          ...userGameScore(boxScoreTarget),
         }
       : null
 
@@ -430,71 +415,24 @@ export default function Sim162ResultScreen({
 
       <Card className="mx-auto">
         <CardContent className="space-y-4 pt-6">
-          {shareUrl && (
-            <details className="group rounded-lg border border-border bg-muted/30 text-left">
-              <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-primary marker:content-none [&::-webkit-details-marker]:hidden">
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    className="text-muted-foreground transition group-open:rotate-90"
-                    aria-hidden
-                  >
-                    ▸
-                  </span>
-                  Preview share text
-                </span>
-              </summary>
-              <pre className="max-h-40 overflow-y-auto border-t border-border/60 px-3 py-2 font-mono text-[0.7rem] leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                {shareText}
-              </pre>
-            </details>
-          )}
-
-          {showShareText && shareUrl && (
-            <div className="space-y-2 text-left">
-              <p className="text-xs text-muted-foreground">
-                Copy did not work in this browser. Select the text below:
-              </p>
-              <textarea
-                readOnly
-                className="h-28 w-full resize-none rounded-lg border border-input bg-background px-2 py-1.5 font-mono text-xs leading-relaxed"
-                value={shareText}
-                onFocus={(event) => event.target.select()}
-              />
-            </div>
-          )}
-
-          {!readOnly && submitSlot}
-          <div className="flex flex-wrap justify-center gap-2">
-            {shareUrl && canNativeShare && (
-              <Button type="button" variant="outline" onClick={() => void handleShare()}>
-                Share
-              </Button>
-            )}
-            {shareUrl && (
-              <Button type="button" variant="outline" onClick={() => void handleCopy()}>
-                {copied ? 'Copied!' : 'Copy link'}
-              </Button>
-            )}
-            <Button type="button" onClick={onRestart}>
-              {readOnly ? 'Play your own' : 'Play again'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                window.location.href = '/leaderboard'
-              }}
-            >
-              Leaderboard
-            </Button>
-          </div>
+          <ShareResultPanel
+            shareUrl={shareUrl}
+            shareTitle={shareTitle}
+            shareText={shareText}
+            trackProps={{ record: `${userRecord.wins}-${userRecord.losses}` }}
+            restartLabel={readOnly ? 'Play your own' : 'Play again'}
+            onRestart={onRestart}
+            showLeaderboard
+          >
+            {!readOnly && submitSlot}
+          </ShareResultPanel>
         </CardContent>
       </Card>
 
       <GameBoxScoreModal
         title={
           boxScoreEntry
-            ? `Game ${boxScoreGame! + 1} · ${boxScoreEntry.outcome} ${boxScoreEntry.you}-${boxScoreEntry.them} vs ${opponents[boxScoreGame!] ?? 'opponent'}`
+            ? `Game ${boxScoreGame! + 1} · ${boxScoreEntry.outcome} ${boxScoreEntry.user}-${boxScoreEntry.opponent} vs ${opponents[boxScoreGame!] ?? 'opponent'}`
             : ''
         }
         entries={

@@ -1,13 +1,20 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { SimulatedSeries } from '@shared/live/live-types'
-import { coinFlipTieWinner } from '@shared/live/series-sim'
 import type {
-  HeadlineMoment,
   PerformerStat,
   PitcherStat,
 } from '@/lib/series-replay'
+import {
+  headlineMoment,
+  topPerformers,
+  topPitchers,
+} from '@/lib/series-replay'
 import { buildGameBoxScore } from '@/lib/box-score'
-import { sideLabels, userGameScore } from '@/lib/sim162-display'
+import {
+  seriesGameLetter,
+  sideLabels,
+  userGameScore,
+} from '@/lib/sim162-display'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import GameBoxScoreCard from '@/components/GameBoxScoreCard'
 import { cn } from '@/lib/utils'
@@ -17,11 +24,6 @@ type SeriesRecapProps = {
   opponentName: string
   userTeamLabel: string
   opponentTeamLabel: string
-  userStars: PerformerStat[]
-  opponentStars: PerformerStat[]
-  userPitchers: PitcherStat[]
-  opponentPitchers: PitcherStat[]
-  headline: HeadlineMoment
   readOnly: boolean
 }
 
@@ -45,19 +47,18 @@ export function SeriesRecap({
   opponentName,
   userTeamLabel,
   opponentTeamLabel,
-  userStars,
-  opponentStars,
-  userPitchers,
-  opponentPitchers,
-  headline,
   readOnly,
 }: SeriesRecapProps) {
   const [openGame, setOpenGame] = useState<number | null>(null)
 
-  // Coin-flip tie policy (Sim 162) credits tied games via a seeded flip while
-  // the stored score stays level; mirror that here so rows match the tally.
-  const tiesCredited =
-    series.userWins + series.opponentWins === series.games.length
+  const userStars = useMemo(() => topPerformers(series, 'user', 3), [series])
+  const oppStars = useMemo(() => topPerformers(series, 'opponent', 3), [series])
+  const userPitchers = useMemo(() => topPitchers(series, 'user', 2), [series])
+  const oppPitchers = useMemo(
+    () => topPitchers(series, 'opponent', 2),
+    [series],
+  )
+  const headline = useMemo(() => headlineMoment(series), [series])
 
   const title = readOnly
     ? 'Shared series result'
@@ -96,14 +97,7 @@ export function SeriesRecap({
           <div className="space-y-1" aria-label="Game-by-game results">
             {series.games.map((game, i) => {
               const { user: you, opponent: them } = userGameScore(game)
-              let letter: 'W' | 'L' | 'T'
-              if (you > them) letter = 'W'
-              else if (them > you) letter = 'L'
-              else if (tiesCredited) {
-                letter = coinFlipTieWinner(series.seed, i) ? 'W' : 'L'
-              } else {
-                letter = 'T'
-              }
+              const letter = seriesGameLetter(series, game, i)
               const isOpen = openGame === i
               return (
                 <div
@@ -180,20 +174,20 @@ export function SeriesRecap({
           <h3 className="text-sm font-semibold text-muted-foreground">
             {opponentTeamLabel} stars
           </h3>
-          {opponentStars.length === 0 ? (
+          {oppStars.length === 0 ? (
             <p className="text-xs text-muted-foreground">
               No standout performances.
             </p>
           ) : (
             <ul className="space-y-1 text-sm">
-              {opponentStars.map((p) => (
+              {oppStars.map((p) => (
                 <li key={p.name}>{formatStarLine(p)}</li>
               ))}
             </ul>
           )}
-          {opponentPitchers.length > 0 && (
+          {oppPitchers.length > 0 && (
             <ul className="space-y-1 text-xs text-muted-foreground">
-              {opponentPitchers.map((p) => (
+              {oppPitchers.map((p) => (
                 <li key={p.name}>{formatPitcherLine(p)}</li>
               ))}
             </ul>
@@ -203,3 +197,5 @@ export function SeriesRecap({
     </Card>
   )
 }
+
+export default SeriesRecap
