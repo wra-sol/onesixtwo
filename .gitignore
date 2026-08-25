@@ -31,3 +31,6 @@ data/lahman/source/
 *.sln
 *.sw?
 /CLIPBOARD.md
+
+# local debug scratch
+tmp-dbg/
