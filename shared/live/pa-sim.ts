@@ -193,10 +193,10 @@ function simulateHalfInning(
   half: 'top' | 'bottom',
   random: () => number,
   events: PaEvent[],
+  orderIndex: { i: number },
 ): number {
-  // Classic convention: order counter resets every half-inning; bullpen is
-  // three fixed roles chosen by inning and half-inning closeness.
-  let orderIndex = 0
+  // The batting order persists across half-innings — one counter per side for
+  // the whole game, like real baseball and the roster-convention engine.
   const sp = getPitcher(defense.lineup, 'SP')
   const rp = getPitcher(defense.lineup, 'RP')
   const cl = getPitcher(defense.lineup, 'CL')
@@ -213,8 +213,8 @@ function simulateHalfInning(
       return sp
     },
     nextBatter: () => {
-      const batter = offense.battingOrder[orderIndex % offense.battingOrder.length]!
-      orderIndex += 1
+      const batter = offense.battingOrder[orderIndex.i % offense.battingOrder.length]!
+      orderIndex.i += 1
       return { batter }
     },
   })
@@ -236,22 +236,27 @@ export function simulateGame(
   const away = userIsHome ? opponent : user
   const home = userIsHome ? user : opponent
 
+  // One batting-order counter per side, persisting across all innings
+  // (including extras) so every hitter in the order actually bats.
+  const orderIndexAway = { i: 0 }
+  const orderIndexHome = { i: 0 }
+
   for (let inning = 1; inning <= 9; inning += 1) {
-    const topRuns = simulateHalfInning(away, home, inning, 'top', random, events)
+    const topRuns = simulateHalfInning(away, home, inning, 'top', random, events, orderIndexAway)
     awayRuns += topRuns
     awayBox.runs += topRuns
 
-    const bottomRuns = simulateHalfInning(home, away, inning, 'bottom', random, events)
+    const bottomRuns = simulateHalfInning(home, away, inning, 'bottom', random, events, orderIndexHome)
     homeRuns += bottomRuns
     homeBox.runs += bottomRuns
   }
 
   let extra = 10
   while (awayRuns === homeRuns && extra <= 15) {
-    const topRuns = simulateHalfInning(away, home, extra, 'top', random, events)
+    const topRuns = simulateHalfInning(away, home, extra, 'top', random, events, orderIndexAway)
     awayRuns += topRuns
     awayBox.runs += topRuns
-    const bottomRuns = simulateHalfInning(home, away, extra, 'bottom', random, events)
+    const bottomRuns = simulateHalfInning(home, away, extra, 'bottom', random, events, orderIndexHome)
     homeRuns += bottomRuns
     homeBox.runs += bottomRuns
     extra += 1
