@@ -65,12 +65,6 @@ export default function SeriesBroadcast({
   }, [state.phase, state.playing, state.speed])
 
   useEffect(() => {
-    if (state.phase !== 'game-final' || reducedMotion) return
-    const id = window.setTimeout(() => dispatch({ type: 'advance_game' }), 2500)
-    return () => window.clearTimeout(id)
-  }, [state.phase, reducedMotion])
-
-  useEffect(() => {
     if (readOnly) return
     const handler = (event: KeyboardEvent) => {
       const target = event.target
@@ -154,14 +148,26 @@ export default function SeriesBroadcast({
           )}
 
           {state.phase === 'game-final' && (
-            <GameFinalCard
-              game={series.games[state.gameIndex]}
-              gameIndex={state.gameIndex}
-              userTeamLabel={userTeamLabel}
-              opponentTeamLabel={resolvedOpponentLabel}
-              seriesUserWins={cumulativeUserWins}
-              seriesOpponentWins={cumulativeOppWins}
-            />
+            <>
+              <GameFinalCard
+                game={series.games[state.gameIndex]}
+                gameIndex={state.gameIndex}
+                userTeamLabel={userTeamLabel}
+                opponentTeamLabel={resolvedOpponentLabel}
+                seriesUserWins={cumulativeUserWins}
+                seriesOpponentWins={cumulativeOppWins}
+              />
+              <div className="flex justify-center">
+                <Button
+                  type="button"
+                  onClick={() => dispatch({ type: 'advance_game' })}
+                >
+                  {state.gameIndex < replay.length - 1
+                    ? `Start game ${state.gameIndex + 2} of ${replay.length}`
+                    : 'See series result'}
+                </Button>
+              </div>
+            </>
           )}
 
           <div className="flex flex-wrap items-center justify-center gap-2">
