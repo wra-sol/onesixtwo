@@ -1,4 +1,4 @@
-import type { PaEvent, SimulatedGame } from '@shared/live/live-types'
+import type { PaEvent, SimBoxScore, SimulatedGame } from '@shared/live/live-types'
 
 export type BoxScoreBattingRow = {
   name: string
@@ -30,6 +30,20 @@ export type BoxScoreSide = {
 export type GameBoxScore = {
   away: BoxScoreSide
   home: BoxScoreSide
+}
+
+export type LineScoreSide = {
+  /** Runs per inning, index 0 = inning 1. */
+  perInning: number[]
+  runs: number
+  hits: number
+  errors: number
+}
+
+export type LineScore = {
+  innings: number
+  away: LineScoreSide
+  home: LineScoreSide
 }
 
 type Side = 'away' | 'home'
@@ -167,4 +181,37 @@ export function buildGameBoxScore(game: SimulatedGame): GameBoxScore {
   }
 
   return { away: { batting: batting.away, pitching: pitching.away }, home: { batting: batting.home, pitching: pitching.home } }
+}
+
+function lineScoreSideFromBox(box: SimBoxScore, innings: number): LineScoreSide {
+  return {
+    perInning: Array.from({ length: innings }, () => 0),
+    runs: box.runs,
+    hits: box.hits,
+    errors: box.errors,
+  }
+}
+
+/**
+ * Derives the traditional by-inning line score (per-half run columns plus
+ * R/H/E totals). Run splits come from plate-appearance events only — the
+ * companion `run_scored` RBI bookkeeping events would double-count. R/H/E
+ * totals stay authoritative on the team boxes, matching the game line
+ * elsewhere in the UI.
+ */
+export function buildLineScore(game: SimulatedGame): LineScore {
+  const paEvents = game.events.filter((event) => PA_TYPES.has(event.type))
+  const innings = Math.max(
+    9,
+    ...paEvents.map((event) => event.inning),
+  )
+  const away = lineScoreSideFromBox(game.awayBox, innings)
+  const home = lineScoreSideFromBox(game.homeBox, innings)
+
+  for (const event of paEvents) {
+    const side = sideForEvent(event) === 'away' ? away : home
+    side.perInning[event.inning - 1]! += event.runsScored
+  }
+
+  return { innings, away, home }
 }

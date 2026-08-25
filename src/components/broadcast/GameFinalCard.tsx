@@ -3,7 +3,7 @@ import type { SimulatedGame, SimBoxScore } from '@shared/live/live-types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { buildGameBoxScore } from '@/lib/box-score'
+import { buildGameBoxScore, buildLineScore } from '@/lib/box-score'
 import { sideLabels, userGameSides } from '@/lib/sim162-display'
 import GameBoxScoreCard from '@/components/GameBoxScoreCard'
 
@@ -82,6 +82,7 @@ export function GameFinalCard({
             <div className="mt-3 rounded-lg border border-border bg-muted/20 p-2">
               <GameBoxScoreCard
                 box={buildGameBoxScore(game)}
+                lineScore={buildLineScore(game)}
                 {...sideLabels(game, userTeamLabel, opponentTeamLabel)}
               />
             </div>

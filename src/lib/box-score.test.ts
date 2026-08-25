@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildGameBoxScore } from './box-score'
+import { buildGameBoxScore, buildLineScore } from './box-score'
 import type { PaEvent, SimulatedGame } from '@shared/live/live-types'
 
 function ev(over: Partial<PaEvent>): PaEvent {
@@ -158,5 +158,71 @@ describe('buildGameBoxScore', () => {
     expect(runsOffHomePitching).toBe(g.awayScore)
     const runsOffAwayPitching = box.away.pitching.reduce((sum, r) => sum + r.r, 0)
     expect(runsOffAwayPitching).toBe(g.homeScore)
+  })
+})
+
+describe('buildLineScore', () => {
+  it('splits runs by half and inning: away bats top, home bats bottom', () => {
+    const events: PaEvent[] = [
+      ev({ inning: 1, half: 'top', type: 'home_run', runsScored: 3 }),
+      ev({ inning: 4, half: 'top', type: 'single', runsScored: 1 }),
+      ev({ inning: 5, half: 'bottom', type: 'double', runsScored: 2 }),
+    ]
+    const g = game(events, {
+      awayBox: { runs: 4, hits: 2, errors: 0, homeRuns: 1 },
+      homeBox: { runs: 2, hits: 1, errors: 0, homeRuns: 0 },
+    })
+
+    const line = buildLineScore(g)
+    expect(line.innings).toBe(9)
+    expect(line.away.perInning).toEqual([3, 0, 0, 1, 0, 0, 0, 0, 0])
+    expect(line.home.perInning).toEqual([0, 0, 0, 0, 2, 0, 0, 0, 0])
+    expect(line.away.runs).toBe(4)
+    expect(line.home.runs).toBe(2)
+  })
+
+  it('extends past nine innings for extras', () => {
+    const events: PaEvent[] = [
+      ev({ inning: 10, half: 'bottom', type: 'home_run', runsScored: 1 }),
+    ]
+    const g = game(events, {
+      homeBox: { runs: 1, hits: 1, errors: 0, homeRuns: 1 },
+    })
+
+    const line = buildLineScore(g)
+    expect(line.innings).toBe(10)
+    expect(line.away.perInning).toHaveLength(10)
+    expect(line.home.perInning).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+  })
+
+  it('takes R/H/E totals from the official team boxes', () => {
+    const g = game([], {
+      awayBox: { runs: 3, hits: 7, errors: 1, homeRuns: 1 },
+      homeBox: { runs: 0, hits: 0, errors: 0, homeRuns: 0 },
+    })
+
+    const line = buildLineScore(g)
+    expect(line.away).toEqual({
+      perInning: [0, 0, 0, 0, 0, 0, 0, 0, 0],
+      runs: 3,
+      hits: 7,
+      errors: 1,
+    })
+    expect(line.home.runs).toBe(0)
+  })
+
+  it('ignores run_scored bookkeeping events so runs are not double-counted', () => {
+    const events: PaEvent[] = [
+      ev({ inning: 1, half: 'top', type: 'home_run', runsScored: 2 }),
+      ev({
+        inning: 1,
+        half: 'top',
+        type: 'run_scored',
+        runsScored: 2,
+        description: 'Slugger drives in 2 run(s)',
+      }),
+    ]
+    const line = buildLineScore(game(events))
+    expect(line.away.perInning[0]).toBe(2)
   })
 })

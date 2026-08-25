@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import GameBoxScoreCard from '@/components/GameBoxScoreCard'
-import { buildGameBoxScore } from '@/lib/box-score'
+import { buildGameBoxScore, buildLineScore } from '@/lib/box-score'
 
 export type BoxScoreModalEntry = {
   label: string
@@ -76,6 +76,7 @@ export default function GameBoxScoreModal({
               </h4>
               <GameBoxScoreCard
                 box={buildGameBoxScore(entry.game)}
+                lineScore={buildLineScore(entry.game)}
                 awayLabel={entry.awayLabel}
                 homeLabel={entry.homeLabel}
               />

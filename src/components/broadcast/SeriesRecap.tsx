@@ -9,7 +9,7 @@ import {
   topPerformers,
   topPitchers,
 } from '@/lib/series-replay'
-import { buildGameBoxScore } from '@/lib/box-score'
+import { buildGameBoxScore, buildLineScore } from '@/lib/box-score'
 import {
   seriesGameLetter,
   sideLabels,
@@ -131,6 +131,7 @@ export function SeriesRecap({
                     <div className="border-t border-border/60 p-2">
                       <GameBoxScoreCard
                         box={buildGameBoxScore(game)}
+                        lineScore={buildLineScore(game)}
                         {...sideLabels(
                           game,
                           userTeamLabel,
