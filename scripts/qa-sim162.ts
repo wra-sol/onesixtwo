@@ -128,19 +128,28 @@ function runSeasonQa(
 
   check(`${label}: 162 games produced`, () => {
     assertEqual(result.userGames.length, 162, 'userGames length')
+    const indices = result.userGameIndices
+    assert(indices !== undefined && indices.length === 162, 'userGameIndices present')
+    for (let i = 1; i < indices!.length; i++) {
+      assert(indices![i]! > indices![i - 1]!, 'user game indices strictly increase')
+    }
     let strictWins = 0
     let tieBreakWins = 0
+    let ties = 0
     for (let i = 0; i < result.userGames.length; i++) {
       const g = result.userGames[i]!
       const userScore = g.userWasHome ? g.homeScore : g.awayScore
       const oppScore = g.userWasHome ? g.awayScore : g.homeScore
       if (userScore > oppScore) strictWins++
       else if (userScore === oppScore) {
-        if (coinFlipTieWinner(seasonSeed, i)) tieBreakWins++
+        ties++
+        // Tied games are decided by a coin flip at the global schedule index,
+        // not the position within userGames.
+        if (coinFlipTieWinner(seasonSeed, indices![i]!)) tieBreakWins++
       }
     }
     const totalWins = strictWins + tieBreakWins
-    assertEqual(totalWins, result.userRecord.wins, `wins match (strict=${strictWins}, tieBreak=${tieBreakWins})`)
+    assertEqual(totalWins, result.userRecord.wins, `wins match (strict=${strictWins}, ties=${ties}, tieBreak=${tieBreakWins})`)
     assertEqual(result.userRecord.wins + result.userRecord.losses, 162, 'wins + losses = 162')
   })
 
