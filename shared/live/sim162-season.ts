@@ -69,6 +69,10 @@ export type PlayoffBracket = {
 export type Sim162SeasonResult = {
   userRecord: { wins: number; losses: number }
   userGames: SimulatedGame[]
+  /** Global schedule index per userGames entry — tied games are decided by
+   * coinFlipTieWinner(seasonSeed, index) at this index, so reconstructing the
+   * record game-by-game requires it. */
+  userGameIndices?: number[]
   standings: Standings
   playoffField: PlayoffField[]
   userQualified: boolean
@@ -156,6 +160,7 @@ export function buildSim162Season(
   }
 
   const userGames: SimulatedGame[] = []
+  const userGameIndices: number[] = []
   let wins = 0
   let losses = 0
 
@@ -165,14 +170,17 @@ export function buildSim162Season(
     const awayTeam = awayIsUser ? userTeam : getOpponent(g.away)
     const homeTeam = homeIsUser ? userTeam : getOpponent(g.home)
     const game = simulateGameRoster(
-      awayTeam,
-      homeTeam,
+      homeIsUser ? homeTeam : awayTeam,
+      homeIsUser ? awayTeam : homeTeam,
       regularSeasonGameSeed(seasonSeed, idx),
-      false,
+      homeIsUser,
       idx,
       { away: staffFor(g.away), home: staffFor(g.home) },
     )
-    if (awayIsUser || homeIsUser) userGames.push(game)
+    if (awayIsUser || homeIsUser) {
+      userGames.push(game)
+      userGameIndices.push(idx)
+    }
 
     let winner: string
     if (game.awayScore > game.homeScore) winner = g.away
@@ -218,6 +226,7 @@ export function buildSim162Season(
   return {
     userRecord: { wins, losses },
     userGames,
+    userGameIndices,
     standings,
     playoffField: playoffFields,
     userQualified,
