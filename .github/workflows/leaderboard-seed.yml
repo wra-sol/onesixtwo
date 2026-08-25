@@ -1,0 +1,27 @@
+name: leaderboard-seed
+
+on:
+  schedule:
+    # 13:00 UTC ≈ 9:00 ET — after yesterday's MLB games are final and the
+    # daily snapshot has rolled over.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: leaderboard-seed
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/seed-leaderboard.ts
+        env:
+          SEED_INITIALS: ${{ vars.SEED_INITIALS || 'BOT' }}
