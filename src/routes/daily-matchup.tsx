@@ -58,10 +58,9 @@ export default function DailyMatchupRoute() {
                 disabled={locked}
               />
               <span className="text-sm">
-                <span className="font-display text-primary">Salary Cap mode</span>
+                <span className="font-display text-primary">Salary cap</span>
                 <span className="block text-[0.65rem] text-muted-foreground">
-                  Optional challenge: draft within a star budget instead of picking every
-                  stud. {locked ? 'Locked in for this draft.' : 'Turn on before your first pick.'}
+                  Cap the roster at 20 stars instead of picking every stud. {locked ? 'Locked for this draft.' : 'Turn it on before your first pick.'}
                 </span>
               </span>
             </label>
@@ -80,12 +79,12 @@ export default function DailyMatchupRoute() {
                   aria-hidden
                 />
                 <p className="text-[0.65rem] text-muted-foreground">
-                  Elite 4 · Plus-Plus 3 · Plus 2 · else 1 star. Spend wisely — you can't
-                  afford every star.
+                  Elite 4 · Plus-Plus 3 · Plus 2 · everything else 1 star. Save a star for
+                  the positions you still need.
                 </p>
                 {stars.remaining <= 0 && (
                   <p className="text-[0.65rem] text-destructive">
-                    Budget spent — only 1-star players left.
+                    Budget spent. Only 1-star players are available.
                   </p>
                 )}
               </div>

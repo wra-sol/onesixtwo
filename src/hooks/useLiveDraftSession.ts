@@ -89,7 +89,7 @@ export function useLiveDraftSession(config: LiveModeConfig) {
       const data = await config.fetchSnapshot()
       setSnapshot(data)
       setIsFallback(Boolean(data.fallback))
-      setFallbackWarning(data.fallback ? data.error ?? 'Sample data — live MLB unavailable.' : null)
+      setFallbackWarning(data.fallback ? data.error ?? 'Live MLB data is unavailable.' : null)
       const initial = config.initDraft(data)
       const key = storageKey(config.mode, data.challengeDate)
       persistenceKeyRef.current = key

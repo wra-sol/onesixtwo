@@ -41,7 +41,7 @@ export default function DailyDraftProgress({
       {fallbackWarning && (
         <div className="flex items-center gap-2 rounded-md bg-amber-500/10 px-2 py-1.5 text-xs text-amber-700 dark:text-amber-400">
           <AlertTriangle size={14} className="shrink-0" />
-          <span>{fallbackWarning} — leaderboard submit is disabled.</span>
+          <span>Sample data: {fallbackWarning}. Leaderboard submission is off.</span>
         </div>
       )}
 

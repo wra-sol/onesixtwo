@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type DailyUnavailableStateProps = {
@@ -27,7 +28,7 @@ export default function DailyUnavailableState({
         </p>
         <Link
           to="/live-draft"
-          className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+          className={buttonVariants({ size: 'lg', className: 'w-full' })}
         >
           Play Live Draft
         </Link>

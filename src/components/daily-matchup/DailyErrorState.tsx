@@ -15,8 +15,8 @@ export default function DailyErrorState({ message, onRetry }: DailyErrorStatePro
         Retry
       </Button>
       <p className="text-xs text-muted-foreground">
-        Live MLB data couldn&apos;t be loaded. If it remains unavailable, try Live Draft for an
-        always-available match.
+        Live MLB data is unavailable right now. Try Live Draft or Classic 162 while the feed
+        recovers.
       </p>
     </div>
   )

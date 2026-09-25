@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import GradeChip from '@/components/GradeChip'
+import { PlayerRoleGlyph } from '@/components/GameArt'
 import { continuousToDisplayGrade, GRADE_LABELS } from '@shared/live/live-grades'
 import type { LivePlayer } from '@shared/live/live-types'
 
@@ -32,9 +33,10 @@ export default function LivePlayerCard({
     <button
       type="button"
       disabled={disabled}
+      aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'w-full px-3 py-2 text-left transition-colors',
+        'min-h-12 w-full px-3 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
         selected && 'bg-primary/10',
         disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-muted/40',
         compact && 'py-1.5',
@@ -48,8 +50,13 @@ export default function LivePlayerCard({
             {player.isFallback ? ' · Active fallback' : ''}
           </p>
         </div>
-        <div className="text-right">
-          {badge && (
+        <div className="flex items-start justify-end gap-1.5">
+          <PlayerRoleGlyph
+            role={player.role}
+            className="mt-1 size-4 text-primary/70"
+          />
+          <div className="text-right">
+            {badge && (
             <span className="mb-0.5 inline-block rounded bg-primary/10 px-1.5 py-0.5 text-[0.6rem] font-semibold tabular-nums text-primary">
               {badge}
             </span>
@@ -58,6 +65,7 @@ export default function LivePlayerCard({
           <p className="text-[0.65rem] text-muted-foreground">
             {GRADE_LABELS[overall]}
           </p>
+          </div>
         </div>
       </div>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5">

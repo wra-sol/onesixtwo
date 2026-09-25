@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button-variants'
 import { BRAND } from '@/lib/brand'
+import { GameMark, type GameMarkKind } from '@/components/GameArt'
 import {
   Card,
   CardContent,
@@ -39,6 +41,72 @@ type LiveDraftPreviewState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
   | { status: 'ready'; snapshot: LiveDraftSnapshot }
+
+type ModeCardProps = {
+  mark: GameMarkKind
+  kicker: string
+  title: string
+  description: React.ReactNode
+  children: React.ReactNode
+  className?: string
+}
+
+function ModeCard({
+  mark,
+  kicker,
+  title,
+  description,
+  children,
+  className,
+}: ModeCardProps) {
+  return (
+    <Card className={cn('game-mode-card', className)}>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="game-mode-card__kicker">{kicker}</p>
+            <CardTitle className="font-display text-xl text-primary">{title}</CardTitle>
+          </div>
+          <GameMark kind={mark} className="size-10 text-primary md:size-12" />
+        </div>
+        <CardDescription className="max-w-prose text-sm leading-relaxed">
+          {description}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="mt-auto space-y-3">{children}</CardContent>
+    </Card>
+  )
+}
+
+function ModeLink({
+  to,
+  children,
+  variant = 'default',
+}: {
+  to: string
+  children: React.ReactNode
+  variant?: 'default' | 'secondary' | 'outline'
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(buttonVariants({ variant, size: 'lg' }), 'w-full')}
+    >
+      {children}
+    </Link>
+  )
+}
+
+function ModeStatus({ children }: { children: React.ReactNode }) {
+  return (
+    <p
+      className="flex min-h-11 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 px-3 py-2 text-center text-sm text-muted-foreground"
+      role="status"
+    >
+      {children}
+    </p>
+  )
+}
 
 export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const [formatId, setFormatId] = useState<RosterFormatId>('classic')
@@ -97,7 +165,7 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const dailyMatchupDescription = (() => {
     switch (dailyMatchupPreview.status) {
       case 'loading':
-        return 'Loading today\u2019s opponent\u2026'
+        return 'Loading the opponent and player pool for today.'
       case 'error':
         return dailyMatchupPreview.message
       case 'ready': {
@@ -108,9 +176,9 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
               <span className="font-medium text-foreground">
                 {formatDailyMatchupOpponentHeadline(snapshot)}
               </span>
-              <span className="mt-1 block text-muted-foreground">
-                Target {snapshot.targetDate} · Draft from last night&apos;s MLB
-                players and play a best-of-3 series.
+              <span className="mt-1 block">
+                Draft 12 players from Target Date {snapshot.targetDate}, then play a
+                best-of-3.
               </span>
             </>
           )
@@ -127,7 +195,7 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const liveDraftDescription = (() => {
     switch (liveDraftPreview.status) {
       case 'loading':
-        return 'Loading today\u2019s player pool\u2026'
+        return 'Loading today\u2019s active MLB pool.'
       case 'error':
         return liveDraftPreview.message
       case 'ready': {
@@ -137,7 +205,7 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
             <span className="font-medium text-foreground">
               {formatLiveDraftHomeHeadline(snapshot)}
             </span>
-            <span className="mt-1 block text-muted-foreground">
+            <span className="mt-1 block">
               {formatLiveDraftHomeDescription(snapshot)}
             </span>
           </>
@@ -153,152 +221,131 @@ export default function ModeSelect({ onStartClassic }: ModeSelectProps) {
   const dailyMatchupPlayDisabled =
     dailyMatchupPreview.status !== 'ready' ||
     !dailyMatchupPreview.snapshot.available
-
   const liveDraftPlayDisabled = liveDraftPreview.status !== 'ready'
 
   return (
-    <div className="mx-auto grid max-w-4xl gap-4 pb-20 md:grid-cols-2 md:pb-8">
-      <Card className="md:col-span-2">
-        <CardHeader className="items-center text-center">
-          <img
-            src={BRAND.logoPath}
-            alt="Perfect Season logo"
-            className="mb-2 size-24 rounded-3xl object-cover shadow-xl ring-2 ring-primary/70"
-          />
-          <CardTitle className="font-display text-2xl text-primary">
-            {BRAND.name}
-          </CardTitle>
-          <CardDescription>{BRAND.description}</CardDescription>
-        </CardHeader>
-      </Card>
+    <div className="mx-auto max-w-5xl space-y-5 pb-8">
+      <section className="game-intro" aria-labelledby="mode-select-heading">
+        <img
+          src={BRAND.logoPath}
+          alt=""
+          className="size-16 rounded-xl object-cover ring-2 ring-primary/60 shadow-lg md:size-20"
+        />
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-primary">{BRAND.tagline}</p>
+          <h1
+            id="mode-select-heading"
+            className="mt-1 max-w-2xl font-display text-3xl leading-tight text-foreground md:text-4xl"
+          >
+            Draft a roster. See what it does over 162 games.
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground md:text-base">
+            Pick a mode, make the legal selections, and watch the simulation
+            decide the season.
+          </p>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-display text-lg text-primary">
-            Classic 162
-          </CardTitle>
-          <CardDescription>
-            Spin franchise decades, draft historical cards, simulate a full
-            season.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2">
+      <div className="grid gap-3 md:grid-cols-2">
+        <ModeCard
+          mark="classic"
+          kicker="Historical draft"
+          title="Classic 162"
+          description="Spin a franchise and era, draft its best players, then run a full projected season."
+        >
+          <div
+            className="grid grid-cols-2 gap-2"
+            role="group"
+            aria-label="Classic roster size"
+          >
             {ROSTER_FORMATS.map((format) => (
-              <button
+              <Button
                 key={format.id}
                 type="button"
+                variant="outline"
                 className={cn(
-                  'rounded-lg border px-3 py-2 text-left text-xs transition-colors',
-                  formatId === format.id
-                    ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                    : 'border-border hover:bg-muted/50',
+                  'h-auto min-h-12 justify-start px-3 py-2 text-left',
+                  formatId === format.id &&
+                    'border-primary bg-primary/10 text-foreground ring-1 ring-primary',
                 )}
                 aria-pressed={formatId === format.id}
                 onClick={() => setFormatId(format.id)}
               >
-                <span className="block font-bold">{format.label}</span>
-              </button>
+                <span className="block text-sm font-semibold">{format.label}</span>
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                  {format.positions.length} lineup slots
+                </span>
+              </Button>
             ))}
           </div>
-          <Button type="button" onClick={() => onStartClassic(formatId)}>
-            Start Classic Draft
+          <Button
+            type="button"
+            size="lg"
+            className="w-full"
+            onClick={() => onStartClassic(formatId)}
+          >
+            Start classic draft
           </Button>
-        </CardContent>
-      </Card>
+        </ModeCard>
 
-      <Card className="border-primary/40">
-        <CardHeader>
-          <CardTitle className="font-display text-lg text-primary">
-            Daily Matchup
-          </CardTitle>
-          <CardDescription>{dailyMatchupDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <ModeCard
+          mark="daily"
+          kicker="Yesterday's MLB"
+          title="Daily Matchup"
+          description={dailyMatchupDescription}
+          className="border-primary/45"
+        >
           {dailyMatchupPlayDisabled ? (
-            <p
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-muted-foreground"
-              role="status"
-            >
+            <ModeStatus>
               {dailyMatchupPreview.status === 'loading'
                 ? 'Loading today\u2019s opponent\u2026'
                 : dailyMatchupPreview.status === 'error'
                   ? 'Opponent unavailable'
-                  : 'Unavailable today'}
-            </p>
+                  : 'No completed game yesterday'}
+            </ModeStatus>
           ) : (
-            <Link
-              to="/daily-matchup"
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
-            >
-              Play Daily Matchup
-            </Link>
+            <ModeLink to="/daily-matchup">Play today&apos;s matchup</ModeLink>
           )}
-        </CardContent>
-      </Card>
+        </ModeCard>
 
-      <Card className="border-primary/40 md:col-span-2">
-        <CardHeader>
-          <CardTitle className="font-display text-lg text-primary">
-            Live Draft
-          </CardTitle>
-          <CardDescription>{liveDraftDescription}</CardDescription>
-        </CardHeader>
-        <CardContent>
+        <ModeCard
+          mark="live"
+          kicker="Head-to-head"
+          title="Live Draft"
+          description={liveDraftDescription}
+          className="border-secondary/70"
+        >
           {liveDraftPlayDisabled ? (
-            <p
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-muted px-4 text-sm font-medium text-muted-foreground"
-              role="status"
-            >
+            <ModeStatus>
               {liveDraftPreview.status === 'loading'
                 ? 'Loading today\u2019s player pool\u2026'
                 : 'Live Draft unavailable'}
-            </p>
+            </ModeStatus>
           ) : (
-            <Link
-              to="/live-draft"
-              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground"
-            >
-              Play Live Draft
-            </Link>
+            <ModeLink to="/live-draft" variant="secondary">
+              Draft against the AI
+            </ModeLink>
           )}
-        </CardContent>
-      </Card>
+        </ModeCard>
 
-      <Card className="border-primary/40 md:col-span-2">
-        <CardHeader>
-          <CardTitle className="font-display text-lg text-primary">
-            Sim 162
-          </CardTitle>
-          <CardDescription>
-            Draft a 25-man roster from current MLB or all-time legends, set your
-            batting order and rotation, then simulate a full 162-game season.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <ModeCard
+          mark="sim162"
+          kicker="Full season"
+          title="Sim 162"
+          description="Draft 25 players, set the batting order and rotation, then play through the postseason."
+          className="border-primary/45"
+        >
+          <p className="text-xs font-medium text-muted-foreground">
             Choose a player pool
           </p>
           <div className="grid gap-2 sm:grid-cols-2">
-            <Link
-              to="/sim162?pool=live"
-              className={cn(
-                'inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground',
-              )}
-            >
-              Current MLB
-            </Link>
-            <Link
-              to="/sim162?pool=legends"
-              className={cn(
-                'inline-flex h-9 w-full items-center justify-center rounded-md bg-secondary px-4 text-sm font-medium text-secondary-foreground',
-              )}
-            >
+            <ModeLink to="/sim162?pool=live">Current MLB</ModeLink>
+            <ModeLink to="/sim162?pool=legends" variant="secondary">
               All-Time Legends
-            </Link>
+            </ModeLink>
           </div>
-        </CardContent>
-      </Card>
+        </ModeCard>
+      </div>
     </div>
   )
 }

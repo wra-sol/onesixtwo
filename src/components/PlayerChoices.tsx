@@ -103,8 +103,11 @@ export default function PlayerChoices({
         id="choices-heading"
         className="font-display text-base text-primary"
       >
-        Players · {pickableCount} pickable
+        Choose a player
       </h3>
+      <p className="-mt-2 text-xs text-muted-foreground" aria-live="polite">
+        {pickableCount} pickable · {filtered.length} shown
+      </p>
 
       <div className="flex flex-wrap gap-2">
         <Input

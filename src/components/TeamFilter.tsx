@@ -1,3 +1,10 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { TeamOption } from '@/lib/team-options'
 
 type TeamFilterProps = {
@@ -12,6 +19,8 @@ type TeamFilterProps = {
   includeAllOption?: boolean
   allOptionLabel?: string
 }
+
+const ALL_TEAMS_VALUE = '__all__'
 
 /**
  * Team picker that scopes a draft browser to a single team's players,
@@ -28,30 +37,45 @@ export default function TeamFilter({
   allOptionLabel = 'All teams',
 }: TeamFilterProps) {
   const hasTeams = options.length > 0
+  const selectValue = value || ALL_TEAMS_VALUE
+  const selectedLabel = value
+    ? (options.find((team) => team.abbrev === value)?.name ?? value)
+    : allOptionLabel
+
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor={id} className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <label htmlFor={id} className="text-xs font-semibold text-muted-foreground">
         Team
       </label>
-      <select
-        id={id}
-        aria-label="Filter players by team"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
+      <Select
+        value={selectValue}
+        onValueChange={(next) => onChange(next === ALL_TEAMS_VALUE ? '' : (next ?? ''))}
         disabled={disabled || (!hasTeams && !includeAllOption)}
-        className="h-9 min-w-0 flex-1 rounded border border-border bg-background px-2 text-base md:text-sm"
       >
-        {includeAllOption && <option value="">{allOptionLabel}</option>}
-        {!hasTeams && !includeAllOption ? (
-          <option value="">No teams</option>
-        ) : (
-          options.map((t) => (
-            <option key={t.abbrev} value={t.abbrev}>
-              {t.name} ({t.count})
-            </option>
-          ))
-        )}
-      </select>
+        <SelectTrigger
+          id={id}
+          className="min-h-11 min-w-0 flex-1"
+          aria-label="Filter players by team"
+        >
+          <SelectValue placeholder="All teams">{selectedLabel}</SelectValue>
+        </SelectTrigger>
+        <SelectContent>
+          {includeAllOption && (
+            <SelectItem value={ALL_TEAMS_VALUE}>{allOptionLabel}</SelectItem>
+          )}
+          {!hasTeams && !includeAllOption ? (
+            <SelectItem value="__none__" disabled>
+              No teams
+            </SelectItem>
+          ) : (
+            options.map((team) => (
+              <SelectItem key={team.abbrev} value={team.abbrev}>
+                {team.name} ({team.count})
+              </SelectItem>
+            ))
+          )}
+        </SelectContent>
+      </Select>
       {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   )

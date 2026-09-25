@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
+import GameTurnStrip from '../components/GameTurnStrip'
 import DraftHistory from '../components/DraftHistory'
 import DraftPanel from '../components/DraftPanel'
 import ModeSelect from '../components/ModeSelect'
@@ -17,6 +18,7 @@ import {
   canRespinTeam,
   canRespinYear,
   createInitialGameState,
+  getFilledCount,
   requestTeamRespin,
   requestYearRespin,
   resolveSpin,
@@ -135,6 +137,42 @@ export default function HomeRoute() {
     return PLAYER_BY_ID.get(gameState.selectedPlayerId) ?? null
   }, [gameState.selectedPlayerId])
 
+  const classicTurnStrip = (() => {
+    if (gameState.status === 'spinning') {
+      return {
+        label: `Round ${gameState.round}`,
+        title: 'Spinning for a team and era',
+        detail: 'The next eligible group of historical players is being selected.',
+        tone: 'waiting' as const,
+      }
+    }
+    if (selectedPlayer) {
+      return {
+        label: 'Player selected',
+        title: `Assign ${selectedPlayer.name}`,
+        detail: 'Choose a highlighted position in your lineup.',
+        tone: 'active' as const,
+      }
+    }
+    if (gameState.status === 'assigning') {
+      return {
+        label: 'Next step',
+        title: 'Choose a position',
+        detail: 'Place the selected player in the lineup.',
+        tone: 'active' as const,
+      }
+    }
+    return {
+      label: 'Your move',
+      title: 'Choose a player',
+      detail: 'Pick the best card for the open positions in this spin.',
+      tone: 'active' as const,
+    }
+  })()
+
+  const classicFilled = getFilledCount(gameState.lineup, gameState.rosterFormatId)
+  const classicTotal = rosterFormatSlotCount(gameState.rosterFormatId)
+
   const seasonResult = useMemo(() => {
     if (gameState.status !== 'complete') {
       return null
@@ -223,7 +261,15 @@ export default function HomeRoute() {
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="space-y-3">
+      <GameTurnStrip
+        {...classicTurnStrip}
+        progress={{
+          value: (classicFilled / Math.max(1, classicTotal)) * 100,
+          label: `${classicFilled}/${classicTotal}`,
+        }}
+      />
+      <div className="grid gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
       <Card>
           <CardContent className="space-y-4 pt-4">
             <DraftPanel
@@ -271,6 +317,7 @@ export default function HomeRoute() {
           onAssign={handleAssign}
         />
       </aside>
+      </div>
     </div>
   )
 }

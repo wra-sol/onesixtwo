@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import LivePlayerCard from '@/components/LivePlayerCard'
 import TeamFilter from '@/components/TeamFilter'
 import { deriveTeamOptions } from '@/lib/team-options'
@@ -10,6 +18,7 @@ import {
 } from '@shared/live/daily-roster'
 import type { LivePlayer } from '@shared/live/live-types'
 import { cn } from '@/lib/utils'
+import { GameMark } from '@/components/GameArt'
 
 export type PositionFilter = 'ALL' | DailyLineupPosition
 export type SortKey = 'overall' | 'name' | 'team'
@@ -88,6 +97,7 @@ export default function DailyPlayerBrowser({
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search all players by name"
         disabled={!canSelect}
+        aria-label="Search all players by name"
       />
 
       <div className="flex flex-wrap gap-1">
@@ -97,7 +107,7 @@ export default function DailyPlayerBrowser({
             type="button"
             onClick={() => setPositionFilter(pos)}
             className={cn(
-              'min-h-8 rounded px-2 text-[0.7rem] font-semibold tracking-wide uppercase transition-colors',
+              'min-h-11 rounded px-2 text-[0.7rem] font-semibold tracking-wide uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
               positionFilter === pos
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted text-muted-foreground hover:bg-muted/70',
@@ -108,40 +118,46 @@ export default function DailyPlayerBrowser({
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <label className="flex min-h-8 items-center gap-1.5 text-xs text-muted-foreground">
-          <input
-            type="checkbox"
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-1 text-xs text-muted-foreground">
+          <Checkbox
             checked={hideUnavailable}
-            onChange={(e) => setHideUnavailable(e.target.checked)}
-            className="size-4"
+            onCheckedChange={(checked) => setHideUnavailable(checked === true)}
           />
           Hide unavailable
         </label>
-        <div className="flex items-center gap-1 text-xs">
+        <div className="flex items-center gap-2 text-xs">
           <span className="text-muted-foreground">Sort</span>
-          <select
+          <Select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-            aria-label="Sort players"
-            className="h-8 rounded border border-border bg-background px-1 text-base md:text-sm"
+            onValueChange={(value) => setSortBy((value ?? 'overall') as SortKey)}
           >
-            <option value="overall">Overall</option>
-            <option value="name">Name</option>
-            <option value="team">Team</option>
-          </select>
+            <SelectTrigger className="min-h-11 min-w-28" aria-label="Sort players">
+              <SelectValue>
+                {sortBy === 'overall' ? 'Overall' : sortBy === 'name' ? 'Name' : 'Team'}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overall">Overall</SelectItem>
+              <SelectItem value="name">Name</SelectItem>
+              <SelectItem value="team">Team</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        {displayPlayers.length} player{displayPlayers.length === 1 ? '' : 's'}
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {displayPlayers.length} player{displayPlayers.length === 1 ? '' : 's'} shown
       </p>
 
       <div className="max-h-[28rem] divide-y divide-border overflow-y-auto rounded-lg border border-border">
         {displayPlayers.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">
-            No players match these filters.
-          </p>
+          <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+            <GameMark kind="empty" className="size-10 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              No players match these filters.
+            </p>
+          </div>
         ) : (
           displayPlayers.map((player) => (
             <LivePlayerCard

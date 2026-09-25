@@ -99,8 +99,115 @@
 
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+}
+
+@layer components {
+  .skip-link {
+    @apply fixed top-3 left-3 z-[100] -translate-y-20 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-transform;
+  }
+
+  .skip-link:focus {
+    @apply translate-y-0;
+  }
+
+  .game-nav {
+    @apply flex min-w-0 max-w-full items-center gap-1 overflow-x-auto;
+    scrollbar-width: none;
+  }
+
+  .game-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .game-nav__link {
+    @apply inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground;
+  }
+
+  .game-nav__link--active {
+    @apply bg-primary/15 text-primary;
+    box-shadow: inset 0 -2px 0 var(--primary);
+  }
+
+  .game-intro {
+    @apply flex items-start gap-3 border-b border-border/70 pb-5 md:gap-4;
+  }
+
+  .game-mode-card {
+    @apply gap-3 border-border/80 bg-card/85 shadow-sm;
+  }
+
+  .game-mode-card__kicker {
+    @apply text-xs font-semibold tracking-wide text-primary;
+  }
+
+  .game-turn-strip {
+    @apply flex flex-col gap-3 rounded-xl border border-border bg-card p-3 shadow-sm md:flex-row md:items-center md:justify-between md:px-4 md:py-3;
+  }
+
+  .game-turn-strip--active {
+    @apply border-primary/45 bg-primary/5;
+  }
+
+  .game-turn-strip--waiting {
+    @apply border-secondary/70 bg-secondary/20;
+  }
+
+  .game-turn-strip--setup {
+    @apply border-primary/35;
+  }
+
+  .game-turn-strip__label {
+    @apply text-xs font-semibold tracking-wide text-primary;
+  }
+
+  .game-turn-strip__title {
+    @apply mt-0.5 text-base font-semibold text-foreground;
+  }
+
+  .game-turn-strip__detail {
+    @apply mt-0.5 text-sm text-muted-foreground;
+  }
+
+  .game-turn-strip__aside {
+    @apply flex w-full flex-col gap-3 sm:flex-row sm:items-end md:w-auto md:min-w-56;
+  }
+
+  .game-roster-panel {
+    @apply shadow-sm;
+  }
+
+  .game-assignment-banner {
+    @apply shadow-sm;
+  }
+
+  .game-result-actions {
+    @apply border-primary/35;
+  }
+
+  .game-loading-mark {
+    animation: game-mark-turn 2.4s ease-in-out infinite;
+    transform-origin: center;
+  }
+
+  @keyframes game-mark-turn {
+    0%,
+    100% {
+      opacity: 0.7;
+      transform: rotate(-2deg);
+    }
+    50% {
+      opacity: 1;
+      transform: rotate(2deg);
+    }
+  }
 }
 
 @layer utilities {
@@ -529,6 +636,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   .result-record--perfect {
     animation: none;
   }
@@ -546,6 +657,10 @@
   }
 
   .broadcast-feed-item--walkoff {
+    animation: none;
+  }
+
+  .game-loading-mark {
     animation: none;
   }
 }

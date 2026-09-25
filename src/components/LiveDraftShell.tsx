@@ -18,6 +18,10 @@ import {
   type LiveModeConfig,
 } from '@/hooks/useLiveDraftSession'
 import { useScrollToBrowserOnDeselect } from '@/hooks/useScrollToBrowserOnDeselect'
+import GameTurnStrip from '@/components/GameTurnStrip'
+import { GameMark } from '@/components/GameArt'
+import { DAILY_LINEUP_POSITIONS, dailyLineupPlayers } from '@shared/live/daily-roster'
+import { LIVE_DRAFT_TOTAL_ROUNDS } from '@shared/live/live-draft'
 
 type LiveDraftSession = ReturnType<typeof useLiveDraftSession>
 
@@ -79,6 +83,51 @@ export default function LiveDraftShell({
     getPlayerBadge,
   } = session
 
+  const filledSlots = draftState
+    ? dailyLineupPlayers(
+        draftState.mode === 'live-draft'
+          ? draftState.userLineup
+          : draftState.lineup,
+      ).length
+    : 0
+
+  const turnStrip = (() => {
+    if (!draftState) return null
+    if (isLineupPhase) {
+      return {
+        label: 'Lineup complete',
+        title: 'Set the batting order',
+        detail: 'Put the nine hitters in the order you want, then simulate the series.',
+        tone: 'setup' as const,
+      }
+    }
+    if (selectedPlayer) {
+      return {
+        label: 'Player selected',
+        title: `Assign ${selectedPlayer.name}`,
+        detail: 'Choose an open position in your lineup. The highlighted slots are legal for this player.',
+        tone: 'active' as const,
+      }
+    }
+    if (!canSelect) {
+      return {
+        label:
+          draftState.mode === 'live-draft' && draftState.roundStatus === 'spinning'
+            ? `Round ${draftState.round} of ${LIVE_DRAFT_TOTAL_ROUNDS}`
+            : 'Draft in progress',
+        title: 'AI is picking',
+        detail: 'The next legal player will appear here when the AI finishes its turn.',
+        tone: 'waiting' as const,
+      }
+    }
+    return {
+      label: 'Your move',
+      title: 'Choose a player',
+      detail: 'Start with the strongest legal player for the open positions.',
+      tone: 'active' as const,
+    }
+  })()
+
   useScrollToBrowserOnDeselect(selectedPlayer?.id ?? null)
 
   if (error) {
@@ -110,8 +159,7 @@ export default function LiveDraftShell({
     return (
       <div className="space-y-3 py-8 text-center">
         <p className="text-destructive" role="alert">
-          Draft stuck — no team left with enough players for this round. Fill catcher and
-          closer earlier on the next try.
+          Draft stuck: no team has enough legal players for both sides. Start over and fill C and CL earlier.
         </p>
         <Button type="button" variant="outline" onClick={() => void retry()}>
           Start over
@@ -180,7 +228,7 @@ export default function LiveDraftShell({
               disabled={isFallback}
               disabledReason={
                 isFallback
-                  ? 'Live data is unavailable — leaderboard submit is disabled.'
+                  ? 'Sample data is active. Leaderboard submission is off.'
                   : undefined
               }
             />
@@ -198,9 +246,18 @@ export default function LiveDraftShell({
     draftState.mode === 'live-draft' ? draftState.userLineup : draftState.lineup
 
   return (
-    <>
-      <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-2">
-        <Card>
+    <div className="space-y-3">
+      {turnStrip && (
+        <GameTurnStrip
+          {...turnStrip}
+          progress={{
+            value: (filledSlots / DAILY_LINEUP_POSITIONS.length) * 100,
+            label: `${filledSlots}/${DAILY_LINEUP_POSITIONS.length}`,
+          }}
+        />
+      )}
+      <div className="mx-auto grid max-w-6xl gap-3 md:grid-cols-[minmax(0,1.15fr)_minmax(20rem,0.85fr)]">
+        <Card className="game-draft-board">
           <CardHeader>
             <CardTitle className="font-display text-lg text-primary">
               {title}
@@ -213,21 +270,40 @@ export default function LiveDraftShell({
             {!isLineupPhase ? (
               playerBrowser?.(session) ?? (
                 <>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h3 className="font-display text-sm text-primary">
+                      Choose a player
+                    </h3>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {filteredPlayers.length} shown
+                    </span>
+                  </div>
+                  <label htmlFor="live-player-search" className="sr-only">
+                    Search players
+                  </label>
                   <Input
+                    id="live-player-search"
+                    type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search players"
+                    placeholder="Search by name"
                     disabled={!canSelect}
                   />
                   <div
-                    className="divide-y divide-border rounded-lg border border-border"
+                    className="max-h-[30rem] divide-y divide-border overflow-y-auto rounded-lg border border-border"
                     data-player-browser="true"
                   >
-                    {filteredPlayers.length === 0 && playerListMessage ? (
-                      <p className="px-3 py-4 text-sm text-muted-foreground">
-                        {playerListMessage}
-                      </p>
-                    ) : null}
+                    {filteredPlayers.length === 0 && (
+                      <div className="flex flex-col items-center gap-2 px-3 py-6 text-center">
+                        <GameMark
+                          kind="empty"
+                          className="size-10 text-muted-foreground"
+                        />
+                        <p className="text-sm text-muted-foreground">
+                          {playerListMessage ?? 'No players match this search.'}
+                        </p>
+                      </div>
+                    )}
                     {filteredPlayers.map((player) => (
                       <LivePlayerCard
                         key={player.id}
@@ -278,7 +354,7 @@ export default function LiveDraftShell({
           </Link>
         </p>
       )}
-    </>
+    </div>
   )
 }
 

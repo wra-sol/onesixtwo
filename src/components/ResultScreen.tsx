@@ -8,6 +8,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import ShareResultPanel from './ShareResultPanel'
+import { GameMark } from './GameArt'
 import { BRAND } from '../lib/brand'
 import { SIMULATION_EXPLANATION } from '../lib/calibration'
 import { buildShareUrl } from '../lib/share-url'
@@ -55,6 +56,9 @@ export default function ResultScreen({
       aria-labelledby="result-heading"
     >
       <CardHeader>
+        <div className="flex justify-center">
+          <GameMark kind="result" className="size-8 text-primary/50" />
+        </div>
         <CardTitle
           id="result-heading"
           className="font-display text-xl text-primary"

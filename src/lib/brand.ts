@@ -15,7 +15,7 @@ export const BRAND = {
   perfectRecord: '162-0',
   tagline: 'Draft the perfect 162-game season.',
   description:
-    'Draft an all-time MLB lineup, chase a perfect 162-0 projection, and see whether your roster earns a Perfect Season.',
+    'Draft a baseball roster, set the order, and see how it performs over a simulated 162-game season.',
   inspiredByUrl: 'https://www.82-0.com/',
   inspiredByName: '82-0',
 } as const

@@ -25,7 +25,7 @@ export default function LiveDraftRoute() {
       subtitle={({ draftState }) => {
         if (draftState?.mode !== 'live-draft') return ''
         if (draftState.status === 'stuck') {
-          return 'No team left with legal picks for both sides — fill scarce slots earlier next time.'
+          return 'No team has enough legal picks for both sides. Fill C and CL earlier next time.'
         }
         if (draftState.roundStatus === 'spinning') {
           return `Round ${draftState.round} · Spinning team…`
@@ -83,15 +83,15 @@ export default function LiveDraftRoute() {
                   onClick={handleUserReroll}
                 >
                   {draftState.userRerollUsed
-                    ? 'Re-spin team used'
-                    : 'Re-spin team · 1×'}
+                    ? 'Re-spin used'
+                    : 'Re-spin team (1 left)'}
                 </Button>
               )}
             </div>
 
             {aiReveal && (
               <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-                AI drafted {aiReveal.name} ({aiReveal.teamAbbrev})
+                AI picked {aiReveal.name} ({aiReveal.teamAbbrev})
               </div>
             )}
 
@@ -128,6 +128,7 @@ export default function LiveDraftRoute() {
             <div>
               <p className="mb-2 font-display text-sm text-primary">Your lineup</p>
               <LiveLineupGrid
+                title="Your lineup"
                 lineup={draftState.userLineup}
                 selectedPlayer={selectedPlayer}
                 isAssigning={isAssigning && !isLineupPhase && canSelect}
@@ -137,6 +138,7 @@ export default function LiveDraftRoute() {
             <div>
               <p className="mb-2 font-display text-sm text-muted-foreground">AI lineup</p>
               <LiveLineupGrid
+                title="AI lineup"
                 lineup={draftState.aiLineup}
                 selectedPlayer={null}
                 isAssigning={false}

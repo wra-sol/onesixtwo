@@ -79,17 +79,23 @@ function renderBrowser(overrides?: Partial<React.ComponentProps<typeof DailyPlay
   return { ...render(<DailyPlayerBrowser {...props} />), onSelect, getDisabledReason, props }
 }
 
-const selectTeam = (abbrev: string) =>
-  fireEvent.change(screen.getByLabelText('Filter players by team'), {
-    target: { value: abbrev },
-  })
+const selectTeam = (abbrev: string) => {
+  fireEvent.click(screen.getByRole('combobox', { name: 'Filter players by team' }))
+  const option = abbrev
+    ? screen.getByRole('option', { name: new RegExp(`Team ${abbrev}`) })
+    : screen.getByRole('option', { name: 'All teams' })
+  fireEvent.pointerDown(option, { pointerType: 'mouse', button: 0 })
+  fireEvent.click(option)
+}
 
 describe('DailyPlayerBrowser', () => {
   it('defaults to all teams sorted by overall desc (team filter is optional)', () => {
     renderBrowser()
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 4', 'Player 2', 'Player 5', 'Player 3'])
-    expect(screen.getByRole('option', { name: 'All teams' })).toBeTruthy()
+    expect(
+      screen.getByRole('combobox', { name: 'Filter players by team' }).textContent,
+    ).toContain('All teams')
   })
 
   it('narrows to a single team when one is selected', () => {
@@ -115,7 +121,11 @@ describe('DailyPlayerBrowser', () => {
     renderBrowser({ search: 'player' })
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 4', 'Player 2', 'Player 5', 'Player 3'])
-    expect((screen.getByLabelText('Filter players by team') as HTMLSelectElement).disabled).toBe(true)
+    expect(
+      screen
+        .getByRole('combobox', { name: 'Filter players by team' })
+        .getAttribute('disabled'),
+    ).not.toBeNull()
   })
 
   it('filters to a position when a position chip is clicked', () => {
@@ -128,7 +138,10 @@ describe('DailyPlayerBrowser', () => {
 
   it('sorts by name when the sort selector changes', () => {
     renderBrowser()
-    fireEvent.change(screen.getByDisplayValue('Overall'), { target: { value: 'name' } })
+    fireEvent.click(screen.getByRole('combobox', { name: 'Sort players' }))
+    const option = screen.getByRole('option', { name: 'Name' })
+    fireEvent.pointerDown(option, { pointerType: 'mouse', button: 0 })
+    fireEvent.click(option)
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).toEqual(['Player 1', 'Player 2', 'Player 3', 'Player 4', 'Player 5'])
   })
@@ -136,7 +149,7 @@ describe('DailyPlayerBrowser', () => {
   it('hides unavailable players when the toggle is on', () => {
     const getDisabledReason = (p: LivePlayer) => (p.id === '2' ? 'AAA used' : null)
     renderBrowser({ getDisabledReason })
-    fireEvent.click(screen.getByLabelText('Hide unavailable'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Hide unavailable' }))
     const names = screen.getAllByText(/^Player \d$/).map((el) => el.textContent)
     expect(names).not.toContain('Player 2')
     expect(names).toHaveLength(4)

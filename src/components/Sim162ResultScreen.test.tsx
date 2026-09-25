@@ -464,7 +464,7 @@ describe('Sim162ResultScreen — eliminated (missed playoffs)', () => {
       screen.getByText('70-92')
       screen.getByText('Missed the Playoffs')
       screen.getByText('Eliminated — missed the playoffs.')
-      screen.getByText('Draft better next time.')
+      screen.getByText('Change the roster and run the season again.')
       expect(screen.queryByText('World Series Champions!')).toBeNull()
     },
   )

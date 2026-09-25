@@ -13,6 +13,7 @@ import SeriesBroadcast from '@/components/SeriesBroadcast'
 import BoxScoreCard from '@/components/BoxScoreCard'
 import GameBoxScoreModal from '@/components/GameBoxScoreModal'
 import ShareResultPanel from '@/components/ShareResultPanel'
+import { GameMark } from '@/components/GameArt'
 import StandingsTable from '@/components/StandingsTable'
 import PlayoffBracket from '@/components/PlayoffBracket'
 import {
@@ -155,6 +156,7 @@ export default function Sim162ResultScreen({
         aria-labelledby="sim162-result-heading"
       >
         <CardHeader className="items-center text-center">
+          <GameMark kind="result" className="mb-1 size-8 text-primary/50" />
           <CardTitle
             id="sim162-result-heading"
             className="font-display text-xl text-primary"
@@ -192,12 +194,27 @@ export default function Sim162ResultScreen({
               World Series Champions!
             </p>
             <p className="text-sm text-muted-foreground">
-              Your roster took the title in {userRecord.wins}-
-              {userRecord.losses} and ran the postseason table.
+              You finished {userRecord.wins}-{userRecord.losses} and won the postseason.
             </p>
           </CardContent>
         </Card>
       )}
+
+      <Card className="mx-auto game-result-actions">
+        <CardContent className="space-y-4 pt-6">
+          <ShareResultPanel
+            shareUrl={shareUrl}
+            shareTitle={shareTitle}
+            shareText={shareText}
+            trackProps={{ record: `${userRecord.wins}-${userRecord.losses}` }}
+            restartLabel={readOnly ? 'Play your own' : 'Play again'}
+            onRestart={onRestart}
+            showLeaderboard
+          >
+            {!readOnly && submitSlot}
+          </ShareResultPanel>
+        </CardContent>
+      </Card>
 
       {marqueeGames.length > 0 && (
         <Card>
@@ -206,7 +223,7 @@ export default function Sim162ResultScreen({
               Marquee games
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              The moments that shaped the season. Tap to watch.
+              Watch the games that decided your season.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -302,8 +319,8 @@ export default function Sim162ResultScreen({
             Final standings
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Full league results from your simulated season. Numbers mark
-            playoff seeds.
+            Full league table from the simulated season. Seeded teams are
+            marked.
           </p>
         </CardHeader>
         <CardContent>
@@ -405,27 +422,11 @@ export default function Sim162ResultScreen({
               Eliminated — missed the playoffs.
             </p>
             <p className="text-sm text-muted-foreground">
-              Draft better next time.
+              Change the roster and run the season again.
             </p>
           </CardContent>
         </Card>
       )}
-
-      <Card className="mx-auto">
-        <CardContent className="space-y-4 pt-6">
-          <ShareResultPanel
-            shareUrl={shareUrl}
-            shareTitle={shareTitle}
-            shareText={shareText}
-            trackProps={{ record: `${userRecord.wins}-${userRecord.losses}` }}
-            restartLabel={readOnly ? 'Play your own' : 'Play again'}
-            onRestart={onRestart}
-            showLeaderboard
-          >
-            {!readOnly && submitSlot}
-          </ShareResultPanel>
-        </CardContent>
-      </Card>
 
       <GameBoxScoreModal
         title={
